@@ -1,0 +1,41 @@
+{
+  "_meta": { "locale": "hi", "namespace": "notifications" },
+  "notice": {
+    "composeTitle": "नई सूचना",
+    "composeCta": "नई सूचना",
+    "detailTitle": "सूचना",
+    "listTitle": "सूचनाएं",
+    "titleLabel": "शीर्षक",
+    "titlePlaceholder": "जैसे रविवार को पानी की आपूर्ति बंद",
+    "bodyLabel": "संदेश",
+    "bodyPlaceholder": "अपनी सोसायटी के साथ विवरण साझा करें…",
+    "attachLabel": "PDF या फ़ोटो संलग्न करें (वैकल्पिक)",
+    "attachmentPdf": "PDF",
+    "attachmentPhoto": "फ़ोटो",
+    "pollHint": "मतदान · {{count}} विकल्प",
+    "addPoll": "मतदान जोड़ें",
+    "postCta": "सूचना पोस्ट करें",
+    "posting": "पोस्ट हो रही है…",
+    "postSuccess": "सूचना पोस्ट कर दी गई।",
+    "postError": "सूचना पोस्ट नहीं हो सकी। कृपया फिर से प्रयास करें।",
+    "notAuthorized": "केवल बोर्ड सदस्य ही सूचनाएं पोस्ट कर सकते हैं।",
+    "attachError": "संलग्नक अपलोड विफल रहा। छोटी फ़ाइल चुनें या हटा दें।",
+    "attachTooLarge": "फ़ाइल बहुत बड़ी है (अधिकतम 10 MB)। छोटी फ़ाइल चुनें।",
+    "loadError": "सूचनाएं लोड नहीं हो सकीं",
+    "loadErrorBody": "अपना कनेक्शन जांचें और फिर से प्रयास करें।",
+    "emptyHeading": "अभी कोई सूचना नहीं",
+    "emptyBody": "सोसायटी की सूचनाएं यहां दिखाई देंगी।",
+    "emptyBodyBoard": "अपनी सोसायटी के लिए पहली सूचना पोस्ट करें।",
+    "postedBy": "{{name}} ({{flat}}) द्वारा पोस्ट किया गया",
+    "postedByAt": "{{name}} ({{flat}}) द्वारा {{time}} पर पोस्ट किया गया",
+    "openAttachment": "खोलने के लिए टैप करें"
+  },
+  "push": {
+    "body": {
+      "notice": "New notice in your society",
+      "poll": "New poll in your society",
+      "bookingApproved": "Your booking was approved",
+      "bookingUpdate": "There's an update on your booking"
+    }
+  }
+}

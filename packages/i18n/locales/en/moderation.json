@@ -1,0 +1,46 @@
+{
+  "_meta": { "locale": "en", "namespace": "moderation" },
+  "moderation": {
+    "title": "Moderation",
+    "tabReview": "To review",
+    "tabAudit": "Audit log",
+    "reportCount": "{{n}} reports",
+    "reportedFor": "Reported for: {{reasons}}",
+    "kindPost": "Post",
+    "kindComment": "Comment",
+    "restoreCta": "Restore",
+    "restoreConfirm": "Restore this content to the feed?",
+    "restoreSuccess": "Restored.",
+    "restoreError": "Couldn't restore. Please try again.",
+    "takedownCta": "Confirm takedown",
+    "takedownConfirm": "Take this content down permanently? This can't be undone.",
+    "takedownSuccess": "Taken down.",
+    "takedownError": "Couldn't take it down. Please try again.",
+    "eventReport": "Reported",
+    "eventTakedown": "Taken down",
+    "eventRestore": "Restored",
+    "eventBy": "By {{actor}} ({{flat}}) · {{time}}",
+    "eventTarget": "{{target}} · {{reason}}",
+    "emptyHeading": "Nothing to review",
+    "emptyBody": "Reported posts and comments will appear here.",
+    "auditEmpty": "No moderation events yet."
+  },
+  "grievance": {
+    "settingsTitle": "Grievance Officer",
+    "settingsIntro": "Your society's Grievance Officer is shown to members in About & Help, as required by India's IT Rules 2021.",
+    "nameLabel": "Officer name",
+    "namePlaceholder": "e.g. Amit Sharma",
+    "contactLabel": "Contact (email or phone)",
+    "contactPlaceholder": "officer@society.in or 98765 43210",
+    "defaultHint": "Defaults to you (Secretary) until you set someone else.",
+    "saveCta": "Save",
+    "saveSuccess": "Saved.",
+    "saveError": "Couldn't save. Check your connection.",
+    "cardLabel": "Grievance Officer",
+    "cardNote": "Appointed under India's IT Rules 2021 to handle complaints about content in this society's community feed.",
+    "menuRow": "Grievance Officer"
+  },
+  "about": {
+    "title": "About & Help"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@parisar/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./runtime": "./src/create-instance.js",
+    "./namespaces": "./src/namespaces.js",
+    "./backend": "./src/backend.js",
+    "./locales/en.json": "./locales/en.json",
+    "./locales/hi.json": "./locales/hi.json",
+    "./locales/mr.json": "./locales/mr.json",
+    "./locales/en/complaints.json": "./locales/en/complaints.json",
+    "./locales/hi/complaints.json": "./locales/hi/complaints.json",
+    "./locales/mr/complaints.json": "./locales/mr/complaints.json",
+    "./locales/en/dashboard.json": "./locales/en/dashboard.json",
+    "./locales/hi/dashboard.json": "./locales/hi/dashboard.json",
+    "./locales/mr/dashboard.json": "./locales/mr/dashboard.json",
+    "./locales/en/notifications.json": "./locales/en/notifications.json",
+    "./locales/hi/notifications.json": "./locales/hi/notifications.json",
+    "./locales/mr/notifications.json": "./locales/mr/notifications.json",
+    "./locales/en/polls.json": "./locales/en/polls.json",
+    "./locales/hi/polls.json": "./locales/hi/polls.json",
+    "./locales/mr/polls.json": "./locales/mr/polls.json",
+    "./locales/en/bookings.json": "./locales/en/bookings.json",
+    "./locales/hi/bookings.json": "./locales/hi/bookings.json",
+    "./locales/mr/bookings.json": "./locales/mr/bookings.json",
+    "./locales/en/preferences.json": "./locales/en/preferences.json",
+    "./locales/hi/preferences.json": "./locales/hi/preferences.json",
+    "./locales/mr/preferences.json": "./locales/mr/preferences.json",
+    "./locales/en/flat-actions.json": "./locales/en/flat-actions.json",
+    "./locales/hi/flat-actions.json": "./locales/hi/flat-actions.json",
+    "./locales/mr/flat-actions.json": "./locales/mr/flat-actions.json",
+    "./locales/en/community.json": "./locales/en/community.json",
+    "./locales/hi/community.json": "./locales/hi/community.json",
+    "./locales/mr/community.json": "./locales/mr/community.json",
+    "./locales/en/moderation.json": "./locales/en/moderation.json",
+    "./locales/hi/moderation.json": "./locales/hi/moderation.json",
+    "./locales/mr/moderation.json": "./locales/mr/moderation.json"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "i18next": "26.3.0",
+    "react-i18next": "17.0.8",
+    "i18next-resources-to-backend": "1.2.1"
+  },
+  "devDependencies": {
+    "vitest": "2.1.8",
+    "@vitest/coverage-v8": "2.1.8"
+  }
+}

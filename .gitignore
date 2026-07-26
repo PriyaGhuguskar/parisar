@@ -1,5 +1,6 @@
 # GSD planning docs (local-only per project config)
 .planning/
+.tmp-execution/
 
 # Node / package managers
 node_modules/
@@ -51,3 +52,17 @@ android/build/
 
 # Supabase
 .supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/seed-cache/
+
+# Turborepo
+.turbo/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# packages/shared-types/src/database.types.ts is intentionally NOT gitignored (B-01 fix, Plan 03).
+# The file is committed to git and tracked alongside migrations.
+# (This project is plain JavaScript — the file is a JS stub, not TS codegen output.)
+.next-build/

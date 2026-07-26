@@ -1,0 +1,2 @@
+[functions.booking-ack-fanout]
+verify_jwt = false

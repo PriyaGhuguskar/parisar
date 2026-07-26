@@ -1,0 +1,7 @@
+# flat-action-fanout is invoked by a Postgres trigger (notify_push_on_flat_action)
+# via net.http_post with the x-push-trigger sentinel header — NOT by an end-user
+# JWT. verify_jwt = false matches the other push fan-out functions
+# (notification-fanout / booking-ack-fanout / push-fanout); the function's own
+# isAuthorized() gate (sentinel OR service-role Bearer) is the access control.
+[functions.flat-action-fanout]
+verify_jwt = false

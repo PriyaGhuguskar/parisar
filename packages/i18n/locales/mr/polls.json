@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "locale": "mr",
+    "namespace": "polls"
+  },
+  "poll": {
+    "listTitle": "मतदान",
+    "questionLabel": "मतदान प्रश्न",
+    "questionPlaceholder": "तुम्हाला काय विचारायचे आहे?",
+    "optionPlaceholder": "पर्याय {{n}}",
+    "addOption": "पर्याय जोडा",
+    "removePoll": "मतदान काढा",
+    "castHeading": "तुमचे मत द्या",
+    "resultsHeading": "निकाल",
+    "statusOpen": "खुले",
+    "statusClosed": "बंद",
+    "voteCta": "मत द्या",
+    "voting": "सबमिट होत आहे…",
+    "voteSuccess": "मत नोंदवले.",
+    "voteError": "तुमचे मत नोंदवता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+    "changeVote": "मत बदला",
+    "updateVote": "मत अपडेट करा",
+    "closePoll": "मतदान बंद करा",
+    "closeConfirm": "हे मतदान बंद करायचे? सदस्य यापुढे मत देऊ शकणार नाहीत.",
+    "closedNoVote": "मतदान बंद झाले",
+    "tallyValue": "{{percent}}% ({{count}})",
+    "totalVotes": "{{total}} मते",
+    "yourVote": "तुमचे मत",
+    "emptyHeading": "अद्याप कोणतेही मतदान नाही",
+    "emptyBody": "तुमच्या बोर्डाने पोस्ट केलेले मतदान येथे दिसेल.",
+    "closeError": "पोल बंद करता आले नाही. कृपया पुन्हा प्रयत्न करा."
+  }
+}

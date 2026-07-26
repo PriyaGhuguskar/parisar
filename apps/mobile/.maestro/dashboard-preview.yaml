@@ -1,0 +1,30 @@
+# Phase 7 DASH-03 — Maestro E2E asserting the dashboard preview block renders.
+#
+# Plan reference: 07-10-PLAN.md Task 1.
+#
+# Prerequisites:
+#   - Maestro CLI installed locally: curl -Ls "https://get.maestro.mobile.dev" | bash
+#   - Dev build installed on the target emulator / device, signed in as a
+#     member with at least one own complaint already filed (so the My Complaints
+#     tile has a non-empty previews array OR resolves the empty-state copy).
+#
+# Run:
+#   maestro test apps/mobile/.maestro/dashboard-preview.yaml
+#
+# Coverage:
+#   - Home dashboard mounts, fetches get_dashboard_summary() (Plan 07-07).
+#   - DashboardTilePreview transitions out of the loading skeleton (Plan 07-07
+#     loading-state contract) — preview-skeleton-1 must NOT be visible once the
+#     summary resolves.
+#   - The My Complaints tile label renders (proves the row layout did not break
+#     while the previewNode slot was wired in).
+appId: app.parisar.mobile
+---
+- launchApp
+- assertVisible: "My Complaints"   # Tile label rendered
+# Preview block should render either a real preview row or the empty-state
+# line ("All clear" in en). What we can deterministically assert is the ABSENCE
+# of the loading skeleton (testID="preview-skeleton-1") after the summary
+# resolves — proving the fetch path ran end-to-end.
+- assertNotVisible:
+    id: "preview-skeleton-1"

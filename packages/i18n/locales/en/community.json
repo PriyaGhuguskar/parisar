@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "locale": "en",
+    "namespace": "community"
+  },
+  "community": {
+    "feedTitle": "Community",
+    "newPostCta": "New Post",
+    "composeTitle": "New Post",
+    "detailTitle": "Post",
+    "typeLabel": "Type",
+    "typeSell": "Sell",
+    "typeHelp": "Ask for help",
+    "typeGeneral": "General",
+    "textLabel": "What's on your mind?",
+    "textPlaceholder": "Share details with your neighbours…",
+    "photosLabel": "Add photos (up to 4)",
+    "imgUploading": "Uploading…",
+    "imgChecking": "Checking image…",
+    "imgRejected": "This image can't be used. Please remove it and choose another.",
+    "imgUploadError": "Photo upload failed. Try again or remove it.",
+    "imgCheckError": "Couldn't verify your image. Please try again.",
+    "postCta": "Post",
+    "posting": "Posting…",
+    "postSuccess": "Posted.",
+    "postError": "Couldn't post. Please try again.",
+    "postedBy": "Posted by {{name}} ({{flat}})",
+    "postedByAt": "Posted by {{name}} ({{flat}}) at {{time}}",
+    "commentCount": "{{n}} comments",
+    "commentsHeading": "Comments",
+    "commentBy": "{{name}} ({{flat}}) · {{age}}",
+    "commentPlaceholder": "Add a comment…",
+    "commentSend": "Send",
+    "commentSuccess": "Comment added.",
+    "commentError": "Couldn't add your comment. Please try again.",
+    "commentsEmpty": "No comments yet. Start the conversation.",
+    "deleteConfirm": "Delete this post?",
+    "deleteCommentConfirm": "Delete this comment?",
+    "reportTitle": "Report this {{target}}",
+    "reportSubhead": "Tell us why. Reported content is hidden right away while the Secretary reviews it.",
+    "reportNotePlaceholder": "Add a note (optional)",
+    "reportConfirm": "Report",
+    "reportSuccess": "Reported.",
+    "reportError": "Couldn't report. Please try again.",
+    "hiddenPending": "Hidden, pending review. Thanks for letting us know.",
+    "reason": {
+      "spam": "Spam or scam",
+      "harassment": "Harassment or abuse",
+      "inappropriate": "Inappropriate or unsafe content",
+      "misinfo": "False or misleading",
+      "other": "Something else"
+    },
+    "targetPost": "post",
+    "targetComment": "comment",
+    "emptyHeading": "Be the first to post",
+    "emptyBody": "Share something with your society — sell an item, ask for help, or say hello.",
+    "loadError": "Couldn't load the feed",
+    "push": {
+      "body": "New post in your community"
+    },
+    "deleteError": "Couldn't delete. Please try again."
+  }
+}

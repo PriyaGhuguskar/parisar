@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "locale": "hi",
+    "namespace": "community"
+  },
+  "community": {
+    "feedTitle": "समुदाय",
+    "newPostCta": "नई पोस्ट",
+    "composeTitle": "नई पोस्ट",
+    "detailTitle": "पोस्ट",
+    "typeLabel": "प्रकार",
+    "typeSell": "बेचें",
+    "typeHelp": "मदद मांगें",
+    "typeGeneral": "सामान्य",
+    "textLabel": "आपके मन में क्या है?",
+    "textPlaceholder": "अपने पड़ोसियों के साथ विवरण साझा करें…",
+    "photosLabel": "फ़ोटो जोड़ें (अधिकतम 4)",
+    "imgUploading": "अपलोड हो रहा है…",
+    "imgChecking": "छवि जांची जा रही है…",
+    "imgRejected": "यह छवि उपयोग नहीं की जा सकती। कृपया इसे हटाएं और दूसरी चुनें।",
+    "imgUploadError": "फ़ोटो अपलोड विफल रहा। फिर से प्रयास करें या इसे हटाएं।",
+    "imgCheckError": "आपकी छवि सत्यापित नहीं हो सकी। कृपया फिर से प्रयास करें।",
+    "postCta": "पोस्ट करें",
+    "posting": "पोस्ट हो रहा है…",
+    "postSuccess": "पोस्ट किया गया।",
+    "postError": "पोस्ट नहीं हो सका। कृपया फिर से प्रयास करें।",
+    "postedBy": "{{name}} ({{flat}}) द्वारा पोस्ट किया गया",
+    "postedByAt": "{{name}} ({{flat}}) द्वारा {{time}} पर पोस्ट किया गया",
+    "commentCount": "{{n}} टिप्पणियां",
+    "commentsHeading": "टिप्पणियां",
+    "commentBy": "{{name}} ({{flat}}) · {{age}}",
+    "commentPlaceholder": "एक टिप्पणी जोड़ें…",
+    "commentSend": "भेजें",
+    "commentSuccess": "टिप्पणी जोड़ी गई।",
+    "commentError": "आपकी टिप्पणी नहीं जुड़ सकी। कृपया फिर से प्रयास करें।",
+    "commentsEmpty": "अभी तक कोई टिप्पणी नहीं। बातचीत शुरू करें।",
+    "deleteConfirm": "इस पोस्ट को हटाएं?",
+    "deleteCommentConfirm": "इस टिप्पणी को हटाएं?",
+    "reportTitle": "इस {{target}} की रिपोर्ट करें",
+    "reportSubhead": "हमें बताएं क्यों। रिपोर्ट की गई सामग्री समीक्षा के दौरान तुरंत छिपा दी जाती है।",
+    "reportNotePlaceholder": "एक नोट जोड़ें (वैकल्पिक)",
+    "reportConfirm": "रिपोर्ट करें",
+    "reportSuccess": "रिपोर्ट की गई।",
+    "reportError": "रिपोर्ट नहीं हो सकी। कृपया फिर से प्रयास करें।",
+    "hiddenPending": "छिपाया गया, समीक्षा लंबित है। बताने के लिए धन्यवाद।",
+    "reason": {
+      "spam": "स्पैम या धोखाधड़ी",
+      "harassment": "उत्पीड़न या दुर्व्यवहार",
+      "inappropriate": "अनुचित या असुरक्षित सामग्री",
+      "misinfo": "गलत या भ्रामक",
+      "other": "कुछ और"
+    },
+    "targetPost": "पोस्ट",
+    "targetComment": "टिप्पणी",
+    "emptyHeading": "पोस्ट करने वाले पहले व्यक्ति बनें",
+    "emptyBody": "अपनी सोसायटी के साथ कुछ साझा करें — कोई वस्तु बेचें, मदद मांगें, या नमस्ते कहें।",
+    "loadError": "फ़ीड लोड नहीं हो सकी",
+    "push": {
+      "body": "New post in your community"
+    },
+    "deleteError": "हटाया नहीं जा सका। कृपया पुनः प्रयास करें।"
+  }
+}

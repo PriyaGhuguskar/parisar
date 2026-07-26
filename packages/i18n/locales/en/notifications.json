@@ -1,0 +1,41 @@
+{
+  "_meta": { "locale": "en", "namespace": "notifications" },
+  "notice": {
+    "composeTitle": "New Notice",
+    "composeCta": "New Notice",
+    "detailTitle": "Notice",
+    "listTitle": "Notices",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. Water supply interruption Sunday",
+    "bodyLabel": "Message",
+    "bodyPlaceholder": "Share the details with your society…",
+    "attachLabel": "Attach PDF or photo (optional)",
+    "attachmentPdf": "PDF",
+    "attachmentPhoto": "Photo",
+    "pollHint": "Poll · {{count}} options",
+    "addPoll": "Add a poll",
+    "postCta": "Post Notice",
+    "posting": "Posting…",
+    "postSuccess": "Notice posted.",
+    "postError": "Couldn't post the notice. Please try again.",
+    "notAuthorized": "Only board members can post notices.",
+    "attachError": "Attachment upload failed. Try a smaller file or remove it.",
+    "attachTooLarge": "File too large (max 10 MB). Choose a smaller file.",
+    "loadError": "Couldn't load notices",
+    "loadErrorBody": "Check your connection and try again.",
+    "emptyHeading": "No notices yet",
+    "emptyBody": "Society notices will appear here.",
+    "emptyBodyBoard": "Post the first notice for your society.",
+    "postedBy": "Posted by {{name}} ({{flat}})",
+    "postedByAt": "Posted by {{name}} ({{flat}}) at {{time}}",
+    "openAttachment": "Tap to open"
+  },
+  "push": {
+    "body": {
+      "notice": "New notice in your society",
+      "poll": "New poll in your society",
+      "bookingApproved": "Your booking was approved",
+      "bookingUpdate": "There's an update on your booking"
+    }
+  }
+}

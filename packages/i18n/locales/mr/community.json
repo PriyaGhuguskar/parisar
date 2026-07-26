@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "locale": "mr",
+    "namespace": "community"
+  },
+  "community": {
+    "feedTitle": "समुदाय",
+    "newPostCta": "नवीन पोस्ट",
+    "composeTitle": "नवीन पोस्ट",
+    "detailTitle": "पोस्ट",
+    "typeLabel": "प्रकार",
+    "typeSell": "विक्री",
+    "typeHelp": "मदत मागा",
+    "typeGeneral": "सामान्य",
+    "textLabel": "तुमच्या मनात काय आहे?",
+    "textPlaceholder": "तुमच्या शेजाऱ्यांसोबत तपशील शेअर करा…",
+    "photosLabel": "फोटो जोडा (कमाल 4)",
+    "imgUploading": "अपलोड होत आहे…",
+    "imgChecking": "प्रतिमा तपासत आहे…",
+    "imgRejected": "ही प्रतिमा वापरता येणार नाही. कृपया ती काढा आणि दुसरी निवडा.",
+    "imgUploadError": "फोटो अपलोड अयशस्वी झाले. पुन्हा प्रयत्न करा किंवा तो काढा.",
+    "imgCheckError": "तुमची प्रतिमा सत्यापित करता आली नाही. कृपया पुन्हा प्रयत्न करा.",
+    "postCta": "पोस्ट करा",
+    "posting": "पोस्ट होत आहे…",
+    "postSuccess": "पोस्ट केले.",
+    "postError": "पोस्ट करता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+    "postedBy": "{{name}} ({{flat}}) यांनी पोस्ट केले",
+    "postedByAt": "{{name}} ({{flat}}) यांनी {{time}} वाजता पोस्ट केले",
+    "commentCount": "{{n}} प्रतिक्रिया",
+    "commentsHeading": "प्रतिक्रिया",
+    "commentBy": "{{name}} ({{flat}}) · {{age}}",
+    "commentPlaceholder": "प्रतिक्रिया जोडा…",
+    "commentSend": "पाठवा",
+    "commentSuccess": "प्रतिक्रिया जोडली.",
+    "commentError": "तुमची प्रतिक्रिया जोडता आली नाही. कृपया पुन्हा प्रयत्न करा.",
+    "commentsEmpty": "अद्याप कोणतीही प्रतिक्रिया नाही. संभाषण सुरू करा.",
+    "deleteConfirm": "ही पोस्ट हटवायची?",
+    "deleteCommentConfirm": "ही प्रतिक्रिया हटवायची?",
+    "reportTitle": "या {{target}} ची तक्रार करा",
+    "reportSubhead": "आम्हाला कारण सांगा. तक्रार केलेली सामग्री पुनरावलोकनादरम्यान लगेच लपवली जाते.",
+    "reportNotePlaceholder": "एक टीप जोडा (ऐच्छिक)",
+    "reportConfirm": "तक्रार करा",
+    "reportSuccess": "तक्रार केली.",
+    "reportError": "तक्रार करता आली नाही. कृपया पुन्हा प्रयत्न करा.",
+    "hiddenPending": "लपवले, पुनरावलोकन प्रलंबित आहे. कळवल्याबद्दल धन्यवाद.",
+    "reason": {
+      "spam": "स्पॅम किंवा फसवणूक",
+      "harassment": "छळ किंवा गैरवर्तन",
+      "inappropriate": "अयोग्य किंवा असुरक्षित सामग्री",
+      "misinfo": "चुकीचे किंवा दिशाभूल करणारे",
+      "other": "इतर काहीतरी"
+    },
+    "targetPost": "पोस्ट",
+    "targetComment": "प्रतिक्रिया",
+    "emptyHeading": "पोस्ट करणारे पहिले व्हा",
+    "emptyBody": "तुमच्या सोसायटीसोबत काहीतरी शेअर करा — एखादी वस्तू विका, मदत मागा, किंवा नमस्कार म्हणा.",
+    "loadError": "फीड लोड करता आली नाही",
+    "push": {
+      "body": "New post in your community"
+    },
+    "deleteError": "हटवता आले नाही. कृपया पुन्हा प्रयत्न करा."
+  }
+}

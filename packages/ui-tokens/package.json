@@ -1,0 +1,13 @@
+{
+  "name": "@parisar/ui-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "lint": "biome check ."
+  }
+}

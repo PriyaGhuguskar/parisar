@@ -1,0 +1,564 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+
+  :root {
+    --color-brand-50:  #DCEFE6;
+    --color-brand-500: #12715A;
+    --color-brand-600: #0E5A48;
+    --color-brand-700: #0A4436;
+
+    --color-neutral-0:   #ffffff;
+    --color-neutral-50:  #FFFDF9;
+    --color-neutral-100: #EEF6F0;
+    --color-neutral-200: #DDE9E0;
+    --color-neutral-400: #627368;
+    --color-neutral-600: #4A5C50;
+    --color-neutral-900: #12261C;
+
+    --color-success: #12715A;
+    --color-warning: #B25107;
+    --color-danger:  #C0341B;
+
+    /* Scale aliases that 9 files already referenced but which were never
+       defined — so every setup-form validation error rendered with NO colour,
+       making a failed field look identical to a passing one. Verified AA:
+       danger 5.51:1, neutral-700 10.33:1, warning 5.07:1 on the app ground. */
+    --color-danger-500:  #C0341B;
+    --color-warning-500: #B25107;
+    --color-neutral-300: #C2D5C8; /* decorative borders only — never text */
+    --color-neutral-700: #2E4438;
+    --color-brand-200:   #A8D8C4; /* decorative borders only — never text */
+
+    /* Phase 3 semantic alias — pending_review status */
+    --color-pending: var(--color-warning);
+    --pending:       var(--color-warning);
+    --pending-foreground: var(--color-neutral-0);
+
+    /* shadcn semantic aliases for auth screens */
+    --background:     var(--color-neutral-50);
+    --foreground:     var(--color-neutral-900);
+    --card:           var(--color-neutral-0);
+    --card-foreground: var(--color-neutral-900);
+    --primary:        var(--color-brand-500);
+    --primary-foreground: var(--color-neutral-0);
+    --muted:          var(--color-neutral-100);
+    --muted-foreground: var(--color-neutral-600);
+    --border:         var(--color-neutral-200);
+    --input:          var(--color-neutral-200);
+    --destructive:    var(--color-danger);
+    --destructive-foreground: var(--color-neutral-0);
+    --ring:           var(--color-brand-500);
+
+    --font-sans: var(--font-noto-sans), var(--font-noto-devanagari), sans-serif;
+
+    /* Phase 4 — complaint status semantic aliases (04-UI-SPEC.md) */
+    --color-checking:  var(--color-brand-500);
+    --color-resolved:  var(--color-success);
+    --color-need-info: var(--color-warning);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.otp-error { animation: shake 300ms ease-in-out; }
+
+/* Phase 4 — Realtime INSERT slide-in animation for ComplaintListClient */
+@keyframes slideDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+.animate-slide-down {
+  animation: slideDown 250ms ease-out;
+}
+
+/* Landing page — the hero's single orchestrated moment: the attribution trail
+   writes itself on load (Filed → Checking → Resolved), which IS the product's
+   thesis. Deliberately the only animation on the page; the reduced-motion block
+   below neutralises it. */
+@keyframes trailStamp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.trail-row {
+  opacity: 0;
+  animation: trailStamp 420ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trail-row { opacity: 1; animation: none; }
+}
+
+/* PAR-070 — honor prefers-reduced-motion: users who request reduced motion get
+   near-instant, non-animated transitions (the shake/slide/spin no longer play). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* ============================================================================
+   PARISAR LANDING — DESIGN SYSTEM v3 (warm)
+   ----------------------------------------------------------------------------
+   Brief: "warm and modern", "friendly tone", for a gated-society app where
+   neighbours pass information, help each other and raise issues.
+
+   Warmth has an obvious trap — cream ground + serif display + terracotta accent
+   is a look that now appears on every third page regardless of subject. The
+   warmth here instead comes from a marigold/vermillion primary (a colour with
+   real presence in Indian festival life) on a warm off-white, held in balance by
+   a teal counterweight so the page never reads as monochrome orange. The type
+   stays a modern geometric sans and the layout stays contemporary, so "warm"
+   lands as friendly rather than nostalgic.
+
+   Every pair verified >= WCAG AA in both modes. --pk-muted is #81695A rather
+   than a lighter warm grey because anything lighter failed on the tint band.
+   ========================================================================== */
+@layer base {
+  :root {
+    --pk-font: var(--font-manrope), var(--font-noto-devanagari), system-ui, sans-serif;
+    --pk-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+    /* surfaces — warm off-white, never pure grey */
+    --pk-page:#FFFDF9; --pk-tint:#EEF6F0; --pk-card:#FFFFFF; --pk-rule:#DDE9E0;
+    --pk-theatre:#12261C; --pk-theatre-card:#1D3A2C;
+
+    /* text */
+    --pk-ink:#12261C;    /* 16.32:1 on page */
+    --pk-body:#4A5C50;   /*  6.98:1 on page */
+    --pk-muted:#627368;  /*  5.01:1 on page · 4.65:1 on tint */
+    --pk-on-dark:#EDF7F1; --pk-on-dark-body:#AFC8B9;
+
+    /* brand */
+    --pk-primary:#12715A;        /* marigold vermillion · 5.07:1 · white-on 5.18:1 */
+    --pk-primary-hover:#0E5A48;
+    --pk-primary-soft:#DCEFE6;
+    --pk-accent:#B25107;         /* teal counterweight · 5.00:1 */
+    --pk-accent-soft:#FDF0DF;
+    --pk-on-primary:#FFFFFF;
+
+    --pk-ok:#12715A; --pk-warn:#B25107; --pk-err:#C0341B;
+
+    /* 8px grid */
+    --pk-1:4px;  --pk-2:8px;  --pk-3:12px; --pk-4:16px; --pk-5:24px; --pk-6:32px;
+    --pk-7:40px; --pk-8:48px; --pk-9:64px; --pk-10:80px; --pk-11:96px; --pk-12:128px;
+
+    /* type scale — 1.25 modular, 16px base, fluid display sizes */
+    --pk-text-xs:.75rem; --pk-text-sm:.875rem; --pk-text-md:1rem;
+    --pk-text-lg:1.125rem; --pk-text-xl:1.25rem;
+    --pk-text-2xl:clamp(1.5rem, calc(1.2rem + 1.2vw), 1.875rem);
+    --pk-text-3xl:clamp(1.875rem, calc(1.4rem + 2.2vw), 2.5rem);
+    --pk-text-4xl:clamp(2.5rem, calc(1.6rem + 4.4vw), 4rem);
+
+    --pk-r-sm:8px; --pk-r-md:12px; --pk-r-lg:16px; --pk-r-xl:20px; --pk-r-2xl:28px;
+
+    /* elevation — tinted warm, never neutral grey over a warm ground */
+    --pk-shadow-sm:0 1px 2px rgba(18,38,28,.05);
+    --pk-shadow-md:0 4px 12px -4px rgba(18,38,28,.12), 0 2px 4px rgba(18,38,28,.05);
+    --pk-shadow-lg:0 24px 48px -20px rgba(18,38,28,.26), 0 4px 12px rgba(18,38,28,.07);
+    --pk-shadow-primary:0 12px 32px -12px rgba(18,113,90,.45);
+
+    --pk-ease:cubic-bezier(.2,.7,.3,1); --pk-fast:140ms; --pk-base:260ms;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --pk-page:#0D1A14; --pk-tint:#12241B; --pk-card:#16291F; --pk-rule:#274034;
+      --pk-theatre:#08120D; --pk-theatre-card:#16291F;
+      --pk-ink:#EDF5EF; --pk-body:#A9BFB2; --pk-muted:#8CA396;
+      --pk-primary:#5FCFA6; --pk-primary-hover:#7FDFBB; --pk-primary-soft:#12332A;
+      --pk-accent:#F0B45E; --pk-accent-soft:#2C2214; --pk-on-primary:#0D1A14;
+      --pk-shadow-sm:0 1px 2px rgba(0,0,0,.4);
+      --pk-shadow-md:0 4px 12px -4px rgba(0,0,0,.5);
+      --pk-shadow-lg:0 24px 48px -20px rgba(0,0,0,.7);
+      --pk-shadow-primary:0 12px 32px -12px rgba(95,207,166,.34);
+    }
+  }
+  :root[data-theme="dark"], .dark:root {
+    --pk-page:#0D1A14; --pk-tint:#12241B; --pk-card:#16291F; --pk-rule:#274034;
+    --pk-theatre:#08120D; --pk-theatre-card:#16291F;
+    --pk-ink:#EDF5EF; --pk-body:#A9BFB2; --pk-muted:#8CA396;
+    --pk-primary:#5FCFA6; --pk-primary-hover:#7FDFBB; --pk-primary-soft:#12332A;
+    --pk-accent:#F0B45E; --pk-accent-soft:#2C2214; --pk-on-primary:#0D1A14;
+  }
+}
+
+.pk-nav{position:sticky;top:0;z-index:50;background:var(--pk-page);
+  transition:box-shadow var(--pk-base) var(--pk-ease)}
+@supports (backdrop-filter: blur(14px)){
+  .pk-nav{background:color-mix(in srgb,var(--pk-page) 80%,transparent);backdrop-filter:blur(14px) saturate(1.35)}
+}
+
+/* Hero ground — warm dusk. Photography reads luminous against it, and it is the
+   one place the brand colour can run at full saturation without fighting copy. */
+.pk-hero{position:relative;
+  background:
+    radial-gradient(1100px 640px at 10% -12%, rgba(18,113,90,.72), transparent 62%),
+    radial-gradient(860px 540px at 90% 6%,  rgba(178,81,7,.26), transparent 60%),
+    linear-gradient(168deg,#144534 0%,#123227 48%,#12261C 100%);
+}
+/* A hair of grain so the large gradient does not band on 8-bit panels. */
+.pk-hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E")}
+
+.pk-glass{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
+@supports (backdrop-filter: blur(16px)){.pk-glass{backdrop-filter:blur(16px) saturate(1.3)}}
+
+/* Scroll reveal — scroll-driven timeline, zero JavaScript. Unsupported browsers
+   render content visible immediately: no observer, no bundle, no layout shift. */
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion: no-preference){
+    .pk-reveal{animation:pkReveal linear both;animation-timeline:view();animation-range:entry 4% cover 24%}
+  }
+}
+@keyframes pkReveal{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* Transform-only interactions so hovers stay on the compositor. */
+.pk-card-i{transition:transform var(--pk-base) var(--pk-ease),box-shadow var(--pk-base) var(--pk-ease),border-color var(--pk-base) var(--pk-ease)}
+.pk-card-i:hover{transform:translateY(-4px);box-shadow:var(--pk-shadow-lg);
+  border-color:color-mix(in srgb,var(--pk-primary) 34%,var(--pk-rule))}
+.pk-press{transition:transform var(--pk-fast) var(--pk-ease),background-color var(--pk-fast) var(--pk-ease),box-shadow var(--pk-fast) var(--pk-ease)}
+.pk-press:active{transform:translateY(1px) scale(.985)}
+@media (prefers-reduced-motion: reduce){.pk-card-i:hover,.pk-press:active{transform:none}}
+
+@keyframes pkRowIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.pk-row{opacity:0;animation:pkRowIn 380ms var(--pk-ease) forwards}
+@media (prefers-reduced-motion: reduce){.pk-row{opacity:1;animation:none}}
+
+@keyframes pkExpand{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.pk-expand{animation:pkExpand 200ms var(--pk-ease)}
+
+/* ============================================================================
+   MOTION LAYER
+   ----------------------------------------------------------------------------
+   The page read as static: one scroll-reveal and a hover lift. What follows is
+   an orchestrated set rather than scattered effects — a load sequence, ambient
+   drift, scroll-linked depth, and hover states that respond rather than just
+   change colour.
+
+   Almost all of it is scroll-driven CSS (animation-timeline), so it costs ZERO
+   JavaScript and degrades to a fully visible static page where unsupported.
+   Everything is transform/opacity only, so it stays on the compositor and never
+   triggers layout. The reduced-motion block at the end disables the lot.
+   ========================================================================== */
+
+/* --- 1. load sequence. Set --d per element to stagger. -------------------- */
+@keyframes pkIn { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:none } }
+.pk-in { opacity:0; animation:pkIn .72s var(--pk-ease) forwards; animation-delay:var(--d,0ms) }
+
+/* --- 2. ambient drift. The hero aurora breathes very slowly; at 26s it reads
+       as atmosphere rather than as something moving. ----------------------- */
+@keyframes pkDrift {
+  0%   { transform:translate3d(0,0,0) scale(1) }
+  50%  { transform:translate3d(3%,2%,0) scale(1.07) }
+  100% { transform:translate3d(0,0,0) scale(1) }
+}
+.pk-hero::before {
+  content:""; position:absolute; inset:-18%; pointer-events:none;
+  background:
+    radial-gradient(620px 420px at 22% 18%, rgba(95,207,166,.20), transparent 66%),
+    radial-gradient(520px 380px at 78% 30%, rgba(240,180,94,.14), transparent 64%);
+  animation:pkDrift 26s ease-in-out infinite;
+}
+
+/* --- 3. scroll progress rail — zero JS, driven by the document scroll. ---- */
+.pk-progress {
+  position:fixed; inset:0 0 auto 0; height:3px; z-index:60; transform-origin:0 50%;
+  transform:scaleX(0);
+  background:linear-gradient(90deg,var(--pk-primary),var(--pk-accent));
+}
+@supports (animation-timeline: scroll()) {
+  .pk-progress { animation:pkProgress linear both; animation-timeline:scroll(root); }
+}
+@keyframes pkProgress { from { transform:scaleX(0) } to { transform:scaleX(1) } }
+
+/* --- 4. scroll-linked parallax. Two speeds so the collage columns separate
+       slightly as the hero leaves — depth without a library. --------------- */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .pk-par-a { animation:pkParA linear both; animation-timeline:view(); animation-range:cover }
+    .pk-par-b { animation:pkParB linear both; animation-timeline:view(); animation-range:cover }
+  }
+}
+@keyframes pkParA { from { transform:translateY(26px) }  to { transform:translateY(-26px) } }
+@keyframes pkParB { from { transform:translateY(52px) }  to { transform:translateY(-14px) } }
+
+/* --- 5. button shine. One pass on hover, not a loop — a loop reads as a
+       banner ad. --------------------------------------------------------- */
+.pk-shine { position:relative; overflow:hidden; isolation:isolate }
+.pk-shine::after {
+  content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
+  transform:translateX(-130%);
+  background:linear-gradient(105deg,transparent 32%,rgba(255,255,255,.34) 50%,transparent 68%);
+}
+.pk-shine:hover::after, .pk-shine:focus-visible::after {
+  transform:translateX(130%); transition:transform .78s var(--pk-ease);
+}
+
+/* --- 6. tile hover: lift plus a soft brand glow that reads as "live". ----- */
+.pk-tile {
+  transition: transform var(--pk-base) var(--pk-ease),
+              box-shadow var(--pk-base) var(--pk-ease),
+              border-color var(--pk-base) var(--pk-ease);
+}
+.pk-tile:hover {
+  transform:translateY(-6px);
+  border-color:color-mix(in srgb, var(--pk-primary) 42%, var(--pk-rule));
+  box-shadow:0 22px 44px -22px color-mix(in srgb, var(--pk-primary) 55%, transparent),
+             var(--pk-shadow-md);
+}
+/* The icon well answers the hover too, so the whole card feels connected. */
+.pk-tile .pk-well { transition:transform var(--pk-base) var(--pk-ease), background-color var(--pk-base) var(--pk-ease) }
+.pk-tile:hover .pk-well { transform:scale(1.08) rotate(-4deg) }
+
+/* --- 7. staggered grid reveal. Children animate in sequence as the grid
+       enters, instead of the whole block appearing at once. --------------- */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .pk-stagger > * {
+      animation:pkIn .6s var(--pk-ease) both;
+      animation-timeline:view();
+      animation-range:entry 0% cover 22%;
+    }
+  }
+}
+
+/* --- 8. accordion that actually animates open. <details> cannot transition
+       height, so the panel is a 0fr→1fr grid row. ------------------------- */
+.pk-acc { display:grid; grid-template-rows:0fr; transition:grid-template-rows .32s var(--pk-ease) }
+details[open] .pk-acc { grid-template-rows:1fr }
+.pk-acc > div { overflow:hidden }
+
+/* --- 9. underline that draws in on hover, for text links. ---------------- */
+.pk-ul { background-image:linear-gradient(currentColor,currentColor);
+  background-size:0% 1.5px; background-repeat:no-repeat; background-position:0 100%;
+  transition:background-size .28s var(--pk-ease) }
+.pk-ul:hover, .pk-ul:focus-visible { background-size:100% 1.5px }
+
+/* --- reduced motion: everything above becomes static, nothing disappears. - */
+@media (prefers-reduced-motion: reduce) {
+  .pk-in, .pk-stagger > * { opacity:1 !important; animation:none !important; transform:none !important }
+  .pk-hero::before, .pk-progress { animation:none !important }
+  .pk-progress { transform:scaleX(0) }
+  .pk-par-a, .pk-par-b { animation:none !important; transform:none !important }
+  .pk-shine::after { display:none }
+  .pk-tile:hover { transform:none }
+  .pk-tile:hover .pk-well { transform:none }
+  .pk-acc { transition:none }
+}
+
+/* Auth panel signature: windows coming on one by one. The only orchestrated
+   moment on the screen — it earns the panel headline ("Every society has a
+   rhythm") literally, so it is meaning rather than decoration. Forwards-filled
+   so the building stays lit once it has woken up. */
+@keyframes pkLamp { from { opacity: 0 } to { opacity: 1 } }
+.pk-lamp { opacity: 0; animation: pkLamp 900ms var(--pk-ease) forwards }
+@media (prefers-reduced-motion: reduce) { .pk-lamp { opacity: 1; animation: none } }
+
+/* ============================================================================
+   ADMIN CONSOLE polish — motion + surfaces, scoped to .admin-scope so it can
+   never leak onto resident-facing screens. Reuses the same easing/вariables as
+   the landing motion layer; all of it respects prefers-reduced-motion.
+   ========================================================================== */
+.admin-scope { --a-ease: cubic-bezier(.2,.7,.3,1); }
+
+/* Section entrance — panels rise in when a nav item is chosen. Keyed on the
+   section id in React so it replays on every switch. */
+@keyframes aRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.admin-scope .a-rise { animation: aRise .34s var(--a-ease) both; }
+
+/* Staggered children — stat tiles and list rows come in in sequence. */
+.admin-scope .a-stagger > * { animation: aRise .38s var(--a-ease) both; }
+.admin-scope .a-stagger > *:nth-child(1) { animation-delay: .02s; }
+.admin-scope .a-stagger > *:nth-child(2) { animation-delay: .06s; }
+.admin-scope .a-stagger > *:nth-child(3) { animation-delay: .10s; }
+.admin-scope .a-stagger > *:nth-child(4) { animation-delay: .14s; }
+.admin-scope .a-stagger > *:nth-child(5) { animation-delay: .18s; }
+.admin-scope .a-stagger > *:nth-child(6) { animation-delay: .22s; }
+.admin-scope .a-stagger > *:nth-child(n+7) { animation-delay: .24s; }
+
+/* Card that lifts and warms its border on hover — the interactive society rows
+   and stat tiles. Transform/shadow only, so it stays on the compositor. */
+.admin-scope .a-lift {
+  transition: transform .24s var(--a-ease), box-shadow .24s var(--a-ease), border-color .24s var(--a-ease);
+}
+.admin-scope .a-lift:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-brand-500) 40%, var(--color-neutral-200));
+  box-shadow: 0 12px 28px -16px rgba(18,38,28,.35), 0 2px 6px rgba(18,38,28,.05);
+}
+
+/* The drawer slides in from the right instead of appearing. */
+@keyframes aDrawer { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.admin-scope .a-drawer { animation: aDrawer .3s var(--a-ease) both; }
+@keyframes aScrim { from { opacity: 0; } to { opacity: 1; } }
+.admin-scope .a-scrim { animation: aScrim .25s ease-out both; }
+
+/* Input focus: a soft ring plus a hair of lift, so the active field reads. */
+.admin-scope .a-field {
+  transition: border-color .16s var(--a-ease), box-shadow .16s var(--a-ease), background-color .16s var(--a-ease);
+}
+.admin-scope .a-field:hover { border-color: color-mix(in srgb, var(--color-brand-500) 26%, var(--color-neutral-200)); }
+.admin-scope .a-field:focus {
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+}
+
+/* Primary button: gradient fill, shadow that grows on hover, press feedback. */
+.admin-scope .a-btn {
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--color-brand-500) 92%, #fff), var(--color-brand-500));
+  box-shadow: 0 8px 20px -8px rgba(18,113,90,.5);
+  transition: transform .14s var(--a-ease), box-shadow .24s var(--a-ease), filter .14s var(--a-ease);
+}
+.admin-scope .a-btn:hover { box-shadow: 0 12px 26px -8px rgba(18,113,90,.6); filter: brightness(1.04); }
+.admin-scope .a-btn:active { transform: translateY(1px) scale(.99); }
+
+/* One-pass shine across the button on hover. */
+.admin-scope .a-shine { position: relative; overflow: hidden; isolation: isolate; }
+.admin-scope .a-shine::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; transform: translateX(-130%);
+  background: linear-gradient(105deg, transparent 34%, rgba(255,255,255,.35) 50%, transparent 66%);
+}
+.admin-scope .a-shine:hover::after { transform: translateX(130%); transition: transform .7s var(--a-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-scope .a-rise, .admin-scope .a-stagger > *, .admin-scope .a-drawer, .admin-scope .a-scrim { animation: none; opacity: 1; transform: none; }
+  .admin-scope .a-lift:hover, .admin-scope .a-btn:active { transform: none; }
+  .admin-scope .a-shine::after { display: none; }
+}
+
+/* Sidebar nav item: gentle hover fill on the non-active rows. */
+.admin-scope .a-nav { transition: background-color .16s var(--a-ease), color .16s var(--a-ease); }
+.admin-scope .a-nav:hover { background-color: var(--color-neutral-100); }
+.admin-scope .a-nav[aria-current="page"]:hover { background-color: var(--color-brand-50); }

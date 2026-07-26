@@ -1,0 +1,15 @@
+{
+  "name": "@parisar/shared-types",
+  "description": "Shared runtime constants for the Parisar monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./enums": "./src/enums.js"
+  },
+  "scripts": {
+    "lint": "biome check ."
+  }
+}

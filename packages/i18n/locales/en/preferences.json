@@ -1,0 +1,27 @@
+{
+  "_meta": { "locale": "en", "namespace": "preferences" },
+  "prefs": {
+    "title": "Notification Settings",
+    "muteHeading": "Mute by category",
+    "muteSubhead": "Turn off pushes for the kinds of updates you don't want.",
+    "cat": {
+      "complaints": "Complaints",
+      "polls": "Polls",
+      "community": "Community",
+      "fines": "Fines",
+      "general": "General"
+    },
+    "quietHeading": "Quiet hours",
+    "quietSubhead": "No pushes during these hours (India time).",
+    "quietFrom": "From",
+    "quietTo": "To",
+    "quietWrapNote": "Spans midnight if 'From' is later than 'To'.",
+    "capHeading": "Daily limit",
+    "capSubhead": "Most pushes you'll get in any 24-hour window.",
+    "capValue": "{{n}} per day",
+    "capUnlimited": "No limit",
+    "allMutedNote": "All categories are muted — you won't get any pushes. You'll still see updates in the app.",
+    "saved": "Saved",
+    "saveError": "Couldn't save. Check your connection."
+  }
+}

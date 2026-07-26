@@ -1,0 +1,7 @@
+# moderate-image is a CLIENT-AWAITED, authenticated function (NOT a trigger).
+# verify_jwt = true: the Supabase gateway rejects anonymous calls; the function
+# additionally verifies the caller via auth.getUser() (T-06-13). This is the
+# inverse of the push fan-out functions (which use verify_jwt = false + the
+# x-push-trigger sentinel because they are invoked by a Postgres trigger).
+[functions.moderate-image]
+verify_jwt = true

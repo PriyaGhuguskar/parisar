@@ -1,0 +1,79 @@
+{
+  "_meta": { "locale": "mr", "namespace": "dashboard" },
+  "nav": {
+    "home": "होम",
+    "myComplaints": "माझ्या तक्रारी",
+    "profile": "प्रोफाइल"
+  },
+  "header": {
+    "joinedPercent": " · {{percent}}% सामील",
+    "openProfile": "प्रोफाइल मेनू उघडा"
+  },
+  "tiles": {
+    "myComplaints": "माझ्या तक्रारी",
+    "allComplaints": "तक्रारी",
+    "directory": "सदस्य निर्देशिका",
+    "societyCode": "सोसायटी कोड",
+    "codeRotation": "कोड रोटेशन",
+    "reviews": "पुनरावलोकने",
+    "notices": "सूचना",
+    "polls": "मतदान",
+    "bookings": "बुकिंग",
+    "community": "समुदाय",
+    "flatActions": "फ्लॅट कारवाई",
+    "visitors": "अभ्यागत",
+    "staff": "कर्मचारी"
+  },
+  "placeholder": {
+    "comingSoon": "लवकरच येत आहे",
+    "phase5": "टप्पा 5 मध्ये येईल",
+    "phase6": "टप्पा 6 मध्ये येईल",
+    "phase9": "टप्पा 9 मध्ये येईल",
+    "phase10": "टप्पा 10 मध्ये येईल",
+    "announce": "लवकरच येत आहे. हे वैशिष्ट्य टप्पा {{phase}} मध्ये येईल."
+  },
+  "switcher": {
+    "title": "सोसायटी बदला",
+    "empty": "तुम्ही फक्त एका सोसायटीचे सदस्य आहात."
+  },
+  "profile": {
+    "roleTransfer": "सचिव भूमिका हस्तांतरण",
+    "notificationSettings": "सूचना सेटिंग्ज",
+    "language": "भाषा",
+    "signOut": "साइन आउट",
+    "signOutError": "साइन आउट होऊ शकले नाही. कृपया पुन्हा प्रयत्न करा."
+  },
+  "role": {
+    "member": "सदस्य",
+    "board_member": "बोर्ड सदस्य",
+    "co_secretary": "सह-सचिव",
+    "secretary": "सचिव"
+  },
+  "previews": {
+    "newComplaint": "नवीन तक्रार: {{title}} · {{flat}}",
+    "complaintStatusUpdate": "{{title}} → {{status}} · {{flat}}",
+    "myComplaintStatus": "{{title}} → {{status}}",
+    "pendingBooking": "{{amenity}} · {{slot}} · {{flat}}",
+    "myBookingStatus": "{{amenity}} · {{slot}} → {{status}}",
+    "newNotification": "{{title}}",
+    "newFlatAction": "{{kind}} → {{flat}}",
+    "newCommunityPost": "{{author}} · {{flat}} · {{title}}",
+    "empty": {
+      "myComplaints": "सर्व ठीक आहे",
+      "allComplaints": "नवीन तक्रार नाही",
+      "bookings": "प्रलंबित बुकिंग नाही",
+      "notifications": "अलीकडील सूचना नाही",
+      "flatActions": "अलीकडील कारवाई नाही",
+      "community": "नवीन पोस्ट नाही"
+    }
+  },
+  "language": {
+    "title": "भाषा निवडा",
+    "english": "English",
+    "hindi": "हिन्दी",
+    "marathi": "मराठी",
+    "changed": "भाषा {{name}} वर बदलली",
+    "cancel": "रद्द करा",
+    "saveError": "भाषा जतन करता आली नाही"
+  }
+}

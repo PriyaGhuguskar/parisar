@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      typescript-tooling:
+        patterns:
+          - "typescript"
+          - "@types/*"
+          - "@biomejs/*"
+      next-stack:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      expo-stack:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "react-native"
+          - "react-native-*"
+          - "@react-native*"
+      supabase:
+        patterns:
+          - "@supabase/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

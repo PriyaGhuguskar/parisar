@@ -1,0 +1,79 @@
+{
+  "_meta": { "locale": "en", "namespace": "dashboard" },
+  "nav": {
+    "home": "Home",
+    "myComplaints": "My Complaints",
+    "profile": "Profile"
+  },
+  "header": {
+    "joinedPercent": " · {{percent}}% joined",
+    "openProfile": "Open profile menu"
+  },
+  "tiles": {
+    "myComplaints": "My Complaints",
+    "allComplaints": "Complaints",
+    "directory": "Member Directory",
+    "societyCode": "Society Code",
+    "codeRotation": "Code Rotation",
+    "reviews": "Reviews",
+    "notices": "Notices",
+    "polls": "Polls",
+    "bookings": "Bookings",
+    "community": "Community",
+    "flatActions": "Flat Actions",
+    "visitors": "Visitors",
+    "staff": "Staff"
+  },
+  "placeholder": {
+    "comingSoon": "Coming soon",
+    "phase5": "Ships in Phase 5",
+    "phase6": "Ships in Phase 6",
+    "phase9": "Ships in Phase 9",
+    "phase10": "Ships in Phase 10",
+    "announce": "Coming soon. This feature ships in Phase {{phase}}."
+  },
+  "switcher": {
+    "title": "Switch society",
+    "empty": "You're only a member of one society."
+  },
+  "profile": {
+    "roleTransfer": "Transfer Secretary role",
+    "notificationSettings": "Notification settings",
+    "language": "Language",
+    "signOut": "Sign out",
+    "signOutError": "Couldn't sign out. Please try again."
+  },
+  "role": {
+    "member": "Member",
+    "board_member": "Board Member",
+    "co_secretary": "Co-Secretary",
+    "secretary": "Secretary"
+  },
+  "previews": {
+    "newComplaint": "New complaint: {{title}} · {{flat}}",
+    "complaintStatusUpdate": "{{title}} → {{status}} · {{flat}}",
+    "myComplaintStatus": "{{title}} → {{status}}",
+    "pendingBooking": "{{amenity}} · {{slot}} · {{flat}}",
+    "myBookingStatus": "{{amenity}} · {{slot}} → {{status}}",
+    "newNotification": "{{title}}",
+    "newFlatAction": "{{kind}} → {{flat}}",
+    "newCommunityPost": "{{author}} · {{flat}} · {{title}}",
+    "empty": {
+      "myComplaints": "All clear",
+      "allComplaints": "No new complaints",
+      "bookings": "No pending bookings",
+      "notifications": "No recent notices",
+      "flatActions": "No recent actions",
+      "community": "No new posts"
+    }
+  },
+  "language": {
+    "title": "Choose language",
+    "english": "English",
+    "hindi": "हिन्दी",
+    "marathi": "मराठी",
+    "changed": "Language changed to {{name}}",
+    "cancel": "Cancel",
+    "saveError": "Couldn't save language"
+  }
+}

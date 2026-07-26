@@ -1,0 +1,2 @@
+[functions.notification-fanout]
+verify_jwt = false

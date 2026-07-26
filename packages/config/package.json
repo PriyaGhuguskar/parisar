@@ -1,0 +1,14 @@
+{
+	"name": "@parisar/config",
+	"version": "0.0.0",
+	"private": true,
+	"files": [
+		"biome.json"
+	],
+	"exports": {
+		"./biome.json": "./biome.json"
+	},
+	"scripts": {
+		"lint": "biome check ."
+	}
+}

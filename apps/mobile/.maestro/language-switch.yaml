@@ -1,0 +1,51 @@
+# Phase 7 L10N-04 — Maestro E2E for the en → hi → mr → en language cycle.
+#
+# Plan reference: 07-10-PLAN.md Task 1.
+#
+# Prerequisites:
+#   - Maestro CLI installed locally: curl -Ls "https://get.maestro.mobile.dev" | bash
+#   - Dev build installed on the target emulator / device, signed in as any
+#     society member so the protected tab bar is reachable.
+#
+# Run:
+#   maestro test apps/mobile/.maestro/language-switch.yaml
+#
+# Coverage:
+#   - LanguageSelector mounts via the Profile menu sheet.
+#   - changeLanguage("hi") flips every useTranslation('dashboard') consumer:
+#     the My Complaints tile label below should switch to "मेरी शिकायतें".
+#   - Subsequent open of the Profile menu reads "भाषा" (the Language row label
+#     in the now-Hindi locale) — proves the AsyncStorage persistence path also
+#     flipped the active language for sibling components.
+#   - Reverses through Marathi back to English so the suite leaves the device
+#     in a clean state for the next flow.
+appId: app.parisar.mobile
+---
+- launchApp
+- assertVisible: "Home"           # English tab label proves we're booted in en
+- tapOn:
+    id: "profile-avatar-button"
+- tapOn:
+    text: "Language"
+- assertVisible: "Choose language"
+- tapOn:
+    text: "हिन्दी"
+- assertNotVisible: "Choose language"
+# After switch, the My Complaints tile label should be Hindi.
+- assertVisible: "मेरी शिकायतें"   # "My Complaints" in Hindi
+# Cycle to Marathi
+- tapOn:
+    id: "profile-avatar-button"
+- tapOn:
+    text: "भाषा"
+- tapOn:
+    text: "मराठी"
+- assertVisible: "माझ्या तक्रारी"  # "My Complaints" in Marathi
+# Back to English
+- tapOn:
+    id: "profile-avatar-button"
+- tapOn:
+    text: "भाषा"
+- tapOn:
+    text: "English"
+- assertVisible: "My Complaints"

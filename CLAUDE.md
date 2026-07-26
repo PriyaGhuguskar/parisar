@@ -234,7 +234,24 @@ If everything else fails, this loop must work: **Member → Complaint → Board 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### Language: JavaScript only — NOT TypeScript
+
+**The user explicitly chose plain JavaScript over TypeScript for the entire project.**
+
+- All source files are `.js` / `.jsx`. No `.ts`, `.tsx`, or `tsconfig.json` anywhere.
+- No type annotations, `interface`, `type` aliases, generics, `as` casts, or `import type`.
+- Editor path hints use `jsconfig.json` (not `tsconfig.json`).
+- No Supabase-generated TypeScript types (`database.types.ts`). Work against the DB untyped; use JSDoc `@param`/`@type` comments for editor hints where helpful.
+- `next.config.js` (CommonJS `module.exports`), `app.config.js` for Expo.
+- This OVERRIDES any TypeScript guidance in the Technology Stack section above and in `.planning/research/STACK.md` — those were written before the user's decision. When a plan or research doc says `.ts`/`.tsx`/TypeScript, translate to `.js`/`.jsx`/JavaScript.
+
+### Design reference: MyGate
+
+The user wants Parisar to feel similar to **MyGate** (the Indian society-management app) in UI/UX — clean card-based home dashboard, society switcher, simple navigation. Apply this when building screens in UI phases. Note: MyGate's visitor/gate management, staff attendance, and payments are **out of scope** for Parisar (see PROJECT.md).
+
+### Git
+
+The user wants code on their laptop only — **no git commits, no remote, no push**. Write files to disk; do not run `git add`/`git commit`/`git push`. GSD planning-doc commits are also disabled (`commit_docs: false`).
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

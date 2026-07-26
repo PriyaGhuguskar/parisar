@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "locale": "en",
+    "namespace": "polls"
+  },
+  "poll": {
+    "listTitle": "Polls",
+    "questionLabel": "Poll question",
+    "questionPlaceholder": "What do you want to ask?",
+    "optionPlaceholder": "Option {{n}}",
+    "addOption": "Add option",
+    "removePoll": "Remove poll",
+    "castHeading": "Cast your vote",
+    "resultsHeading": "Results",
+    "statusOpen": "Open",
+    "statusClosed": "Closed",
+    "voteCta": "Vote",
+    "voting": "Submitting…",
+    "voteSuccess": "Vote recorded.",
+    "voteError": "Couldn't record your vote. Please try again.",
+    "changeVote": "Change vote",
+    "updateVote": "Update vote",
+    "closePoll": "Close poll",
+    "closeConfirm": "Close this poll? Members can no longer vote.",
+    "closedNoVote": "Voting closed",
+    "tallyValue": "{{percent}}% ({{count}})",
+    "totalVotes": "{{total}} votes",
+    "yourVote": "your vote",
+    "emptyHeading": "No polls yet",
+    "emptyBody": "Polls posted by your board will appear here.",
+    "closeError": "Couldn't close the poll. Please try again."
+  }
+}

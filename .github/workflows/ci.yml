@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+# Default least-privilege; individual jobs can request more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20.11.0"
+  PNPM_VERSION: "9.15.0"
+
+jobs:
+  lint:
+    name: Lint (Biome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome check .
+
+  typecheck:
+    name: Typecheck (workspace-wide)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      # JavaScript project: no TS type generation. Typecheck runs tsc --noEmit via jsconfig
+      # for basic JS type checking where configured (apps/web jsconfig.json).
+      - run: pnpm exec turbo run typecheck
+
+  unit-tests:
+    name: Unit Tests (Vitest + Jest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run test
+
+  isolation-test:
+    name: Cross-tenant Isolation Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - name: Start Supabase local stack
+        run: supabase start
+        # `supabase start` boots Docker containers; the runner has Docker pre-installed.
+      - name: Apply migrations + seed
+        run: supabase db reset --local
+      # B-04 fix: export Supabase env vars to $GITHUB_ENV so the test process inherits them.
+      # Without this, the test would throw "missing SUPABASE_URL / ANON_KEY / SERVICE_ROLE_KEY"
+      # and the CI failure would be misleading (looks like a code bug, actually missing env).
+      - name: Export Supabase env from supabase status
+        run: |
+          echo "SUPABASE_URL=$(supabase status --output env | grep '^API_URL=' | cut -d'=' -f2- | tr -d '\"')" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=$(supabase status --output env | grep '^ANON_KEY=' | cut -d'=' -f2- | tr -d '\"')" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status --output env | grep '^SERVICE_ROLE_KEY=' | cut -d'=' -f2- | tr -d '\"')" >> $GITHUB_ENV
+      - name: Run isolation test
+        run: pnpm exec turbo run test:isolation
+        # Plan 04 lands the actual test file at tests/isolation/. The Turborepo task
+        # picks it up via the @parisar/isolation-test workspace. Until Plan 04 lands,
+        # `turbo run test:isolation` will be a no-op (no tasks match) — and that's fine
+        # for Plans 01-03; Plan 04 introduces both the workspace AND the test.
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  devanagari-bundle:
+    name: Devanagari Bundle Integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/check-devanagari-bundle.mjs
+
+  i18n-gates:
+    # Phase 7: i18n CI gates that protect the 108-file retrofit.
+    #
+    # All three gates are BLOCKING after Plan 07-06 (Wave 3) completed:
+    #   - check-i18n-coverage.mjs        (key parity + placeholder parity per shard)
+    #   - check-devanagari-bundle.mjs    (locale-content Devanagari floor + code-point coverage)
+    #   - check-no-direct-locale-import.mjs (no `import en from "@parisar/i18n/locales/..."`
+    #                                        in apps/web or apps/mobile screen code)
+    #
+    # The no-direct-locale-import gate was the long-running TODO from Plan 07-01.
+    # Plan 07-05 retrofitted apps/mobile (Wave 3a); Plan 07-06 retrofitted apps/web
+    # (Wave 3b). With both retrofits landed, every PR now BLOCKS on regression.
+    name: i18n gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: i18n coverage (en ≡ hi ≡ mr per shard, placeholders match)
+        run: node scripts/check-i18n-coverage.mjs
+      - name: Devanagari bundle integrity (extended — code-point coverage)
+        run: node scripts/check-devanagari-bundle.mjs
+      - name: No direct locale imports in app screens (Wave 3 promotion — BLOCKING)
+        run: node scripts/check-no-direct-locale-import.mjs --dir apps

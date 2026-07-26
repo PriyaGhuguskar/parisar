@@ -1,0 +1,2 @@
+[functions.push-fanout]
+verify_jwt = false
