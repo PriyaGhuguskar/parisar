@@ -42,7 +42,7 @@
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.1.0",
     "@vitejs/plugin-react": "4.3.4",
-    "jsdom": "25.0.1",
+    "jsdom": "30.0.1",
     "tailwindcss": "4.2.4",
     "vitest": "2.1.8"
   }
