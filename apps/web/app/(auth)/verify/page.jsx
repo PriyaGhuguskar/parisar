@@ -25,7 +25,12 @@ import PrimaryButton from "../../../components/auth/PrimaryButton";
 import ResendTimer from "../../../components/auth/ResendTimer";
 import { derivePinSecret } from "../../../lib/auth/pinSecret";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
-import { claimChairman, claimFamilyMember, setPin as setPinAction } from "../../actions/codeLogin";
+import {
+  claimChairman,
+  claimFamilyMember,
+  claimGuard,
+  setPin as setPinAction,
+} from "../../actions/codeLogin";
 
 const PIN_FIELD =
   "h-14 w-full rounded-2xl border bg-[var(--color-neutral-0)] px-4 text-center text-[24px] font-bold tracking-[0.5em] outline-none transition-[border-color,box-shadow] duration-150 placeholder:tracking-[0.35em] placeholder:text-[var(--color-neutral-400)] focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]";
@@ -40,8 +45,12 @@ function VerifyForm() {
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
   const mode = params.get("mode") ?? "code";
+  const resetFromUrl = params.get("reset") === "1"; // came via "Forgot PIN?"
+  const isGuard = mode === "guardpin" || mode === "guardclaim"; // gate-guard login
+  const dest = isGuard ? "/guard" : "/dashboard"; // where PIN success lands
 
   const [stage, setStage] = useState("otp"); // otp | pin | setpin
+  const [reset, setReset] = useState(resetFromUrl); // reached setpin via "Forgot PIN?"
   const [otp, setOtp] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
@@ -89,10 +98,28 @@ function VerifyForm() {
 
       setUserId(data.user.id);
 
-      if (mode === "staff") return router.push("/dashboard");
+      if (mode === "staff") return router.push("/admin");
       if (mode === "code") return router.push("/onboarding");
-      if (mode === "pin") {
+      if (mode === "guardpin") {
+        // Returning guard — enter PIN, then into the guard app.
         setStage("pin");
+        setLoading(false);
+        return;
+      }
+      if (mode === "guardclaim") {
+        // First guard login: link the auth user to the society_guards row so the
+        // hook injects guard_society_id, then set a PIN.
+        const res = await claimGuard(data.session?.access_token);
+        if (res?.error) return fail("auth.networkError");
+        await supabase.auth.refreshSession();
+        setStage("setpin");
+        setLoading(false);
+        return;
+      }
+      if (mode === "pin") {
+        // "Forgot PIN?" from login (reset=1) skips the enter-PIN screen and
+        // goes straight to setting a new one — OTP already proved identity.
+        setStage(reset ? "setpin" : "pin");
         setLoading(false);
         return;
       }
@@ -105,15 +132,24 @@ function VerifyForm() {
         return;
       }
       if (mode === "chairman") {
-        // Become secretary, then go straight to society setup. The PIN is the
-        // LAST step, collected at the end of setup — not before it.
+        // Become secretary, then set up the society. The PIN is ALWAYS the last
+        // step — collected at the end of structure setup when there's setup to do,
+        // otherwise on the PIN screen here. A chairman never reaches the app
+        // without a PIN.
         const res = await claimChairman(data.session?.access_token);
         if (res?.error) return fail("auth.networkError");
         // The membership was just created — AFTER this session's JWT was minted
         // at verifyOtp. Re-mint so the Auth Hook injects society_id/role; without
         // it every RLS-scoped query on the next screen comes back empty.
         await supabase.auth.refreshSession();
-        router.push(res.needsSetup ? "/setup/structure" : "/dashboard");
+        if (res.needsSetup) {
+          // Structure setup collects the PIN as its final step.
+          router.push("/setup/structure");
+          return;
+        }
+        // Society already has flats — just collect the PIN, then in.
+        setStage("setpin");
+        setLoading(false);
         return;
       }
       // setpin
@@ -138,7 +174,7 @@ function VerifyForm() {
         password: derivePinSecret(phone, pin),
       });
       if (sErr) return fail(sErr.status === 429 ? "auth.rateLimited" : "auth.pinWrong");
-      router.push("/dashboard");
+      router.push(dest);
     } catch {
       fail("auth.networkError");
     }
@@ -159,7 +195,7 @@ function VerifyForm() {
       // society_id/role land in the token before the dashboard's RLS queries run.
       const supabase = createSupabaseBrowserClient();
       await supabase.auth.refreshSession();
-      router.push("/dashboard");
+      router.push(dest);
     } catch {
       fail("auth.networkError");
     }
@@ -226,14 +262,22 @@ function VerifyForm() {
             loading={loading}
             disabled={pin.length !== 4}
           />
-          <details className="text-[13px]">
-            <summary className="cursor-pointer font-semibold text-[var(--color-brand-600)]">
-              {t("auth.pinForgot")}
-            </summary>
-            <p className="mt-2 leading-relaxed text-[var(--color-neutral-600)]">
-              {t("auth.pinForgotHelp")}
-            </p>
-          </details>
+          <button
+            type="button"
+            onClick={() => {
+              // OTP already proved identity this login, so no second OTP is
+              // needed — go straight to setting a new PIN. userId was captured
+              // at verifyOtp, which setPin uses to overwrite the credential.
+              setError(null);
+              setPin("");
+              setPin2("");
+              setReset(true);
+              setStage("setpin");
+            }}
+            className="self-center text-[13px] font-semibold text-[var(--color-brand-600)] hover:underline"
+          >
+            {t("auth.pinForgot")}
+          </button>
         </form>
       </Shell>
     );
@@ -243,7 +287,13 @@ function VerifyForm() {
   return (
     <Shell
       heading={t("auth.setPinTitle")}
-      sub={mode === "family" ? t("auth.familyWelcome") : t("auth.setPinSub")}
+      sub={
+        reset
+          ? t("auth.pinForgotHelp")
+          : mode === "family"
+            ? t("auth.familyWelcome")
+            : t("auth.setPinSub")
+      }
     >
       <form onSubmit={onSetPin} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">

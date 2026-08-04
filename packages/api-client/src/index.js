@@ -1,3 +1,4 @@
+export * from "./amenities-admin.js";
 export * from "./bookings.js";
 export * from "./community.js";
 export * from "./complaints.js";
@@ -6,6 +7,7 @@ export * from "./dashboard.js";
 // (fineStatus, dueDate, nowMs)). Both apps re-export from this module.
 export { isOverdue, overdueDays } from "./fines/fine-overdue.js";
 export * from "./flat-actions.js";
+export * from "./highlights.js";
 export {
   fileNotification,
   getNoticeDetail,
@@ -32,6 +34,10 @@ export {
   updateNotificationPreference,
 } from "./preferences.js";
 export * from "./society.js";
+export * from "./sos.js";
+export * from "./staff.js";
+export * from "./facilities.js";
 export * from "./supabase.js";
+export * from "./visitors.js";
 // Phase 7 WR-03 — shared grapheme helper for cross-platform avatar initials/color.
 export { graphemes } from "./text/graphemes.js";

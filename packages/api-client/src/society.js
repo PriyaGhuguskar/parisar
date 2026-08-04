@@ -143,6 +143,35 @@ export async function bootstrapSocietyStructure(supabase, { societyId, wings, fl
 }
 
 /**
+ * Add a single wing (and optional flats) to an already-live society.
+ * Secretary / co-secretary only — enforced server-side by secretary_add_wing.
+ * Calls: secretary_add_wing(p_society_id, p_wing_name, p_flat_numbers)
+ *
+ * flatNumbers: string[] (trimmed + de-duped server-side; may be empty)
+ *
+ * Returns: { ok: true, wingId, name, flatCount }
+ *       OR { error: 'WING_EXISTS'|'INVALID_WING_NAME'|'NOT_SECRETARY' } for the
+ *          known validation failures (does NOT throw — the UI renders the message).
+ * Throws only on unexpected RPC (network/server) errors.
+ * Does NOT call refreshSession (no membership/claim change).
+ */
+export async function addWing(supabase, { societyId, wingName, flatNumbers = [] }) {
+  const { data, error } = await supabase.rpc("secretary_add_wing", {
+    p_society_id: societyId,
+    p_wing_name: wingName,
+    p_flat_numbers: flatNumbers,
+  });
+  if (error) {
+    const code = error.message ?? "";
+    if (code.includes("WING_EXISTS")) return { error: "WING_EXISTS" };
+    if (code.includes("INVALID_WING_NAME")) return { error: "INVALID_WING_NAME" };
+    if (code.includes("NOT_SECRETARY")) return { error: "NOT_SECRETARY" };
+    throw error;
+  }
+  return { ok: true, wingId: data.wing_id, name: data.name, flatCount: data.flat_count };
+}
+
+/**
  * Return the wings and flats for a society identified by its code (pre-membership lookup).
  * Consumed by Plan 03-06 (Member profile form) — do NOT redefine inline.
  * Calls: list_society_structure(p_code)

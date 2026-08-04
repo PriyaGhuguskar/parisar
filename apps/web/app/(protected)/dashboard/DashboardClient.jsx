@@ -23,8 +23,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DashboardTile } from "@/components/dashboard/DashboardTile";
 import { DashboardTilePreview } from "@/components/dashboard/DashboardTilePreview";
+import { HighlightsStrip } from "@/components/dashboard/HighlightsStrip";
 import { ProfileMenuDropdown } from "@/components/dashboard/ProfileMenuDropdown";
 import { SocietyHeaderPill } from "@/components/dashboard/SocietyHeaderPill";
+import { SosAlerts } from "@/components/sos/SosAlerts";
 import { subscribeDashboardRealtime } from "@/lib/dashboard-realtime";
 import { useDashboardSummary } from "@/lib/dashboard-summary-store";
 import { computeDaysUntilRotation, daysUntilRotationToBadge, getRoleTiles } from "@/lib/role-tiles";
@@ -219,6 +221,13 @@ export function DashboardClient({
           fullName={fullName}
         />
       </header>
+
+      {/* Emergency: live SOS banners for anyone targeted (the raise button lives
+          in the sidebar so it's reachable from every page). */}
+      <SosAlerts />
+
+      {/* Secretary-pinned highlights (water timing, notices…) — live for residents. */}
+      <HighlightsStrip societyId={societyId} role={role} />
 
       {/* Tile grid (UI-SPEC §Screen 2 — responsive columns). */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -51,12 +51,13 @@ export default async function ProtectedLayout({ children }) {
   if (user.id) {
     const { data } = await supabase
       .from("society_memberships")
-      .select("society_id, societies:society_id(name)")
+      .select("society_id, role, societies:society_id(name)")
       .eq("user_id", user.id)
       .eq("status", "active");
     if (Array.isArray(data)) {
       memberships = data.map((r) => ({
         society_id: r.society_id,
+        role: r.role,
         society_name: r.societies?.name ?? "Society",
       }));
     }
@@ -74,12 +75,29 @@ export default async function ProtectedLayout({ children }) {
   // the membership that RLS just confirmed.
   const societyId = meta.society_id ?? memberships[0]?.society_id ?? null;
 
-  // PRE-SOCIETY STATE (onboarding, joining). Every sidebar destination is
-  // society-scoped and redirects straight back here without one, so the nav
-  // would be seven links that cannot go anywhere. Deliberately a RULE rather
-  // than a list of onboarding routes — a blacklist rots when a screen is added.
-  // These screens carry their own header, so nothing is lost.
-  if (!societyId) {
+  // A secretary/co-secretary who hasn't finished setup (their society has no
+  // flats yet) must complete it before the app opens up. Render bare — with no
+  // sidebar to escape through — so an incomplete society can't be left half-built.
+  // The flats query is RLS-scoped by the cookie JWT's society claim (reliable
+  // here even though getUser()'s app_metadata lacks it).
+  const activeRole =
+    memberships.find((m) => m.society_id === societyId)?.role ?? meta.role ?? "member";
+  let setupIncomplete = false;
+  if (societyId && (activeRole === "secretary" || activeRole === "co_secretary")) {
+    const { count } = await supabase
+      .from("flats")
+      .select("id", { count: "exact", head: true })
+      .eq("society_id", societyId);
+    setupIncomplete = (count ?? 0) === 0;
+  }
+
+  // PRE-SOCIETY / INCOMPLETE-SETUP STATE (onboarding, joining, unfinished setup).
+  // Every sidebar destination is society-scoped and redirects straight back here
+  // without one, so the nav would be links that cannot go anywhere — and worse,
+  // an escape hatch out of an unfinished setup. Deliberately a RULE rather than a
+  // list of routes — a blacklist rots when a screen is added. These screens carry
+  // their own header, so nothing is lost.
+  if (!societyId || setupIncomplete) {
     return <main id="main-content">{children}</main>;
   }
 
@@ -102,7 +120,7 @@ export default async function ProtectedLayout({ children }) {
         userId={user.id}
         societyId={societyId}
         societyName={resolvedSocietyName}
-        role={role}
+        role={activeRole}
         fullName={fullName}
         flatLabel={flatLabel}
         memberships={memberships}

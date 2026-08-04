@@ -84,7 +84,7 @@ export async function lookupPhone(rawPhone) {
   if (user) {
     const { data } = await sb
       .from("society_memberships")
-      .select("id")
+      .select("id, society_id, role")
       .eq("user_id", user.id)
       .eq("status", "active")
       .maybeSingle();
@@ -112,6 +112,48 @@ export async function lookupPhone(rawPhone) {
         .maybeSingle();
       if (!sec) return { mode: "chairman" };
     }
+  }
+
+  // GUARD: this number is registered as a gate guard. Detected before the generic
+  // PIN/code routing so a guard is always sent to the guard app, never the resident
+  // dashboard. First login -> claim + set PIN; returning with a PIN -> enter it.
+  {
+    const { data: guard } = await sb
+      .from("society_guards")
+      .select("id, user_id")
+      .eq("phone", phone)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (guard) {
+      if (user && guard.user_id) {
+        const { data: profile } = await sb
+          .from("profiles")
+          .select("pin_set")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (profile?.pin_set) return { mode: "guardpin" };
+      }
+      return { mode: "guardclaim" };
+    }
+  }
+
+  // SECRETARY WHO ABANDONED SETUP: they claimed (membership exists) but never
+  // finished the wings/flats step, so their society has no flats. Resume at
+  // /setup/structure instead of falling through to setpin -> dashboard. Detected
+  // before the PIN routing so an incomplete society is never left half-built.
+  // (`chairman` mode re-runs claim_chairman, which is idempotent for an existing
+  // secretary and returns needs_setup=true -> /setup/structure.)
+  if (
+    membership &&
+    (membership.role === "secretary" || membership.role === "co_secretary") &&
+    membership.society_id
+  ) {
+    const { count } = await sb
+      .from("flats")
+      .select("id", { count: "exact", head: true })
+      .eq("society_id", membership.society_id);
+    if ((count ?? 0) === 0) return { mode: "chairman" };
   }
 
   // Returning resident with a PIN -> enter it after OTP.
@@ -285,4 +327,26 @@ export async function claimChairman(accessToken) {
     return { error: error.message.includes("NOT_A_CHAIRMAN") ? "NOT_A_CHAIRMAN" : "SERVER_ERROR" };
   }
   return { ok: true, societyId: data?.society_id ?? null, needsSetup: Boolean(data?.needs_setup) };
+}
+
+/**
+ * Guard's first login: link their auth user to the pre-created society_guards row
+ * (matched on phone) so the Auth Hook can inject their guard_society_id claim.
+ * Mirrors claimChairman — runs as the just-authenticated user via their token.
+ */
+export async function claimGuard(accessToken) {
+  if (!accessToken) return { error: "AUTH_REQUIRED" };
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return { error: "SERVER_ERROR" };
+
+  const asUser = createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await asUser.rpc("claim_guard");
+  if (error) {
+    return { error: error.message.includes("NOT_A_GUARD") ? "NOT_A_GUARD" : "SERVER_ERROR" };
+  }
+  return { ok: true, societyId: data?.society_id ?? null };
 }

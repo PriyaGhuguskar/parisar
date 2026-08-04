@@ -7,8 +7,10 @@
 // focused (just wings + flats), not the old multi-step wizard, because an
 // admin-created society already has its name, address and code.
 //
-// A "single building" toggle covers societies with no wings: one hidden wing
-// named "Main" so the data model stays uniform (a flat always belongs to a
+// Flats are entered floor by floor via the shared FloorFlats builder (a From–To
+// range per floor generates the numbers), the same control the Add-wing dialog
+// uses. A "single building" toggle covers societies with no wings: one hidden
+// wing named "Main" so the data model stays uniform (a flat always belongs to a
 // wing) without making the chairman invent a wing name.
 //
 // Everything is committed in ONE bootstrap_society_structure call, which is
@@ -19,18 +21,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setPin as setPinAction } from "@/app/actions/codeLogin";
+import { FloorFlats } from "@/components/structure/FloorFlats";
+import { buildFlats, initialFloors } from "@/lib/flats/floors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const field =
   "h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[15px] outline-none transition-[border-color,box-shadow] focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
-
-// "101, 102 103\n201" -> ["101","102","103","201"]
-function parseFlats(text) {
-  return text
-    .split(/[\s,]+/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
 
 export function StructureSetup({ societyId, initialName = "", phone = "", userId = null }) {
   const { t } = useTranslation("auth");
@@ -41,7 +37,11 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [single, setSingle] = useState(false);
-  const [wings, setWings] = useState([{ name: "", flats: "" }]);
+  // Most multi-wing societies have identical wings (A, B, C all laid out the
+  // same), so "same layout" is the default: enter names once, floors once.
+  const [sameLayout, setSameLayout] = useState(true);
+  const [wings, setWings] = useState(() => [{ name: "", floors: initialFloors() }]);
+  const [sharedFloors, setSharedFloors] = useState(initialFloors); // used when sameLayout
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -52,8 +52,14 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
     setErr(null);
   }
 
-  const totalFlats = rows.reduce((n, r) => n + parseFlats(r.flats).length, 0);
+  // Flats-per-layout used for the review line + shared-layout total.
+  const sharedFlatCount = buildFlats(sharedFloors).all.length;
   const wingCount = single ? 1 : rows.filter((r) => r.name.trim()).length;
+  const totalFlats = single
+    ? buildFlats(wings[0].floors).all.length
+    : sameLayout
+      ? wingCount * sharedFlatCount
+      : rows.reduce((n, r) => n + buildFlats(r.floors).all.length, 0);
 
   async function submit(e) {
     e.preventDefault();
@@ -64,20 +70,46 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
     const flatPayload = [];
 
     if (single) {
-      const nums = parseFlats(wings[0].flats);
-      if (nums.length === 0) return setErr(t("auth.structNeedFlats"));
-      const name = t("auth.structSingleName");
-      wingPayload.push({ name });
-      for (const number of nums) flatPayload.push({ wing_name: name, number });
+      const { all, anyInvalid } = buildFlats(wings[0].floors);
+      if (anyInvalid) return setErr(t("profile.rangeInvalid"));
+      if (all.length === 0) return setErr(t("auth.structNeedFlats"));
+      const wingName = t("auth.structSingleName");
+      wingPayload.push({ name: wingName });
+      for (const number of all) flatPayload.push({ wing_name: wingName, number });
     } else {
       const named = rows.filter((r) => r.name.trim());
       if (named.length === 0) return setErr(t("auth.structNeedWing"));
+
+      // Wing names must be unique — bootstrap_society_structure would otherwise
+      // create two "A" wings and residents couldn't tell them apart.
+      const seen = new Set();
       for (const r of named) {
-        const name = r.name.trim();
-        wingPayload.push({ name });
-        for (const number of parseFlats(r.flats)) flatPayload.push({ wing_name: name, number });
+        const key = r.name.trim().toLowerCase();
+        if (seen.has(key)) return setErr(t("auth.structWingsDuplicate"));
+        seen.add(key);
       }
-      if (flatPayload.length === 0) return setErr(t("auth.structNeedFlats"));
+
+      if (sameLayout) {
+        // One layout, applied to every wing.
+        const { all, anyInvalid } = buildFlats(sharedFloors);
+        if (anyInvalid) return setErr(t("profile.rangeInvalid"));
+        if (all.length === 0) return setErr(t("auth.structNeedFlats"));
+        for (const r of named) {
+          const wingName = r.name.trim();
+          wingPayload.push({ name: wingName });
+          for (const number of all) flatPayload.push({ wing_name: wingName, number });
+        }
+      } else {
+        // Each wing has its own floors.
+        for (const r of named) {
+          const { all, anyInvalid } = buildFlats(r.floors);
+          if (anyInvalid) return setErr(t("profile.rangeInvalid"));
+          const wingName = r.name.trim();
+          wingPayload.push({ name: wingName });
+          for (const number of all) flatPayload.push({ wing_name: wingName, number });
+        }
+        if (flatPayload.length === 0) return setErr(t("auth.structNeedFlats"));
+      }
     }
 
     setBusy(true);
@@ -245,21 +277,83 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
             </span>
           </label>
 
-          {single ? (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
-                {t("auth.structFlatsFor", { wing: t("auth.structSingleName") })}
-              </span>
-              <textarea
-                value={wings[0].flats}
-                onChange={(e) => setRow(0, { flats: e.target.value })}
-                placeholder={t("auth.structFlatsPh")}
-                rows={3}
-                className={`${field} h-auto py-3`}
+          {!single ? (
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white px-4 py-3">
+              <input
+                type="checkbox"
+                checked={sameLayout}
+                onChange={(e) => {
+                  setSameLayout(e.target.checked);
+                  setErr(null);
+                }}
+                className="h-4 w-4 accent-[var(--color-brand-500)]"
               />
-              <span className="text-[12px] text-[var(--color-neutral-400)]">
-                {t("auth.structFlatsHint")}
+              <span className="text-[14px] font-semibold text-[var(--color-neutral-900)]">
+                {t("auth.structSameLayout")}
               </span>
+            </label>
+          ) : null}
+
+          {single ? (
+            <div className="rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4">
+              <p className="mb-3 text-[13px] font-bold text-[var(--color-neutral-900)]">
+                {t("auth.structFlatsFor", { wing: t("auth.structSingleName") })}
+              </p>
+              <FloorFlats
+                floors={wings[0].floors}
+                onChange={(floors) => setRow(0, { floors })}
+                showPreview
+              />
+            </div>
+          ) : sameLayout ? (
+            <div className="flex flex-col gap-4">
+              {/* Wing names — entered once each */}
+              <div className="rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4">
+                <p className="mb-2.5 text-[13px] font-bold text-[var(--color-neutral-900)]">
+                  {t("auth.structWingNames")}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {rows.map((r, i) => (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional, no stable id
+                      key={i}
+                      className="flex items-center gap-2"
+                    >
+                      <input
+                        value={r.name}
+                        onChange={(e) => setRow(i, { name: e.target.value })}
+                        placeholder={t("auth.structWingNamePh")}
+                        className={field}
+                      />
+                      {rows.length > 1 ? (
+                        <button
+                          type="button"
+                          aria-label="Remove wing"
+                          onClick={() => setWings((w) => w.filter((_, idx) => idx !== i))}
+                          className="pk-press shrink-0 rounded-lg p-2 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)]"
+                        >
+                          <X size={16} strokeWidth={2.4} />
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setWings((w) => [...w, { name: "", floors: initialFloors() }])}
+                    className="pk-press mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-neutral-200)] py-2.5 text-[14px] font-bold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
+                  >
+                    <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
+                    {t("auth.structWingAdd")}
+                  </button>
+                </div>
+              </div>
+              {/* One layout, shared by every wing */}
+              <div className="rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4">
+                <p className="mb-3 text-[13px] font-bold text-[var(--color-neutral-900)]">
+                  {t("auth.structSharedTitle")}
+                </p>
+                <FloorFlats floors={sharedFloors} onChange={setSharedFloors} showPreview />
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -292,23 +386,18 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
                       </button>
                     ) : null}
                   </div>
-                  <label className="mt-3 flex flex-col gap-1.5">
-                    <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
-                      {t("auth.structFlatsFor", { wing: r.name.trim() || t("auth.structWingPh") })}
-                    </span>
-                    <textarea
-                      value={r.flats}
-                      onChange={(e) => setRow(i, { flats: e.target.value })}
-                      placeholder={t("auth.structFlatsPh")}
-                      rows={2}
-                      className={`${field} h-auto py-3`}
+                  <div className="mt-3">
+                    <FloorFlats
+                      floors={r.floors}
+                      onChange={(floors) => setRow(i, { floors })}
+                      showPreview={false}
                     />
-                  </label>
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
-                onClick={() => setWings((w) => [...w, { name: "", flats: "" }])}
+                onClick={() => setWings((w) => [...w, { name: "", floors: initialFloors() }])}
                 className="pk-press inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-neutral-200)] py-2.5 text-[14px] font-bold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
               >
                 <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
@@ -329,7 +418,13 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <span className="text-[13px] font-semibold tabular-nums text-[var(--color-neutral-400)]">
-              {t("auth.structReview", { wings: wingCount, flats: totalFlats })}
+              {!single && sameLayout
+                ? t("auth.structReviewSame", {
+                    wings: wingCount,
+                    each: sharedFlatCount,
+                    flats: totalFlats,
+                  })
+                : t("auth.structReview", { wings: wingCount, flats: totalFlats })}
             </span>
             <button
               type="submit"

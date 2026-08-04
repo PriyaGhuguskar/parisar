@@ -33,6 +33,9 @@ export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  // "Forgot PIN?" entry — same phone+OTP step, but /verify skips the enter-PIN
+  // screen and goes straight to setting a new one (carried via ?reset=1).
+  const [forgot, setForgot] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -60,9 +63,12 @@ export default function LoginPage() {
         return;
       }
 
-      // The mode tells /verify what to ask for after the OTP succeeds.
+      // The mode tells /verify what to ask for after the OTP succeeds. When the
+      // user came in via "Forgot PIN?", add reset=1 so /verify skips the
+      // enter-PIN screen and goes straight to setting a new PIN.
+      const resetFlag = forgot ? "&reset=1" : "";
       router.push(
-        `/verify?phone=${encodeURIComponent(`+91${phone}`)}&mode=${encodeURIComponent(res.mode)}`,
+        `/verify?phone=${encodeURIComponent(`+91${phone}`)}&mode=${encodeURIComponent(res.mode)}${resetFlag}`,
       );
     } catch {
       setError(t("auth.networkError"));
@@ -78,10 +84,10 @@ export default function LoginPage() {
 
         <div className="flex flex-col gap-2">
           <h2 className="text-[30px] font-extrabold leading-[1.12] tracking-[-0.03em] text-[var(--color-neutral-900)]">
-            {t("auth.enterPhone")}
+            {forgot ? t("auth.pinResetTitle") : t("auth.enterPhone")}
           </h2>
           <p className="text-[15px] leading-relaxed text-[var(--color-neutral-600)]">
-            {t("auth.sendOtpExplainer")}
+            {forgot ? t("auth.pinResetLead") : t("auth.sendOtpExplainer")}
           </p>
         </div>
 
@@ -96,6 +102,16 @@ export default function LoginPage() {
             loading={loading}
             disabled={phone.length !== 10}
           />
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setForgot((v) => !v);
+            }}
+            className="self-center text-[13px] font-semibold text-[var(--color-brand-600)] hover:underline"
+          >
+            {forgot ? t("auth.pinResetCancel") : t("auth.pinForgot")}
+          </button>
         </form>
       </div>
 

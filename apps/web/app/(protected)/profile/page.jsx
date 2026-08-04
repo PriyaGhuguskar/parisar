@@ -1,11 +1,10 @@
 // apps/web/app/(protected)/profile/page.jsx
-// Minimal v1 profile page. Full edit screen (name/photo/phone) is Phase 8
-// (needs DPDP-compliant edit flow). For 04.1 this page exists so the sidebar
-// /profile menu link resolves to a real route, not a 404.
+// Personal profile — "Your details" (editable name + emergency contact) and the
+// account menu. Society management now lives on its own /society page.
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
-import { ProfileMenuDropdown } from "@/components/dashboard/ProfileMenuDropdown";
+import { ProfileClient } from "../../../components/profile/ProfileClient";
 import { resolveActiveSociety } from "../../../lib/auth/activeSociety";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
@@ -17,24 +16,38 @@ export default async function ProfilePage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const meta = user.app_metadata ?? {};
-  // society_id/role live in the JWT, not the getUser() record — resolve from the
-  // active membership so the profile menu's society-scoped actions work.
+
   const { societyId, role } = await resolveActiveSociety(supabase, user);
 
-  return (
-    <main className="bg-neutral-50 min-h-screen px-8 py-6">
-      <h1 className="text-2xl font-semibold text-neutral-900 mb-4">Profile</h1>
-      <p className="text-neutral-600 mb-6">
-        Edit name, photo and phone — coming in a later phase. Use the menu below to sign out or
-        transfer Secretary role.
-      </p>
-      <ProfileMenuDropdown
-        userId={user.id}
-        societyId={societyId}
-        role={role}
-        fullName={meta.full_name ?? user.user_metadata?.full_name ?? "Member"}
-      />
-    </main>
-  );
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  let membership = null;
+  if (societyId) {
+    const { data } = await supabase
+      .from("society_memberships")
+      .select("id, emergency_contact, flats:flat_id(number, wings:wing_id(name))")
+      .eq("user_id", user.id)
+      .eq("society_id", societyId)
+      .eq("status", "active")
+      .maybeSingle();
+    membership = data;
+  }
+
+  const flatLabel = membership?.flats
+    ? [membership.flats.wings?.name, membership.flats.number].filter(Boolean).join("-")
+    : null;
+
+  const me = {
+    fullName: profile?.full_name ?? user.user_metadata?.full_name ?? "",
+    phone: profile?.phone ?? (user.phone ? `+${user.phone}` : null),
+    flatLabel,
+    emergency: membership?.emergency_contact ?? null,
+    membershipId: membership?.id ?? null,
+  };
+
+  return <ProfileClient userId={user.id} role={role} societyId={societyId} me={me} />;
 }

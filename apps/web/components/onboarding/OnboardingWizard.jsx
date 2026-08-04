@@ -25,9 +25,13 @@ function weakPin(p) {
   return p === "1234" || /^(\d)\1{3}$/.test(p);
 }
 
-export function OnboardingWizard({ phone, userId }) {
+export function OnboardingWizard({ phone, userId, initialName = "" }) {
   const { t } = useTranslation("auth");
   const router = useRouter();
+
+  // The number they signed in with — always known, shown read-only so it's clear
+  // which mobile they're registered under (the "Alternate" below is a backup).
+  const phoneDisplay = phone ? `+91 ${phone.replace(/\D/g, "").slice(-10)}` : "";
 
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -35,7 +39,7 @@ export function OnboardingWizard({ phone, userId }) {
 
   const [code, setCode] = useState("");
   const [society, setSociety] = useState(null); // { society_id, society_name, wings }
-  const [form, setForm] = useState({ name: "", flatId: "", residency: "owner", alt: "" });
+  const [form, setForm] = useState({ name: initialName, flatId: "", residency: "owner", alt: "" });
   const [family, setFamily] = useState([]);
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
@@ -199,6 +203,18 @@ export function OnboardingWizard({ phone, userId }) {
               title={t("auth.obDetailsTitle")}
               sub={t("auth.obDetailsSub", { society: society?.society_name ?? "" })}
             />
+            <Label text={t("auth.obYourMobile")}>
+              <input
+                className={field}
+                value={phoneDisplay}
+                readOnly
+                disabled
+                style={{
+                  backgroundColor: "var(--color-neutral-50)",
+                  color: "var(--color-neutral-600)",
+                }}
+              />
+            </Label>
             <Label text={t("auth.obName")}>
               <input
                 className={field}

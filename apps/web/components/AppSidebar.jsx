@@ -33,9 +33,12 @@ import {
   Bell,
   Building2,
   Calendar,
+  CalendarClock,
+  DoorOpen,
   LayoutDashboard,
   MessageSquareWarning,
   User,
+  UserRound,
   Users2,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,6 +46,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ProfileMenuDropdown } from "./dashboard/ProfileMenuDropdown";
 import { SocietySwitcherDropdown } from "./dashboard/SocietySwitcherDropdown";
+import { SosButton } from "./sos/SosButton";
 import {
   Sidebar,
   SidebarContent,
@@ -68,6 +72,7 @@ import {
 export function AppSidebar({ userId, societyId, role, fullName, flatLabel, memberships = [] }) {
   const pathname = usePathname();
   const { t } = useTranslation("dashboard");
+  const { t: tv } = useTranslation("auth"); // visitor.* live in the flat "auth" file
   const p = pathname || "";
 
   // Built inside the component so locale changes refresh the labels (Plan 07-06).
@@ -93,9 +98,40 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
       icon: Users2,
       active: p.startsWith("/community"),
     },
+    {
+      href: "/visitors",
+      label: tv("visitor.inboxTitle"),
+      icon: DoorOpen,
+      active: p.startsWith("/visitors"),
+    },
+    {
+      href: "/staff",
+      label: tv("staff.title"),
+      icon: UserRound,
+      active: p.startsWith("/staff"),
+    },
+    {
+      href: "/facilities",
+      label: tv("facility.title"),
+      icon: CalendarClock,
+      active: p.startsWith("/facilities"),
+    },
   ];
 
+  // Society profile is the secretary/co-secretary management hub (wings, guards,
+  // amenities) — shown only to them, right above their personal Profile.
+  const isManager = role === "secretary" || role === "co_secretary";
   const ACCOUNT_NAV = [
+    ...(isManager
+      ? [
+          {
+            href: "/society",
+            label: tv("profile.societyProfile"),
+            icon: Building2,
+            active: p.startsWith("/society"),
+          },
+        ]
+      : []),
     { href: "/profile", label: t("nav.profile"), icon: User, active: p === "/profile" },
   ];
 
@@ -162,6 +198,14 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
             // PAR-100: removed console.log that leaked the society UUID.
           }}
         />
+
+        {/* Emergency SOS — reachable from every page, not just home. */}
+        {societyId ? (
+          <SosButton
+            societyId={societyId}
+            triggerClassName="mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[14px] font-extrabold text-white transition-transform active:scale-[0.99]"
+          />
+        ) : null}
       </SidebarHeader>
 
       <SidebarContent className="px-3 pt-2">
