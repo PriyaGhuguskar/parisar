@@ -41,6 +41,7 @@ import {
   UserRound,
   Users2,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -177,9 +178,16 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
         <span className="flex items-center gap-2.5 px-1">
           <span
             className="flex h-8 w-8 items-center justify-center rounded-[10px]"
-            style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
+            style={{ color: "#fff" }}
           >
-            <Building2 size={16} strokeWidth={2.3} aria-hidden="true" />
+            <Image
+              src="/parisar-mark-96.png"
+              alt=""
+              aria-hidden="true"
+              width={32}
+              height={32}
+              className="h-full w-full object-contain"
+            />
           </span>
           <span
             className="text-[17px] font-extrabold tracking-[-0.03em]"

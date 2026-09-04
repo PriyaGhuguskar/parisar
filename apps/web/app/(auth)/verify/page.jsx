@@ -207,7 +207,12 @@ function VerifyForm() {
       <Shell
         phone={phone}
         heading={t("auth.enterOtp")}
-        sub={t("auth.otpSentTo", { phone })}
+        // The otpSentTo string already carries "+91" in all three locales, and
+        // `phone` here is full E.164 — passing it raw rendered "Sent to +91
+        // +919000000002". Mobile strips the prefix before interpolating
+        // (apps/mobile/app/(auth)/verify.jsx:36); web now matches, so the two
+        // clients honour the same contract for the shared key.
+        sub={t("auth.otpSentTo", { phone: String(phone ?? "").replace(/^\+91/, "") })}
         extra={mode === "pin" ? t("auth.otpVerifyThenPin") : null}
       >
         <form onSubmit={onOtp} className="flex flex-col gap-4">

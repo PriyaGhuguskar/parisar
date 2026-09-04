@@ -31,6 +31,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SocietyDetail } from "./SocietyDetail";
@@ -249,12 +250,17 @@ export function AdminConsole({
           <span
             className="flex h-9 w-9 items-center justify-center rounded-[11px] shadow-[0_4px_10px_-3px_rgba(18,113,90,.5)]"
             style={{
-              background:
-                "linear-gradient(180deg, color-mix(in srgb, var(--color-brand-500) 88%, #fff), var(--color-brand-500))",
               color: "#fff",
             }}
           >
-            <Building2 size={18} strokeWidth={2.2} aria-hidden="true" />
+            <Image
+              src="/parisar-mark-96.png"
+              alt=""
+              aria-hidden="true"
+              width={34}
+              height={34}
+              className="h-full w-full object-contain"
+            />
           </span>
           <span className="text-[17px] font-extrabold tracking-[-0.03em] text-[var(--color-neutral-900)]">
             Parisar

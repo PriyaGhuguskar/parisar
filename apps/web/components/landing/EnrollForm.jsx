@@ -13,7 +13,8 @@
 // enforcement is CHECK constraints and a partial unique index in the database,
 // because this REST endpoint is directly reachable.
 
-import { ArrowLeft, ArrowRight, Building2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -399,9 +400,16 @@ export function EnrollPage() {
           <Link href="/" className="flex items-center gap-2.5">
             <span
               className="flex h-9 w-9 items-center justify-center rounded-[11px]"
-              style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
+              style={{ color: "#fff" }}
             >
-              <Building2 size={18} strokeWidth={2.2} aria-hidden="true" />
+              <Image
+                src="/parisar-mark-96.png"
+                alt=""
+                aria-hidden="true"
+                width={40}
+                height={40}
+                className="h-full w-full object-contain"
+              />
             </span>
             <span
               className="text-[20px] font-extrabold tracking-[-0.03em]"

@@ -274,12 +274,24 @@
     --pk-1:4px;  --pk-2:8px;  --pk-3:12px; --pk-4:16px; --pk-5:24px; --pk-6:32px;
     --pk-7:40px; --pk-8:48px; --pk-9:64px; --pk-10:80px; --pk-11:96px; --pk-12:128px;
 
-    /* type scale — 1.25 modular, 16px base, fluid display sizes */
-    --pk-text-xs:.75rem; --pk-text-sm:.875rem; --pk-text-md:1rem;
-    --pk-text-lg:1.125rem; --pk-text-xl:1.25rem;
-    --pk-text-2xl:clamp(1.5rem, calc(1.2rem + 1.2vw), 1.875rem);
-    --pk-text-3xl:clamp(1.875rem, calc(1.4rem + 2.2vw), 2.5rem);
-    --pk-text-4xl:clamp(2.5rem, calc(1.6rem + 4.4vw), 4rem);
+    /* type scale — 1.25 modular, fluid at EVERY step.
+       Previously only 2xl/3xl/4xl were fluid and the body sizes were fixed, so
+       on a 320px phone an 18px paragraph sat next to a 40px headline in a
+       280px column: four or five words per line, and the page read as
+       congested. Every step is now a clamp, so the whole scale contracts
+       together on small screens and the proportions stay intact.
+
+       Floors are the mobile size, ceilings the desktop size:
+         sm 13->14  md 15->16  lg 16->18  xl 17->20
+         2xl 20->30  3xl 24->40  4xl 32->64                                   */
+    --pk-text-xs:.75rem;
+    --pk-text-sm:clamp(.8125rem, calc(.78rem + .18vw), .875rem);
+    --pk-text-md:clamp(.9375rem, calc(.9rem + .22vw), 1rem);
+    --pk-text-lg:clamp(1rem, calc(.95rem + .3vw), 1.125rem);
+    --pk-text-xl:clamp(1.0625rem, calc(1rem + .4vw), 1.25rem);
+    --pk-text-2xl:clamp(1.25rem, calc(1.05rem + 1vw), 1.875rem);
+    --pk-text-3xl:clamp(1.5rem, calc(1.15rem + 1.8vw), 2.5rem);
+    --pk-text-4xl:clamp(2rem, calc(1.35rem + 3.4vw), 4rem);
 
     --pk-r-sm:8px; --pk-r-md:12px; --pk-r-lg:16px; --pk-r-xl:20px; --pk-r-2xl:28px;
 
@@ -562,3 +574,220 @@ details[open] .pk-acc { grid-template-rows:1fr }
 .admin-scope .a-nav { transition: background-color .16s var(--a-ease), color .16s var(--a-ease); }
 .admin-scope .a-nav:hover { background-color: var(--color-neutral-100); }
 .admin-scope .a-nav[aria-current="page"]:hover { background-color: var(--color-brand-50); }
+
+/* ============================================================================
+   HERO COLLAGE ART — original animated SVG scenes (replaces the stock photos)
+   ----------------------------------------------------------------------------
+   Six tiles alternate between "society life" vector scenes and live product
+   cards. Everything here is transform/opacity only so it stays on the
+   compositor: no layout, no paint storms, no JavaScript, ~0 bytes of image.
+
+   WHY VECTOR AND NOT PHOTOGRAPHY: the previous tiles were Wikimedia stock,
+   including a CC BY-SA rangoli (share-alike) and a photograph of a real,
+   identifiable child presented as "a resident's child". Original artwork
+   retires both the licensing obligation and the consent problem, and it
+   animates — which a still cannot.
+
+   Each loop is slow and offset per tile. Nothing is synchronised, because six
+   things moving on the same beat reads as a carousel; six things drifting on
+   their own clocks reads as life.
+   ========================================================================== */
+
+/* --- tile float. The whole collage breathes; each tile on its own phase. --- */
+@keyframes pkArtFloat {
+  0%   { transform: translate3d(0,0,0) }
+  50%  { transform: translate3d(0,-7px,0) }
+  100% { transform: translate3d(0,0,0) }
+}
+.pk-art { animation: pkArtFloat var(--pk-art-dur, 9s) ease-in-out infinite; animation-delay: var(--pk-art-delay, 0ms) }
+
+/* --- rangoli: the ring turns slowly; petals breathe in sequence. ---------- */
+@keyframes pkArtSpin  { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+@keyframes pkArtPetal { 0%,100% { transform: scale(1); opacity:.85 } 50% { transform: scale(1.14); opacity:1 } }
+.pk-art-spin  { transform-box: fill-box; transform-origin: center; animation: pkArtSpin 48s linear infinite }
+.pk-art-spin-r{ transform-box: fill-box; transform-origin: center; animation: pkArtSpin 64s linear infinite reverse }
+.pk-art-petal { transform-box: fill-box; transform-origin: center; animation: pkArtPetal 3.2s var(--pk-ease) infinite; animation-delay: var(--d,0ms) }
+
+/* --- diya flame. Two offset scales so it guts and recovers like a real wick. */
+@keyframes pkArtFlame {
+  0%,100% { transform: scaleY(1)    scaleX(1);    opacity:1 }
+  28%     { transform: scaleY(.82)  scaleX(1.08); opacity:.86 }
+  54%     { transform: scaleY(1.16) scaleX(.94);  opacity:1 }
+  76%     { transform: scaleY(.92)  scaleX(1.04); opacity:.92 }
+}
+.pk-art-flame { transform-box: fill-box; transform-origin: bottom center; animation: pkArtFlame 1.7s ease-in-out infinite; animation-delay: var(--d,0ms) }
+
+@keyframes pkArtGlow { 0%,100% { opacity:.30; transform:scale(1) } 50% { opacity:.62; transform:scale(1.16) } }
+.pk-art-glow { transform-box: fill-box; transform-origin: center; animation: pkArtGlow 2.6s ease-in-out infinite; animation-delay: var(--d,0ms) }
+
+/* --- tower windows waking up one at a time, then holding. ----------------- */
+@keyframes pkArtWindow { 0%,8% { opacity:.10 } 22%,88% { opacity:1 } 100% { opacity:.10 } }
+.pk-art-window { animation: pkArtWindow 11s ease-in-out infinite; animation-delay: var(--d,0ms) }
+
+/* --- festival string lights swaying above the tower. ---------------------- */
+@keyframes pkArtSway { 0%,100% { transform: rotate(-1.6deg) } 50% { transform: rotate(1.6deg) } }
+.pk-art-sway { transform-box: fill-box; transform-origin: top center; animation: pkArtSway 5.5s ease-in-out infinite }
+
+@keyframes pkArtTwinkle { 0%,100% { opacity:.35 } 50% { opacity:1 } }
+.pk-art-twinkle { animation: pkArtTwinkle 2.1s ease-in-out infinite; animation-delay: var(--d,0ms) }
+
+/* --- product: a notice fanning out to flats, chip by chip. ---------------- */
+@keyframes pkArtChip {
+  0%,10%  { opacity:.22; transform: translateY(3px) }
+  26%,84% { opacity:1;   transform: translateY(0) }
+  100%    { opacity:.22; transform: translateY(3px) }
+}
+.pk-art-chip { transform-box: fill-box; animation: pkArtChip 7s var(--pk-ease) infinite; animation-delay: var(--d,0ms) }
+
+/* --- product: status trail advancing Open -> Checking -> Resolved. -------- */
+@keyframes pkArtStep {
+  0%,6%   { opacity:.26 }
+  20%,90% { opacity:1 }
+  100%    { opacity:.26 }
+}
+.pk-art-step { animation: pkArtStep 8s var(--pk-ease) infinite; animation-delay: var(--d,0ms) }
+
+@keyframes pkArtDraw { from { stroke-dashoffset: var(--len,120) } to { stroke-dashoffset: 0 } }
+.pk-art-draw { stroke-dasharray: var(--len,120); animation: pkArtDraw 2.4s var(--pk-ease) infinite alternate }
+
+/* --- product: poll bars filling, then settling. --------------------------- */
+@keyframes pkArtBar { 0%,8% { transform: scaleX(0) } 46%,88% { transform: scaleX(1) } 100% { transform: scaleX(0) } }
+.pk-art-bar { transform-box: fill-box; transform-origin: left center; animation: pkArtBar 8.5s var(--pk-ease) infinite; animation-delay: var(--d,0ms) }
+
+/* --- kids' ball arcing across the courtyard. ----------------------------- */
+@keyframes pkArtBall {
+  0%   { transform: translate(0,0)      }
+  50%  { transform: translate(38px,-26px) }
+  100% { transform: translate(76px,0)   }
+}
+.pk-art-ball { transform-box: fill-box; animation: pkArtBall 3.4s ease-in-out infinite alternate }
+
+/* --- Reduced motion: freeze every scene in its most legible pose rather
+       than letting the global 0.01ms rule snap them to a random frame. ----- */
+@media (prefers-reduced-motion: reduce) {
+  .pk-art, .pk-art-spin, .pk-art-spin-r, .pk-art-petal, .pk-art-flame, .pk-art-glow,
+  .pk-art-window, .pk-art-sway, .pk-art-twinkle, .pk-art-chip, .pk-art-step,
+  .pk-art-draw, .pk-art-bar, .pk-art-ball {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE SAFETY NET (production)
+   ----------------------------------------------------------------------------
+   Measured with a headless browser across 320–1920px. Two rules that stop a
+   whole class of layout bugs from ever reaching a phone:
+
+   1. overflow-x:clip on the root. NOT `hidden` — `hidden` turns the element
+      into a scroll container, which silently breaks `position:sticky` (the nav
+      would stop sticking). `clip` trims the overflow without that side effect.
+
+   2. min-width:0 on grid and flex children. This is the actual root cause of
+      the clipped hero text on narrow phones: grid/flex items default to
+      min-width:auto, so an item refuses to shrink below its content's
+      intrinsic width. One fixed-width mockup inside a column therefore forces
+      the entire column — and every heading and paragraph beside it — wider
+      than the screen, where it gets clipped rather than wrapped.
+   ========================================================================== */
+
+html { overflow-x: clip; }
+body { overflow-x: clip; min-width: 0; }
+
+/* Media never exceeds its box. */
+img, svg, video, canvas, iframe { max-width: 100%; }
+
+/* Let grid/flex children shrink. Scoped to the landing + auth surfaces so it
+   cannot surprise the app shell, which manages its own overflow. */
+.pk-page :where(.grid, .flex) > * { min-width: 0; }
+
+/* Long unbroken strings (a pasted URL, a long society name) wrap instead of
+   pushing the layout wide. */
+.pk-page :where(h1, h2, h3, p, li, span, a) { overflow-wrap: anywhere; }
+
+/* ============================================================================
+   APP SHELL — make an installed Parisar behave like a native app, not a page
+   ----------------------------------------------------------------------------
+   These only bite when the app is launched from the home screen (display:
+   standalone, set in app/manifest.js). In a normal browser tab they are inert,
+   because env(safe-area-inset-*) reports 0 and the browser supplies its own UI.
+   ========================================================================== */
+
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+}
+
+/* The sticky nav must clear the notch, and the page must clear the home
+   indicator — otherwise an installed app draws content underneath both. */
+.pk-nav { padding-top: var(--safe-t); }
+.pk-page { padding-bottom: var(--safe-b); }
+.pk-page :where(section, header, footer) { padding-left: var(--safe-l); padding-right: var(--safe-r); }
+
+/* Kill the flash of grey Android/iOS paint on every tap — the single most
+   "this is a web page" tell there is. Focus rings are untouched, so keyboard
+   and screen-reader users lose nothing. */
+.pk-page a, .pk-page button, .pk-page [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chrome (nav, buttons, labels) should not be text-selectable — long-pressing a
+   nav item and getting a selection handle is a dead giveaway. Real content
+   stays selectable. */
+.pk-nav, .pk-page button, .pk-page [role="button"] { -webkit-user-select: none; user-select: none; }
+
+/* Stop the whole app rubber-banding / pull-to-refresh when a resident flicks a
+   list. Native apps do not bounce the entire document. */
+html { overscroll-behavior-y: none; }
+
+/* Anchor targets clear the sticky nav instead of hiding beneath it. */
+.pk-page :where(section[id], h2[id], h3[id]) { scroll-margin-top: 88px; }
+
+/* Respect a user who asked the OS for a smaller/larger base size, and keep
+   momentum scrolling smooth inside any scrollable panel. */
+.pk-page :where([data-scroll], .pk-acc > div) { -webkit-overflow-scrolling: touch; }
+
+/* ============================================================================
+   APP SHELL RESPONSIVENESS (authenticated screens)
+   ----------------------------------------------------------------------------
+   The landing page got these rules scoped to .pk-page. The app screens need the
+   same protections, so they are applied app-wide here via :where(), which
+   carries ZERO specificity — any component can still override with a plain
+   class, and nothing existing gets outranked.
+   ========================================================================== */
+
+/* The min-width:auto trap again. In the app it bites hardest on flex rows like
+   "avatar + name + flat + badge": the text refuses to shrink, so the badge is
+   pushed off the card instead of the name ellipsing. */
+:where(.grid, .flex) > * { min-width: 0; }
+
+/* Long society names, member names and complaint titles must ellipse or wrap
+   rather than widen their row. */
+:where(.truncate) { min-width: 0; }
+
+/* An installed app must clear the notch and the home indicator on every screen,
+   not just the landing page. */
+:where(main, [data-app-shell]) {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Any deliberately-wide content (a chip row, a code block, a wide chart) should
+   scroll INSIDE its own box — never widen the page. Opt in with data-scroll-x. */
+[data-scroll-x] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Inputs on iOS zoom the viewport when their font-size is under 16px. That zoom
+   is what makes a web form feel unmistakably like a web page rather than an
+   app, and it never zooms back out. 16px is the floor that prevents it. */
+@media (max-width: 640px) {
+  :where(input, select, textarea) { font-size: max(16px, 1rem); }
+}

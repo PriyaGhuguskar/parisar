@@ -60,10 +60,31 @@ vi.mock("@parisar/api-client", () => ({
 // path runs but no reconnect fires (matches the mobile home-screen.test.jsx
 // mock pattern from Plan 07-07 — Rule 3 blocking fix).
 vi.mock("@/lib/supabase/client", () => {
+  // The chain must cover EVERY builder method the mounted tree calls, not just
+  // the ones the dashboard itself uses. HighlightsStrip (society_highlights +
+  // facility_events) mounts inside this page and chains .order()/.gte()/.limit(),
+  // which the original mock lacked — so those calls returned undefined and threw
+  // inside a useEffect. The assertions still passed, but vitest counted 18
+  // unhandled rejections and failed the run. Missing links here are silent until
+  // they are not, so the safe shape is "every builder method returns the chain".
   const query = {
     select: () => query,
     eq: () => query,
+    neq: () => query,
     is: () => query,
+    in: () => query,
+    gt: () => query,
+    gte: () => query,
+    lt: () => query,
+    lte: () => query,
+    like: () => query,
+    ilike: () => query,
+    filter: () => query,
+    match: () => query,
+    order: () => query,
+    limit: () => query,
+    range: () => query,
+    single: () => query,
     maybeSingle: () => query,
     then: (resolve) => {
       resolve({ data: null, error: null });

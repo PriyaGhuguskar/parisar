@@ -28,7 +28,6 @@
 import {
   ArrowRight,
   BookUser,
-  Building2,
   CalendarCheck,
   Check,
   FileWarning,
@@ -39,10 +38,11 @@ import {
   ShieldCheck,
   Vote,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { FaqAccordion } from "./FaqAccordion";
-import { PhotoCollage } from "./PhotoCollage";
+import { HeroCollage } from "./HeroCollage";
 import { PricingPlans } from "./PricingPlans";
 import { QuickTour } from "./QuickTour";
 import { RoleWalkthrough } from "./RoleWalkthrough";
@@ -120,15 +120,30 @@ function GhostCta({ href, children }) {
 /** Wordmark. The brand mark is deliberately typographic for now. */
 function Wordmark({ onDark }) {
   return (
-    <span className="flex items-center gap-2.5">
+    // shrink-0 + nowrap: at 280px (Galaxy Fold outer screen) the brand was
+    // breaking mid-word into "Parisa / r" because the global min-width:0 lets
+    // flex children shrink. A brand name is the one string that must never wrap.
+    <span className="flex shrink-0 items-center gap-2.5">
+      {/* The real mark, not a generic building glyph. It carries its own shape
+          and gradient, so it is placed bare rather than inside a green tile —
+          a coloured plate behind it would fight its own palette. */}
+      {/* 40px, not 36. The mark carries real interior detail — buildings, a
+          tree, figures, a speech bubble — and below about 40px those collapse
+          into an indistinct blob. The nav is 72px tall, so it can afford it. */}
+      <Image
+        src="/parisar-mark-96.png"
+        alt=""
+        aria-hidden="true"
+        width={40}
+        height={40}
+        priority
+        className="h-10 w-10 shrink-0 object-contain"
+      />
+      {/* Below 360px (Galaxy Fold, older budget Androids) the logotype is
+          dropped and the mark carries the brand alone — otherwise it and the
+          CTA fight for the same 280px and both lose. */}
       <span
-        className="flex h-9 w-9 items-center justify-center rounded-[11px]"
-        style={{ backgroundColor: "var(--pk-primary)", color: "var(--pk-on-primary)" }}
-      >
-        <Building2 size={18} strokeWidth={2.2} aria-hidden="true" />
-      </span>
-      <span
-        className="text-[20px] font-extrabold tracking-[-0.03em]"
+        className="hidden whitespace-nowrap text-[20px] font-extrabold tracking-[-0.03em] min-[360px]:inline"
         style={{ color: onDark ? "var(--pk-on-dark)" : "var(--pk-ink)" }}
       >
         Parisar
@@ -249,7 +264,7 @@ export function LandingPage({ isSignedIn = false }) {
   ];
 
   return (
-    <div style={{ backgroundColor: "var(--pk-page)" }} className="min-h-screen">
+    <div style={{ backgroundColor: "var(--pk-page)" }} className="pk-page min-h-screen">
       {/* Scroll progress rail — driven by the document scroll timeline, no JS. */}
       <span className="pk-progress" aria-hidden="true" />
       {/* ---------------- sticky nav ---------------- */}
@@ -271,7 +286,7 @@ export function LandingPage({ isSignedIn = false }) {
             </Link>
             <Link
               href="/enroll"
-              className="pk-press inline-flex items-center rounded-full px-5 py-2.5 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="pk-press inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 min-[360px]:px-5 min-[360px]:py-2.5 min-[360px]:text-[14px]"
               style={{ backgroundColor: "var(--pk-primary)", color: "var(--pk-on-primary)" }}
             >
               {t("landing.connectCta")}
@@ -281,7 +296,7 @@ export function LandingPage({ isSignedIn = false }) {
       </header>
 
       {/* ---------------- hero ---------------- */}
-      {/* Dark ground so the photography reads as luminous, and so the brand hue
+      {/* Dark ground so the collage art reads as luminous, and so the brand hue
           can run at full saturation in the one place nothing has to stay
           readable over it. */}
       <section className="pk-hero relative overflow-hidden">
@@ -327,7 +342,7 @@ export function LandingPage({ isSignedIn = false }) {
             </div>
           </div>
 
-          <PhotoCollage />
+          <HeroCollage />
         </div>
       </section>
 
@@ -603,7 +618,19 @@ export function LandingPage({ isSignedIn = false }) {
         <div
           className={`${SHELL} flex flex-col gap-5 py-10 sm:flex-row sm:items-center sm:justify-between`}
         >
-          <Wordmark onDark />
+          {/* The full lock-up (mark + "Parisar" + tagline) lives HERE and only
+              here on the site. Its wordmark is white with a soft glow, so it
+              needs a dark ground — on the light nav the name would be invisible
+              against cream (verified by compositing it on both). The footer is
+              the site's one dark surface where it reads correctly, and a
+              closing brand signature is exactly what a footer is for. */}
+          <Image
+            src="/parisar-wordmark.png"
+            alt="Parisar — society management made easy"
+            width={200}
+            height={200}
+            className="h-auto w-[168px] shrink-0 object-contain sm:w-[188px]"
+          />
           <p style={{ color: "var(--pk-on-dark-body)", fontSize: "var(--pk-text-sm)" }}>
             {t("landing.footerLine")}
           </p>

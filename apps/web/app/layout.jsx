@@ -24,7 +24,32 @@ import { initTranslations, readLocaleFromCookies } from "../lib/i18n/server";
 export const metadata = {
   title: "Parisar",
   description: "Society management platform",
-  icons: { icon: "/parisar-logo.png", apple: "/parisar-logo.png" },
+  icons: { icon: "/parisar-mark-192.png", apple: "/parisar-apple.png" },
+  manifest: "/manifest.webmanifest",
+  applicationName: "Parisar",
+  // Tells iOS to launch from the home screen WITHOUT Safari chrome, and to use
+  // a translucent status bar so the app's own colour runs to the top edge.
+  appleWebApp: {
+    capable: true,
+    title: "Parisar",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
+};
+
+// viewportFit:"cover" is required for env(safe-area-inset-*) to report real
+// values on notched phones. Without it the insets are all 0 and an installed
+// app draws its header under the notch and its footer under the home
+// indicator. maximumScale is deliberately NOT capped — locking zoom is an
+// accessibility failure, and residents include older users who pinch to read.
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FBF6EE" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E1F19" },
+  ],
 };
 
 export default async function RootLayout({ children }) {

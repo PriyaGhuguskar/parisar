@@ -15,7 +15,8 @@
 // The panel is desktop-only. On a phone it collapses to the wordmark so a
 // resident on a mid-range Android reaches the input immediately.
 
-import { ArrowLeft, Building2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import SocietyScene from "./SocietyScene";
@@ -28,11 +29,18 @@ function Wordmark({ onDark = false, size = "md" }) {
       <span
         className={`flex ${box} items-center justify-center rounded-[11px]`}
         style={{
-          backgroundColor: onDark ? "rgba(255,255,255,.14)" : "var(--color-brand-500)",
+          // No plate behind the mark — it carries its own gradient.
           color: "#fff",
         }}
       >
-        <Building2 size={17} strokeWidth={2.2} aria-hidden="true" />
+        <Image
+          src="/parisar-mark-96.png"
+          alt=""
+          aria-hidden="true"
+          width={40}
+          height={40}
+          className="h-full w-full object-contain"
+        />
       </span>
       <span
         className={`${text} font-extrabold tracking-[-0.03em]`}

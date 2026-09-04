@@ -28,8 +28,11 @@ export function QuickTour() {
           "linear-gradient(135deg, var(--pk-primary-soft) 0%, var(--pk-tint) 46%, var(--pk-card) 100%)",
       }}
     >
-      <div className="grid items-center gap-12 p-7 sm:p-10 lg:grid-cols-[.85fr_1fr] lg:gap-14 lg:p-14">
-        <div className="mx-auto w-full max-w-[320px]">
+      {/* p-4 on the smallest phones: at 320px the old p-7 (56px of horizontal
+          padding) left too little room for the device mockup, which then
+          refused to shrink and pushed the whole column off-screen. */}
+      <div className="grid items-center gap-10 p-4 min-[400px]:p-6 sm:gap-12 sm:p-10 lg:grid-cols-[.85fr_1fr] lg:gap-14 lg:p-14">
+        <div className="mx-auto w-full min-w-0 max-w-[320px]">
           <PhoneDemo />
         </div>
 

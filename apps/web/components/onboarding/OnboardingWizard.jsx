@@ -11,7 +11,8 @@
 // Family phones entered here become a login path — those people later sign in
 // with OTP + a PIN, no code, no re-onboarding (claim_family_membership).
 
-import { ArrowLeft, Building2, Loader2, Plus, X } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -140,9 +141,16 @@ export function OnboardingWizard({ phone, userId, initialName = "" }) {
         <div className="mb-6 flex items-center gap-3">
           <span
             className="flex h-10 w-10 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
+            style={{ color: "#fff" }}
           >
-            <Building2 size={19} strokeWidth={2.2} aria-hidden="true" />
+            <Image
+              src="/parisar-mark-96.png"
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              className="h-full w-full object-contain"
+            />
           </span>
           <span className="text-[13px] font-bold tabular-nums text-[var(--color-neutral-400)]">
             {t("auth.obStep", { n: step })}
