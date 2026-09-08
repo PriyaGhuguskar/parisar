@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@parisar/shared-types": "workspace:*",
-    "@supabase/supabase-js": "2.103.3"
+    "@supabase/supabase-js": "2.115.0"
   },
   "devDependencies": {
     "vitest": "2.1.8"
