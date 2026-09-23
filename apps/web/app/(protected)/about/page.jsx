@@ -37,7 +37,7 @@ export default async function AboutPage() {
       <header className="bg-white border-b border-neutral-200 px-4 h-14 flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="text-sm text-[#0E5A48] hover:underline"
+          className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-[#0E5A48] hover:underline"
           aria-label="Back to dashboard"
         >
           ← Dashboard

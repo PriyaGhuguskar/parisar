@@ -725,8 +725,25 @@ img, svg, video, canvas, iframe { max-width: 100%; }
 /* The sticky nav must clear the notch, and the page must clear the home
    indicator — otherwise an installed app draws content underneath both. */
 .pk-nav { padding-top: var(--safe-t); }
-.pk-page { padding-bottom: var(--safe-b); }
-.pk-page :where(section, header, footer) { padding-left: var(--safe-l); padding-right: var(--safe-r); }
+/* Safe-area insets go on the PAGE WRAPPER, never on the sections themselves.
+   The earlier version of this rule was:
+
+     .pk-page :where(section, header, footer) { padding-left: var(--safe-l); … }
+
+   which looks harmless but silently destroyed the page gutter everywhere.
+   `.pk-page :where(…)` scores the same specificity as Tailwind's `.px-5`
+   (`:where()` adds nothing), and this file is appended after the utilities, so
+   source order handed it the win. On any device WITHOUT a notch
+   `env(safe-area-inset-left)` resolves to 0px — so every section, header and
+   footer sitewide computed `padding-left: 0`, and text ran to the screen edge.
+
+   Applying the inset once, here, adds the notch clearance without competing
+   with a single utility class. */
+.pk-page {
+  padding-bottom: var(--safe-b);
+  padding-left: var(--safe-l);
+  padding-right: var(--safe-r);
+}
 
 /* Kill the flash of grey Android/iOS paint on every tap — the single most
    "this is a web page" tell there is. Focus rings are untouched, so keyboard
@@ -762,19 +779,40 @@ html { overscroll-behavior-y: none; }
 
 /* The min-width:auto trap again. In the app it bites hardest on flex rows like
    "avatar + name + flat + badge": the text refuses to shrink, so the badge is
-   pushed off the card instead of the name ellipsing. */
-:where(.grid, .flex) > * { min-width: 0; }
+   pushed off the card instead of the name ellipsing.
 
-/* Long society names, member names and complaint titles must ellipse or wrap
-   rather than widen their row. */
-:where(.truncate) { min-width: 0; }
+   IN @layer base FOR THE SAME REASON AS THE SAFE-AREA BLOCK BELOW: unlayered
+   rules outrank every Tailwind utility no matter their specificity. While this
+   was unlayered it silently beat `min-w-11` on an icon link, which stayed 20px
+   wide while its height grew to 44px. As a base-layer default it still shrinks
+   every flex child that has no opinion, and now yields to one that does. */
+@layer base {
+  :where(.grid, .flex) > * { min-width: 0; }
+
+  /* Long society names, member names and complaint titles must ellipse or wrap
+     rather than widen their row. */
+  :where(.truncate) { min-width: 0; }
+}
 
 /* An installed app must clear the notch and the home indicator on every screen,
-   not just the landing page. */
-:where(main, [data-app-shell]) {
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+   not just the landing page.
+   ---------------------------------------------------------------------------
+   THIS MUST STAY IN @layer base. Tailwind v4 emits its utilities inside
+   `@layer utilities`, and CSS cascade layers rank UNLAYERED styles above EVERY
+   layered style — specificity is never even consulted. So while this block was
+   unlayered, a zero-specificity `:where(main)` outranked `.px-5`, and since
+   `env(safe-area-inset-left)` is 0px on any device without a notch, every
+   `<main>` on the site computed `padding-left: 0`. The /enroll form ran
+   edge-to-edge on phones because of exactly this.
+
+   Inside `base`, utilities win: an element carrying `px-5` keeps its 20px, and
+   anything without a horizontal utility still gets the inset. */
+@layer base {
+  :where(main, [data-app-shell]) {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 /* Any deliberately-wide content (a chip row, a code block, a wide chart) should

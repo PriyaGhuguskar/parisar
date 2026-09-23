@@ -28,18 +28,31 @@ import {
   Plus,
   Tag,
   TriangleAlert,
+  UserPlus,
   Users,
   Zap,
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import {
+  approveSalesApplication,
+  listPlatformUsers,
+  revokePlatformUser,
+} from "@/app/actions/platformUsers";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SocietyDetail } from "./SocietyDetail";
 
+// `group: true` renders a non-interactive header; `sub: true` indents beneath
+// it. Requests split in two because they are now two different queues from two
+// different tables — society enrollment leads, and salesperson applications.
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "societies", label: "Societies", icon: Building2 },
-  { id: "requests", label: "Requests", icon: Inbox },
+  { id: "requests", label: "Requests", icon: Inbox, group: true },
+  { id: "requestsSociety", label: "Society requests", icon: Building2, sub: true },
+  { id: "requestsSales", label: "Sales requests", icon: UserPlus, sub: true },
+  { id: "peopleSales", label: "All salespersons", icon: UserPlus, adminOnly: true },
+  { id: "peopleStaff", label: "All staff", icon: Users, adminOnly: true },
   { id: "catalogue", label: "Features & pricing", icon: Tag },
 ];
 
@@ -87,6 +100,11 @@ const STATES = [
 
 const input =
   "a-field h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[14px] text-[var(--color-neutral-900)] outline-none placeholder:text-[var(--color-neutral-400)]";
+
+// Quieter than the primary "New society" CTA — these are occasional admin
+// chores, not the console's main action.
+const secondaryCta =
+  "flex items-center justify-center gap-2 rounded-xl border border-[var(--color-neutral-200)] bg-white px-3 py-2.5 text-[13px] font-semibold text-[var(--color-neutral-700)] transition-colors hover:border-[var(--color-brand-500)] hover:text-[var(--color-brand-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2";
 
 const EMPTY_FORM = {
   name: "",
@@ -148,6 +166,68 @@ export function AdminConsole({
   const [openId, setOpenId] = useState(null);
   const [features, setFeatures] = useState(initialFeatures ?? []);
   const [priceEdit, setPriceEdit] = useState(null); // { key, val }
+
+  // Salesperson applications. Loaded on first visit to the tab rather than in
+  // the server page: most console sessions never open it, and the RLS policy
+  // (sales_applications_staff_read) already scopes it to admin/sales.
+  const [salesApps, setSalesApps] = useState(null); // null = not loaded yet
+
+  // Requests is a disclosure, not a destination. Starts closed; opens on click,
+  // and stays open whenever one of its two queues is the active section so the
+  // sidebar never hides where you currently are.
+  const [requestsOpen, setRequestsOpen] = useState(false);
+
+  // Appointed platform users (staff + sales in one call — admin_list_platform_users
+  // returns both and never discloses admin rows). Split by role at render time.
+  const [people, setPeople] = useState(null);
+  const [pending, setPending] = useState(null); // id currently being acted on
+  const [peopleErr, setPeopleErr] = useState(null);
+
+  async function loadPeople() {
+    const res = await listPlatformUsers();
+    setPeople(res.error ? [] : res.users);
+    setPeopleErr(res.error ?? null);
+  }
+
+  async function onApprove(app) {
+    setPending(app.id);
+    setPeopleErr(null);
+    const res = await approveSalesApplication({
+      id: app.id,
+      phone: app.phone,
+      name: app.full_name,
+    });
+    setPending(null);
+    if (res.error) {
+      setPeopleErr(res.error);
+      return;
+    }
+    // Drop it from the queue and invalidate the people list so the new
+    // salesperson shows up when that tab is next opened.
+    setSalesApps((list) => (list ?? []).filter((a) => a.id !== app.id));
+    setPeople(null);
+  }
+
+  async function onRevoke(userId) {
+    setPending(userId);
+    const res = await revokePlatformUser(userId);
+    setPending(null);
+    if (res.error) {
+      setPeopleErr(res.error);
+      return;
+    }
+    setPeople((list) => (list ?? []).filter((u) => u.user_id !== userId));
+  }
+  const inRequests = section === "requestsSociety" || section === "requestsSales";
+
+  async function loadSalesApps() {
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("sales_applications")
+      .select("id, full_name, phone, status, created_at")
+      .order("created_at", { ascending: false });
+    setSalesApps(data ?? []);
+  }
 
   async function saveListPrice(key, price) {
     const supabase = createSupabaseBrowserClient();
@@ -281,66 +361,102 @@ export function AdminConsole({
           Manage
         </p>
         <nav className="a-stagger flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map(({ id, label, icon: Icon }) => {
-            const on = section === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setSection(id)}
-                aria-current={on ? "page" : undefined}
-                className="a-nav group/nav relative flex items-center gap-3 rounded-xl py-2 pl-2 pr-3 text-left text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
-                style={{
-                  backgroundColor: on ? "var(--color-brand-50)" : "transparent",
-                  color: on ? "var(--color-brand-700)" : "var(--color-neutral-600)",
-                }}
-              >
-                {/* Accent bar — grows in when active. */}
-                <span
-                  aria-hidden="true"
-                  className="absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200"
-                  style={{
-                    height: on ? "20px" : "0px",
-                    backgroundColor: "var(--color-brand-500)",
+          {NAV.filter((n) => isAdmin || !n.adminOnly).map(
+            ({ id, label, icon: Icon, group, sub }) => {
+              const on = section === id;
+
+              // A group header names the pair below it; it is not a destination,
+              // so it must not be a button — a control that looks focusable but
+              // does nothing is worse than plain text for keyboard and SR users.
+              if (group) {
+                const expanded = requestsOpen || inRequests;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setRequestsOpen((v) => !v)}
+                    aria-expanded={expanded}
+                    className="mt-3 flex items-center gap-3 rounded-xl py-2 pr-3 pl-2 text-left font-semibold text-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
+                    style={{ color: "var(--color-neutral-600)" }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{
+                        backgroundColor: "var(--color-neutral-100)",
+                        color: "var(--color-neutral-600)",
+                      }}
+                    >
+                      <Icon size={16} strokeWidth={2.2} />
+                    </span>
+                    {label}
+                    {leads.length > 0 ? (
+                      <span
+                        className="ml-auto rounded-full px-1.5 py-0.5 font-bold text-[11px] tabular-nums"
+                        style={{ backgroundColor: "#FDF0DF", color: "#8A4708" }}
+                      >
+                        {leads.length}
+                      </span>
+                    ) : null}
+                    <ChevronRight
+                      size={15}
+                      strokeWidth={2.4}
+                      aria-hidden="true"
+                      className={`${leads.length > 0 ? "" : "ml-auto"} transition-transform duration-200`}
+                      style={{ transform: expanded ? "rotate(90deg)" : "none" }}
+                    />
+                  </button>
+                );
+              }
+
+              // Collapsed: the two queues are not rendered at all, so they are out
+              // of the tab order too — hiding them visually alone would leave a
+              // keyboard user tabbing into links they cannot see.
+              if (sub && !(requestsOpen || inRequests)) return null;
+
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setSection(id);
+                    if (id === "requestsSales" && salesApps === null) loadSalesApps();
+                    if ((id === "peopleSales" || id === "peopleStaff") && people === null) {
+                      loadPeople();
+                    }
                   }}
-                />
-                {/* Icon in a well that fills when active. */}
-                <span
-                  aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
+                  aria-current={on ? "page" : undefined}
+                  className={`a-nav group/nav relative flex items-center gap-3 rounded-xl py-2 pr-3 text-left font-semibold text-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] ${sub ? "ml-5 pl-2" : "pl-2"}`}
                   style={{
-                    backgroundColor: on ? "var(--color-brand-500)" : "var(--color-neutral-100)",
-                    color: on ? "#fff" : "var(--color-neutral-600)",
+                    backgroundColor: on ? "var(--color-brand-50)" : "transparent",
+                    color: on ? "var(--color-brand-700)" : "var(--color-neutral-600)",
                   }}
                 >
-                  <Icon size={16} strokeWidth={2.2} />
-                </span>
-                {label}
-                {id === "requests" && leads.length > 0 ? (
+                  {/* Accent bar — grows in when active. */}
                   <span
-                    className="ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
-                    style={{ backgroundColor: "#FDF0DF", color: "#8A4708" }}
+                    aria-hidden="true"
+                    className="absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200"
+                    style={{
+                      height: on ? "20px" : "0px",
+                      backgroundColor: "var(--color-brand-500)",
+                    }}
+                  />
+                  {/* Icon in a well that fills when active. */}
+                  <span
+                    aria-hidden="true"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
+                    style={{
+                      backgroundColor: on ? "var(--color-brand-500)" : "var(--color-neutral-100)",
+                      color: on ? "#fff" : "var(--color-neutral-600)",
+                    }}
                   >
-                    {leads.length}
+                    <Icon size={16} strokeWidth={2.2} />
                   </span>
-                ) : null}
-              </button>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => {
-              setActive(null);
-              setCreated(null);
-              setForm(EMPTY_FORM);
-              setSection("create");
-            }}
-            className="a-btn a-shine mt-3 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[14px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-          >
-            <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
-            New society
-          </button>
+                  {label}
+                </button>
+              );
+            },
+          )}
         </nav>
 
         <a
@@ -361,12 +477,22 @@ export function AdminConsole({
       <main className="min-w-0 flex-1">
         {/* mobile section switcher — the sidebar is desktop-only */}
         <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-neutral-200)] bg-white p-2 lg:hidden">
-          {NAV.map(({ id, label }) => (
+          {/* Skip the Requests group header: on desktop it is a disclosure that
+              reveals two queues, but here every chip IS a section, and there is
+              no "requests" section to render — tapping it would blank the page.
+              Its two children appear as their own chips instead. */}
+          {NAV.filter((n) => !n.group && (isAdmin || !n.adminOnly)).map(({ id, label }) => (
             <button
               key={id}
               type="button"
-              onClick={() => setSection(id)}
-              className="shrink-0 rounded-full px-3.5 py-2 text-[13px] font-bold"
+              onClick={() => {
+                setSection(id);
+                if (id === "requestsSales" && salesApps === null) loadSalesApps();
+                if ((id === "peopleSales" || id === "peopleStaff") && people === null) {
+                  loadPeople();
+                }
+              }}
+              className="shrink-0 rounded-full px-3.5 py-2 font-bold text-[13px]"
               style={{
                 backgroundColor: section === id ? "var(--color-brand-500)" : "transparent",
                 color: section === id ? "#fff" : "var(--color-neutral-600)",
@@ -377,7 +503,47 @@ export function AdminConsole({
           ))}
         </div>
 
-        <div key={section} className="a-rise mx-auto w-full max-w-5xl p-5 lg:p-8">
+        {/* Action row — the console's three "make something" actions, together
+            at the top right of the content rather than stacked in the sidebar.
+            They are page-level actions, not navigation, so they do not belong
+            in the nav list. Wraps to its own line on narrow viewports. */}
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-end gap-2 px-5 pt-5 lg:px-8 lg:pt-8">
+          <button
+            type="button"
+            onClick={() => {
+              setActive(null);
+              setCreated(null);
+              setForm(EMPTY_FORM);
+              setSection("create");
+            }}
+            className="a-btn a-shine flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 font-bold text-[14px] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
+          >
+            <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
+            New society
+          </button>
+
+          {/* Appointing platform users is admin-only — admin_create_platform_user
+              is gated on is_platform_admin(), so a sales user seeing these would
+              only ever get NOT_PLATFORM_ADMIN back. Forms land here next; the
+              RPCs (create / revoke / list) already exist. */}
+          {isAdmin ? (
+            <>
+              <button type="button" className={secondaryCta}>
+                <UserPlus size={15} strokeWidth={2.4} aria-hidden="true" />
+                Create staff
+              </button>
+              <button type="button" className={secondaryCta}>
+                <UserPlus size={15} strokeWidth={2.4} aria-hidden="true" />
+                Create sales
+              </button>
+            </>
+          ) : null}
+        </div>
+
+        <div
+          key={section}
+          className="a-rise mx-auto w-full max-w-5xl px-5 pb-5 pt-4 lg:px-8 lg:pb-8"
+        >
           {/* ---------------- overview ---------------- */}
           {section === "overview" ? (
             <>
@@ -494,11 +660,133 @@ export function AdminConsole({
             </>
           ) : null}
 
+          {/* ---------------- appointed platform users ---------------- */}
+          {section === "peopleSales" || section === "peopleStaff" ? (
+            <>
+              <h1 className="font-extrabold text-[24px] text-[var(--color-neutral-900)] tracking-[-0.025em]">
+                {section === "peopleSales" ? "All salespersons" : "All staff"}
+              </h1>
+              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
+                {section === "peopleSales"
+                  ? "Everyone appointed to sell Parisar."
+                  : "Everyone appointed as staff."}
+              </p>
+
+              {peopleErr ? (
+                <p role="alert" className="mt-4 font-medium text-[13px] text-[#b42318]">
+                  {peopleErr}
+                </p>
+              ) : null}
+
+              <div className="mt-6 flex flex-col gap-2.5">
+                {people === null ? (
+                  <p className="text-[14px] text-[var(--color-neutral-500)]">Loading…</p>
+                ) : (
+                  (() => {
+                    const want = section === "peopleSales" ? "sales" : "staff";
+                    const rows = people.filter((u) => u.role === want);
+                    if (rows.length === 0) {
+                      return (
+                        <p className="text-[14px] text-[var(--color-neutral-500)]">
+                          Nobody appointed yet.
+                        </p>
+                      );
+                    }
+                    return rows.map((u) => (
+                      <div
+                        key={u.user_id}
+                        className="flex items-center gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white px-4 py-3"
+                      >
+                        <span className="font-semibold text-[14px] text-[var(--color-neutral-900)]">
+                          {u.full_name || u.note || "—"}
+                        </span>
+                        <a
+                          href={`tel:${u.phone}`}
+                          className="text-[13px] text-[var(--color-neutral-600)] underline underline-offset-2"
+                        >
+                          {u.phone}
+                        </a>
+                        <span className="ml-auto text-[12px] text-[var(--color-neutral-500)] tabular-nums">
+                          {new Date(u.created_at).toLocaleDateString("en-IN")}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={pending === u.user_id}
+                          onClick={() => onRevoke(u.user_id)}
+                          className="shrink-0 rounded-lg border border-[var(--color-neutral-300)] px-2.5 py-1.5 font-bold text-[12px] text-[var(--color-neutral-700)] disabled:opacity-50 hover:border-[#b42318] hover:text-[#b42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
+                        >
+                          {pending === u.user_id ? "Removing…" : "Remove"}
+                        </button>
+                      </div>
+                    ));
+                  })()
+                )}
+              </div>
+            </>
+          ) : null}
+
+          {/* ---------------- sales requests ---------------- */}
+          {section === "requestsSales" ? (
+            <>
+              <h1 className="font-extrabold text-[24px] text-[var(--color-neutral-900)] tracking-[-0.025em]">
+                Sales requests
+              </h1>
+              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
+                People who applied to sell Parisar, newest first.
+              </p>
+              <div className="mt-6 flex flex-col gap-2.5">
+                {salesApps === null ? (
+                  <p className="text-[14px] text-[var(--color-neutral-500)]">Loading…</p>
+                ) : salesApps.length === 0 ? (
+                  <p className="text-[14px] text-[var(--color-neutral-500)]">
+                    No applications yet.
+                  </p>
+                ) : (
+                  salesApps.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white px-4 py-3"
+                    >
+                      <span className="font-semibold text-[14px] text-[var(--color-neutral-900)]">
+                        {a.full_name}
+                      </span>
+                      <a
+                        href={`tel:${a.phone}`}
+                        className="text-[13px] text-[var(--color-neutral-600)] underline underline-offset-2"
+                      >
+                        {a.phone}
+                      </a>
+                      <span className="ml-auto text-[12px] text-[var(--color-neutral-500)] tabular-nums">
+                        {new Date(a.created_at).toLocaleDateString("en-IN")}
+                      </span>
+                      <span className="rounded-full bg-[var(--color-neutral-100)] px-2 py-0.5 font-semibold text-[11px] text-[var(--color-neutral-700)]">
+                        {a.status}
+                      </span>
+                      {/* Only an admin can appoint — admin_create_platform_user
+                          is gated on is_platform_admin(), so this would fail for
+                          a sales user reading the same queue. */}
+                      {isAdmin ? (
+                        <button
+                          type="button"
+                          disabled={pending === a.id}
+                          onClick={() => onApprove(a)}
+                          className="shrink-0 rounded-lg border border-[var(--color-brand-500)] px-2.5 py-1.5 font-bold text-[12px] text-[var(--color-brand-700)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
+                        >
+                          {pending === a.id ? "Adding…" : "Add as salesperson"}
+                        </button>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : null}
+
           {/* ---------------- requests ---------------- */}
-          {section === "requests" ? (
+          {section === "requestsSociety" ? (
             <>
               <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Enrollment requests
+                Society requests
               </h1>
               <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
                 Ring the top one first — "call me now" comes before scheduled slots.

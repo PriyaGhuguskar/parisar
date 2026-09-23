@@ -17,7 +17,12 @@ export function PageHeader({ eyebrow, title, description, actions, backHref, bac
         {backHref ? (
           <Link
             href={backHref}
-            className="pk-ul mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-brand-600)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2 rounded"
+            // Shared back-link, so this one class governs the target size on
+            // every screen that uses PageHeader. The text alone measured 62x20
+            // — under the 24px WCAG 2.2 AA floor (2.5.8). Vertical padding plus
+            // min-h-11 gives a thumb something to hit; the negative margins keep
+            // the header's existing spacing and left alignment untouched.
+            className="pk-ul -mx-2 mb-1 inline-flex min-h-11 items-center gap-1.5 rounded px-2 py-2 text-sm font-semibold text-[var(--color-brand-600)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
           >
             <ArrowLeft size={15} strokeWidth={2.4} aria-hidden="true" />
             {backLabel}

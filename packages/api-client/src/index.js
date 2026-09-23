@@ -22,6 +22,9 @@ export {
 } from "./notifications.js";
 export * from "./otp.js";
 export * from "./polls.js";
+// Six-role expansion — the single place web and mobile agree on what the roles
+// are, which surface each one lands on, and that surface's route id.
+export * from "./roles.js";
 // Phase 5 — notifications, polls, bookings, preferences.
 // preferences.js owns ensureNotificationPreferences; notifications.js re-exports it
 // for its own module consumers. Export preferences explicitly (named) so the

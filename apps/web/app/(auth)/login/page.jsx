@@ -108,7 +108,10 @@ export default function LoginPage() {
               setError(null);
               setForgot((v) => !v);
             }}
-            className="self-center text-[13px] font-semibold text-[var(--color-brand-600)] hover:underline"
+            // min-h-11 + px-3: the text is only 20px tall on its own, well under
+            // the 44px touch target a thumb needs. Padding grows the hit area
+            // without changing how the link looks.
+            className="-mx-3 inline-flex min-h-11 items-center justify-center self-center px-3 text-[13px] font-semibold text-[var(--color-brand-600)] hover:underline"
           >
             {forgot ? t("auth.pinResetCancel") : t("auth.pinForgot")}
           </button>

@@ -47,7 +47,11 @@ import { PricingPlans } from "./PricingPlans";
 import { QuickTour } from "./QuickTour";
 import { RoleWalkthrough } from "./RoleWalkthrough";
 
-const SHELL = "mx-auto w-full max-w-6xl px-5 sm:px-6";
+// px-6 (24px) rather than px-5 on phones: at 320-390px the cards carry their own
+// 24px inner padding, so a 20px outer gutter read as thinner than the padding
+// inside the card and the whole column looked wedged against the screen edge.
+// Matching the two makes the card feel placed on the page rather than clipped by it.
+const SHELL = "mx-auto w-full max-w-6xl px-6 sm:px-8";
 const SECTION = "py-20 lg:py-28";
 
 function Eyebrow({ children, onDark }) {
@@ -239,6 +243,20 @@ function RoleCard({ icon: Icon, title, body, points }) {
  *   call-to-action changes, so a signed-in visitor can read the page AND get
  *   back into the app in one click.
  */
+// Footer site links.
+//
+// Home and Pricing are in-page anchors, not routes — everything they point at
+// is already on this page, so a fragment jumps there instead of reloading the
+// whole landing page to show content the visitor is currently scrolled past.
+// Terms and Privacy have no pages yet and will 404 until they do.
+const FOOTER_LINKS = [
+  { key: "footerHome", href: "#top" },
+  { key: "footerPricing", href: "#pricing" },
+  { key: "footerSales", href: "/work-with-us" },
+  { key: "footerTerms", href: "/terms" },
+  { key: "footerPrivacy", href: "/privacy" },
+];
+
 export function LandingPage({ isSignedIn = false }) {
   const { t } = useTranslation("auth");
 
@@ -268,22 +286,30 @@ export function LandingPage({ isSignedIn = false }) {
       {/* Scroll progress rail — driven by the document scroll timeline, no JS. */}
       <span className="pk-progress" aria-hidden="true" />
       {/* ---------------- sticky nav ---------------- */}
-      <header className="pk-nav border-b" style={{ borderColor: "var(--pk-rule)" }}>
+      <header id="top" className="pk-nav border-b" style={{ borderColor: "var(--pk-rule)" }}>
         <div className={`${SHELL} flex h-[72px] items-center justify-between`}>
           <Wordmark />
           {/* The enrol CTA is ALWAYS present. Hiding it for signed-in visitors
               was wrong twice over: a resident who already has a society is
               exactly the person who refers a neighbouring one, and it left the
-              form unreachable without logging out. Only the SECOND slot is
-              contextual — a way back into the app, or a way in. */}
+              form unreachable without logging out.
+
+              The second slot is now SIGNED-OUT ONLY. It used to flip to "Go to
+              dashboard" once you had a session, which added a link most people
+              never need — a signed-in resident arriving on the marketing page is
+              usually there to show it to someone, not to navigate back. Signed
+              out it still earns its place as the way in, so the link stays for
+              that case rather than being deleted outright. */}
           <div className="flex items-center gap-2">
-            <Link
-              href={isSignedIn ? "/dashboard" : "/login"}
-              className="pk-press hidden rounded-full px-4 py-2 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pk-primary)] sm:inline-flex"
-              style={{ color: "var(--pk-body)" }}
-            >
-              {isSignedIn ? t("landing.navDashboard") : t("landing.navSignIn")}
-            </Link>
+            {!isSignedIn && (
+              <Link
+                href="/login"
+                className="pk-press hidden rounded-full px-4 py-2 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pk-primary)] sm:inline-flex"
+                style={{ color: "var(--pk-body)" }}
+              >
+                {t("landing.navSignIn")}
+              </Link>
+            )}
             <Link
               href="/enroll"
               className="pk-press inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 min-[360px]:px-5 min-[360px]:py-2.5 min-[360px]:text-[14px]"
@@ -548,6 +574,7 @@ export function LandingPage({ isSignedIn = false }) {
       {/* Placed after the objections and before the FAQ: a committee will only
           look at a price once it believes the thing works. */}
       <section
+        id="pricing"
         className="border-y"
         style={{ backgroundColor: "var(--pk-tint)", borderColor: "var(--pk-rule)" }}
       >
@@ -631,18 +658,30 @@ export function LandingPage({ isSignedIn = false }) {
             height={200}
             className="h-auto w-[168px] shrink-0 object-contain sm:w-[188px]"
           />
-          <p style={{ color: "var(--pk-on-dark-body)", fontSize: "var(--pk-text-sm)" }}>
-            {t("landing.footerLine")}
-          </p>
-          {/* Footer mirrors the nav: an existing user gets back into the app,
-              everyone else gets the way in. */}
-          <Link
-            href={isSignedIn ? "/dashboard" : "/login"}
-            className="pk-ul font-semibold"
-            style={{ color: "var(--pk-on-dark)", fontSize: "var(--pk-text-sm)" }}
-          >
-            {isSignedIn ? t("landing.navDashboard") : t("landing.navSignIn")}
-          </Link>
+          {/* Site links. Sign-in deliberately does NOT repeat here — the nav
+              carries it, and the closing CTA section directly above this footer
+              already offers both "connect" and "sign in". A third copy in the
+              footer was just noise. */}
+          <nav aria-label={t("landing.footerNavLabel")}>
+            <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {FOOTER_LINKS.map(({ key, href }) => (
+                <li key={key}>
+                  <Link
+                    href={href}
+                    // Real navigation, so it needs a real target. The text alone
+                    // is 18px tall — under the 24px WCAG 2.2 AA floor (2.5.8)
+                    // and far under a comfortable thumb. Vertical padding grows
+                    // the hit area; the negative margin keeps the row's visual
+                    // rhythm unchanged.
+                    className="pk-ul -my-2 inline-flex min-h-11 items-center py-2 font-semibold"
+                    style={{ color: "var(--pk-on-dark)", fontSize: "var(--pk-text-sm)" }}
+                  >
+                    {t(`landing.${key}`)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
       </footer>
     </div>

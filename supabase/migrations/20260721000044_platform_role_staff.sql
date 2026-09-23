@@ -1,0 +1,28 @@
+-- ============================================================================
+-- Add 'staff' to platform_role — ENUM VALUE ONLY
+-- ----------------------------------------------------------------------------
+-- WHY THIS FILE CONTAINS ONE STATEMENT AND NOTHING ELSE.
+-- Postgres will not let a new enum value be *referenced* in the same
+-- transaction that adds it. Every Supabase migration file runs in its own
+-- transaction, so the helper rewrite that says `role in ('admin','sales')` and
+-- the RPC that rejects `p_role = 'admin'` have to live in the NEXT file
+-- (…045_platform_role_helpers.sql). Merging them produces:
+--
+--     ERROR: unsafe use of new value "staff" of enum type platform_role
+--
+-- Do not fold this into a neighbouring migration.
+--
+-- WHAT 'staff' MEANS. A third platform role, distinct from admin and sales.
+-- It deliberately carries NO capability of its own yet: admin will later gain a
+-- module for granting per-user access, and a staff user gets exactly what the
+-- admin grants them. Until that exists, a staff user can sign in and see an
+-- empty console and nothing more.
+--
+-- CRITICAL: adding this value alone would WIDEN is_platform_staff(), which
+-- today means "any row in platform_admins" rather than a role list. A staff
+-- user would silently inherit society creation, per-society pricing, chairman
+-- editing and the enrollment queue. …045 closes that hole. These two files must
+-- be applied together.
+-- ============================================================================
+
+alter type public.platform_role add value if not exists 'staff';

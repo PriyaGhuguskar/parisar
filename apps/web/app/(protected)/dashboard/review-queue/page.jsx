@@ -263,7 +263,10 @@ export default function ReviewQueuePage() {
       <header className="bg-white border-b border-[var(--color-neutral-200)] px-4 h-14 flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="flex items-center gap-1 text-[var(--color-neutral-600)] hover:text-[var(--color-neutral-900)] transition-colors"
+          // A bare 20px icon is a 20x20 target — below the 24px WCAG 2.2 AA
+          // floor and far below a comfortable thumb. -ml-2 keeps it optically
+          // aligned with the header edge while the padding does the work.
+          className="-ml-2 flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full text-[var(--color-neutral-600)] transition-colors hover:text-[var(--color-neutral-900)]"
           aria-label="Back to dashboard"
         >
           <ArrowLeft size={20} />

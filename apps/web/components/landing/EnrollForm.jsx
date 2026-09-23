@@ -396,7 +396,7 @@ export function EnrollPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--color-neutral-50)" }}>
       <header className="border-b" style={{ borderColor: "var(--color-neutral-200)" }}>
-        <div className="mx-auto flex h-[72px] max-w-2xl items-center justify-between px-5">
+        <div className="mx-auto flex h-[72px] max-w-2xl items-center justify-between px-6 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5">
             <span
               className="flex h-9 w-9 items-center justify-center rounded-[11px]"
@@ -429,7 +429,7 @@ export function EnrollPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl px-5 py-12 sm:py-16">
+      <main className="mx-auto w-full max-w-2xl px-6 py-12 sm:px-8 sm:py-16">
         <h1
           className="pk-in text-[32px] font-extrabold leading-[1.1] tracking-[-0.035em] sm:text-[38px]"
           style={{ color: "var(--color-neutral-900)" }}
