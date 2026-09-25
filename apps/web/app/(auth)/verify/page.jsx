@@ -26,7 +26,7 @@ import ResendTimer from "../../../components/auth/ResendTimer";
 import { derivePinSecret } from "../../../lib/auth/pinSecret";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
 import {
-  claimChairman,
+  claimAuthority,
   claimFamilyMember,
   claimGuard,
   setPin as setPinAction,
@@ -131,23 +131,26 @@ function VerifyForm() {
         setLoading(false);
         return;
       }
-      if (mode === "chairman") {
-        // Become secretary, then set up the society. The PIN is ALWAYS the last
-        // step — collected at the end of structure setup when there's setup to do,
-        // otherwise on the PIN screen here. A chairman never reaches the app
-        // without a PIN.
-        const res = await claimChairman(data.session?.access_token);
+      if (mode === "authority") {
+        // Society authority: link them (one membership with authority powers),
+        // then either set up the wings/flats (society has none yet) or onboard
+        // as a resident (pick their own flat — the wizard ends with the PIN).
+        const res = await claimAuthority(data.session?.access_token);
         if (res?.error) return fail("auth.networkError");
-        // The membership was just created — AFTER this session's JWT was minted
-        // at verifyOtp. Re-mint so the Auth Hook injects society_id/role; without
-        // it every RLS-scoped query on the next screen comes back empty.
+        // The membership was just created/upgraded — AFTER this session's JWT was
+        // minted at verifyOtp. Re-mint so the Auth Hook injects society_id/role;
+        // without it every RLS-scoped query on the next screen comes back empty.
         await supabase.auth.refreshSession();
         if (res.needsSetup) {
-          // Structure setup collects the PIN as its final step.
+          // Structure setup collects the PIN, then continues to /onboarding.
           router.push("/setup/structure");
           return;
         }
-        // Society already has flats — just collect the PIN, then in.
+        if (res.needsFlat) {
+          router.push("/onboarding");
+          return;
+        }
+        // Already a resident (e.g. added as an authority after joining).
         setStage("setpin");
         setLoading(false);
         return;

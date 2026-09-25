@@ -1,3 +1,4 @@
+export * from "./authorities.js";
 export * from "./amenities-admin.js";
 export * from "./bookings.js";
 export * from "./community.js";

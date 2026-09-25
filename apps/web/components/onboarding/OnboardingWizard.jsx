@@ -26,7 +26,15 @@ function weakPin(p) {
   return p === "1234" || /^(\d)\1{3}$/.test(p);
 }
 
-export function OnboardingWizard({ phone, userId, initialName = "" }) {
+export function OnboardingWizard({
+  phone,
+  userId,
+  initialName = "",
+  // Society authorities arrive with their society's code pre-filled, and skip the
+  // PIN step if they already set one during wings/flats setup.
+  initialCode = "",
+  pinAlreadySet = false,
+}) {
   const { t } = useTranslation("auth");
   const router = useRouter();
 
@@ -38,7 +46,7 @@ export function OnboardingWizard({ phone, userId, initialName = "" }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode);
   const [society, setSociety] = useState(null); // { society_id, society_name, wings }
   const [form, setForm] = useState({ name: initialName, flatId: "", residency: "owner", alt: "" });
   const [family, setFamily] = useState([]);
@@ -91,6 +99,20 @@ export function OnboardingWizard({ phone, userId, initialName = "" }) {
     if (!/^\d{4}$/.test(pin)) return setErr(t("auth.setPinWeak"));
     if (weakPin(pin)) return setErr(t("auth.setPinWeak"));
     if (pin !== pin2) return setErr(t("auth.setPinMismatch"));
+    await commit();
+  }
+
+  // After the family step: straight to the commit when the PIN already exists.
+  function afterFamily() {
+    if (pinAlreadySet) {
+      setErr(null);
+      commit();
+      return;
+    }
+    setStep(4);
+  }
+
+  async function commit() {
     setBusy(true);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -114,11 +136,13 @@ export function OnboardingWizard({ phone, userId, initialName = "" }) {
         setBusy(false);
         return;
       }
-      const res = await setPinAction(userId, phone, pin);
-      if (res?.error) {
-        setErr(t("auth.obErr"));
-        setBusy(false);
-        return;
+      if (!pinAlreadySet) {
+        const res = await setPinAction(userId, phone, pin);
+        if (res?.error) {
+          setErr(t("auth.obErr"));
+          setBusy(false);
+          return;
+        }
       }
       // Onboarding just created the membership — after this session's JWT was
       // minted at verifyOtp. Re-mint so the Auth Hook injects society_id/role;
@@ -348,10 +372,11 @@ export function OnboardingWizard({ phone, userId, initialName = "" }) {
                 {family.length === 0 ? t("auth.obFamilyName") : t("auth.obFamilyAdd")}
               </button>
             </div>
-            <Primary label={t("auth.obNext")} onClick={() => setStep(4)} type="button" />
+            {err && pinAlreadySet ? <Err msg={err} /> : null}
+            <Primary label={t("auth.obNext")} onClick={afterFamily} type="button" busy={busy} />
             <button
               type="button"
-              onClick={() => setStep(4)}
+              onClick={afterFamily}
               className="text-center text-[13px] font-semibold text-[var(--color-neutral-500)] hover:underline"
             >
               {t("auth.obFamilyNone")}

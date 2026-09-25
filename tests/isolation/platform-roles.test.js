@@ -154,8 +154,25 @@ describe("staff can reach none of the shared platform RPCs", () => {
         p_state: "MH",
         p_pincode: "411001",
         p_landmark: null,
-        p_secretary_name: "X Y",
-        p_secretary_phone: "9000000099",
+        p_authorities: [{ name: "X Y", phone: "9000000099" }],
+      },
+    ],
+    // Society Authorities (…048) — staff-side authority management.
+    ["admin_society_authorities", { p_society_id: "00000000-0000-4000-8000-000000000001" }],
+    [
+      "admin_add_society_authority",
+      {
+        p_society_id: "00000000-0000-4000-8000-000000000001",
+        p_name: "X Y",
+        p_phone: "9000000099",
+      },
+    ],
+    [
+      "admin_update_society_authority",
+      {
+        p_authority_id: "00000000-0000-4000-8000-000000000001",
+        p_name: "X Y",
+        p_phone: "9000000099",
       },
     ],
   ];

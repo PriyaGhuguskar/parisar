@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AdminAuthorities } from "./AdminAuthorities";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const ALL_PANES = [
@@ -82,9 +83,6 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
   const [priceErr, setPriceErr] = useState(null);
   const [pay, setPay] = useState({ amount: "", paid_on: "", method: "upi", reference: "" });
   const [payErr, setPayErr] = useState(null);
-  const [editChair, setEditChair] = useState(false);
-  const [chair, setChair] = useState({ name: "", phone: "" });
-  const [chairErr, setChairErr] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -220,37 +218,6 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
     setBusy(null);
   }
 
-  function openChairEdit() {
-    setChair({ name: s.secretary_name ?? "", phone: s.secretary_phone ?? "" });
-    setChairErr(null);
-    setEditChair(true);
-  }
-  async function saveChair(e) {
-    e.preventDefault();
-    setChairErr(null);
-    if (chair.name.trim().length < 2) return setChairErr("Enter the chairman's name.");
-    if (!/^[6-9]\d{9}$/.test(chair.phone)) return setChairErr("Enter a valid 10-digit mobile.");
-    setBusy("chair");
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.rpc("admin_update_chairman", {
-      p_society_id: societyId,
-      p_name: chair.name.trim(),
-      p_phone: chair.phone,
-    });
-    if (error) {
-      setChairErr(
-        error.message.includes("CHAIRMAN_ALREADY_CLAIMED")
-          ? "This chairman has already signed in, so their number can't be changed here. You can still fix the name."
-          : "Could not save. Check your connection.",
-      );
-      setBusy(null);
-      return;
-    }
-    await reload(supabase);
-    setEditChair(false);
-    setBusy(null);
-  }
-
   if (!data) {
     return (
       <div className="flex h-full items-center justify-center p-10">
@@ -327,88 +294,8 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
                 </span>
               ) : null}
             </Row>
-            <Row icon={Phone} label="Chairman">
-              {editChair ? (
-                <form onSubmit={saveChair} className="flex flex-col gap-2 pt-1">
-                  <input
-                    className={field}
-                    value={chair.name}
-                    placeholder="Chairman name"
-                    onChange={(e) => setChair({ ...chair, name: e.target.value })}
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-semibold text-[var(--color-neutral-600)]">
-                      +91
-                    </span>
-                    <input
-                      className={field}
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={chair.phone}
-                      disabled={Boolean(s.chairman_claimed)}
-                      placeholder="9812345678"
-                      onChange={(e) =>
-                        setChair({
-                          ...chair,
-                          phone: e.target.value.replace(/\D/g, "").slice(0, 10),
-                        })
-                      }
-                    />
-                  </div>
-                  {s.chairman_claimed ? (
-                    <span className="text-[12px] text-[var(--color-neutral-400)]">
-                      Chairman has signed in — number is locked, name can still be fixed.
-                    </span>
-                  ) : null}
-                  {chairErr ? (
-                    <span className="text-[12px] font-medium" style={{ color: "#C0341B" }}>
-                      {chairErr}
-                    </span>
-                  ) : null}
-                  <div className="flex gap-2 pt-0.5">
-                    <button
-                      type="submit"
-                      disabled={busy === "chair"}
-                      className="pk-press inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold text-white"
-                      style={{ backgroundColor: "var(--color-brand-500)" }}
-                    >
-                      {busy === "chair" ? <Loader2 size={13} className="animate-spin" /> : null}
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditChair(false)}
-                      className="pk-press rounded-lg px-3 text-[13px] font-semibold text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-100)]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <span>
-                    {s.secretary_name ? (
-                      <span className="font-semibold text-[var(--color-neutral-900)]">
-                        {s.secretary_name}
-                      </span>
-                    ) : null}
-                    <a
-                      href={`tel:+91${s.secretary_phone}`}
-                      className={`font-semibold text-[var(--color-brand-600)] hover:underline ${s.secretary_name ? "ml-2" : ""}`}
-                    >
-                      +91 {s.secretary_phone}
-                    </a>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={openChairEdit}
-                    aria-label="Edit chairman"
-                    className="pk-press rounded-md p-1 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)]"
-                  >
-                    <Pencil size={13} strokeWidth={2.2} />
-                  </button>
-                </span>
-              )}
+            <Row icon={Phone} label="Society Authorities">
+              <AdminAuthorities societyId={societyId} onChanged={onChanged} />
             </Row>
             <Row icon={Building2} label="Join code">
               <span className="inline-flex items-center gap-2">

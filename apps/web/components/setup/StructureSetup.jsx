@@ -1,6 +1,6 @@
 "use client";
 
-// Chairman's first-run society structure: wings + flats.
+// An authority's first-run society structure: wings + flats (any authority).
 //
 // This is the "pick from a pre-set list" prerequisite — residents can only
 // choose their flat once the chairman has entered them here. Deliberately
@@ -125,7 +125,7 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
         setBusy(false);
         return;
       }
-      // Persist the (possibly corrected) chairman name. RLS scopes this to their
+      // Persist the (possibly corrected) authority's name. RLS scopes this to their
       // own profile row.
       if (name.trim() && name.trim() !== initialName) {
         const {
@@ -160,7 +160,9 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
     // Defensive re-mint: guarantees the JWT carries society_id/role before the
     // dashboard's RLS queries run, independent of the refresh done at claim time.
     await createSupabaseBrowserClient().auth.refreshSession();
-    router.push("/dashboard");
+    // Next: onboard as a resident (pick their own flat). /onboarding sends
+    // anyone who already has a flat straight on to the dashboard.
+    router.push("/onboarding");
   }
 
   // ---- final step: set the PIN ----

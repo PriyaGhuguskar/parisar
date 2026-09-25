@@ -1,8 +1,8 @@
-// /setup/structure — chairman sets up wings + flats after claiming.
+// /setup/structure — a society authority sets up wings + flats after claiming.
 //
 // Guarded: only the active secretary of a society that has no flats yet belongs
 // here. Anyone else is redirected — a resident cannot reach the society-setup
-// screen, and a chairman who already finished setup is sent to the dashboard.
+// screen, and an authority whose society already has flats is sent on.
 
 import { redirect } from "next/navigation";
 import { StructureSetup } from "@/components/setup/StructureSetup";

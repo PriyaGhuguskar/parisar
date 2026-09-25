@@ -37,6 +37,7 @@ import {
   DoorOpen,
   LayoutDashboard,
   MessageSquareWarning,
+  ShieldCheck,
   User,
   UserRound,
   Users2,
@@ -119,17 +120,24 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
     },
   ];
 
-  // Society profile is the secretary/co-secretary management hub (wings, guards,
-  // amenities) — shown only to them, right above their personal Profile.
+  // Society authorities (secretary/co-secretary role) get the Society Dashboard —
+  // their society-management hub — plus the Society profile (wings, guards,
+  // amenities), right above their personal Profile.
   const isManager = role === "secretary" || role === "co_secretary";
   const ACCOUNT_NAV = [
     ...(isManager
       ? [
           {
+            href: "/society-dashboard",
+            label: tv("authority.societyDashboard"),
+            icon: ShieldCheck,
+            active: p.startsWith("/society-dashboard"),
+          },
+          {
             href: "/society",
             label: tv("profile.societyProfile"),
             icon: Building2,
-            active: p.startsWith("/society"),
+            active: p === "/society" || p.startsWith("/society/"),
           },
         ]
       : []),

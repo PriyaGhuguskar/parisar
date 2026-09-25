@@ -53,7 +53,7 @@ async function findUserByPhone(sb, phoneE164) {
  * are a normal next step, so this cannot be used to enumerate which phone
  * numbers belong to a society.
  *
- * @returns {Promise<{mode:"staff"|"pin"|"setpin"|"code"|"family"|"chairman"} | {error:string}>}
+ * @returns {Promise<{mode:"staff"|"pin"|"setpin"|"code"|"family"|"authority"} | {error:string}>}
  */
 export async function lookupPhone(rawPhone) {
   const phone = String(rawPhone ?? "").replace(/\D/g, "");
@@ -84,33 +84,25 @@ export async function lookupPhone(rawPhone) {
   if (user) {
     const { data } = await sb
       .from("society_memberships")
-      .select("id, society_id, role")
+      .select("id, society_id, role, flat_id")
       .eq("user_id", user.id)
       .eq("status", "active")
       .maybeSingle();
     membership = data;
   }
 
-  // CHAIRMAN: their number is a society's secretary_phone, no secretary has
-  // claimed yet, and they are not already a member. This must run whether or not
-  // an orphaned auth user exists from an earlier, unfinished login — otherwise a
-  // chairman who once tapped "Send OTP" gets routed as a plain resident.
+  // SOCIETY AUTHORITY: their number is on a society's authority list (entered by
+  // staff at creation, or added later by another authority) and not yet linked
+  // to a different account. Runs whether or not an orphaned auth user exists
+  // from an earlier, unfinished login. claim_society_authority() then links them.
   if (!membership) {
-    const { data: soc } = await sb
-      .from("societies")
-      .select("id")
-      .filter("secretary_phone", "ilike", `%${phone}`)
-      .limit(1)
-      .maybeSingle();
-    if (soc) {
-      const { data: sec } = await sb
-        .from("society_memberships")
-        .select("id")
-        .eq("society_id", soc.id)
-        .eq("role", "secretary")
-        .eq("status", "active")
-        .maybeSingle();
-      if (!sec) return { mode: "chairman" };
+    const { data: rows } = await sb
+      .from("society_authorities")
+      .select("id, user_id")
+      .eq("phone", phone)
+      .limit(5);
+    if ((rows ?? []).some((a) => !a.user_id || a.user_id === user?.id)) {
+      return { mode: "authority" };
     }
   }
 
@@ -138,12 +130,11 @@ export async function lookupPhone(rawPhone) {
     }
   }
 
-  // SECRETARY WHO ABANDONED SETUP: they claimed (membership exists) but never
-  // finished the wings/flats step, so their society has no flats. Resume at
-  // /setup/structure instead of falling through to setpin -> dashboard. Detected
-  // before the PIN routing so an incomplete society is never left half-built.
-  // (`chairman` mode re-runs claim_chairman, which is idempotent for an existing
-  // secretary and returns needs_setup=true -> /setup/structure.)
+  // AUTHORITY WHO HASN'T FINISHED: they claimed (flat-less authority membership)
+  // but the society still has no wings/flats, or they never picked their own
+  // flat and have no PIN yet. Resume through `authority` mode —
+  // claim_society_authority() is idempotent and routes them to /setup/structure
+  // or /onboarding. Detected before the PIN routing.
   if (
     membership &&
     (membership.role === "secretary" || membership.role === "co_secretary") &&
@@ -153,7 +144,15 @@ export async function lookupPhone(rawPhone) {
       .from("flats")
       .select("id", { count: "exact", head: true })
       .eq("society_id", membership.society_id);
-    if ((count ?? 0) === 0) return { mode: "chairman" };
+    if ((count ?? 0) === 0) return { mode: "authority" };
+    if (!membership.flat_id) {
+      const { data: prof } = await sb
+        .from("profiles")
+        .select("pin_set")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!prof?.pin_set) return { mode: "authority" };
+    }
   }
 
   // Returning resident with a PIN -> enter it after OTP.
@@ -306,13 +305,14 @@ export async function claimFamilyMember(accessToken) {
 }
 
 /**
- * A chairman's FIRST login: after OTP, turn their secretary_phone match into a
- * secretary membership so they can set the society up. The OTP proved the number.
+ * A society authority's sign-in: after OTP, link their authority entry and give
+ * them one membership with authority powers (flat-less until they onboard as a
+ * resident). The OTP proved the number. Idempotent.
  *
- * @param {string} accessToken the chairman's session access token
- * @returns {Promise<{ok:true, societyId:string, needsSetup:boolean} | {error:string}>}
+ * @param {string} accessToken the authority's session access token
+ * @returns {Promise<{ok:true, societyId:string, needsSetup:boolean, needsFlat:boolean} | {error:string}>}
  */
-export async function claimChairman(accessToken) {
+export async function claimAuthority(accessToken) {
   if (!accessToken) return { error: "AUTH_REQUIRED" };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -322,17 +322,24 @@ export async function claimChairman(accessToken) {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await asUser.rpc("claim_chairman");
+  const { data, error } = await asUser.rpc("claim_society_authority");
   if (error) {
-    return { error: error.message.includes("NOT_A_CHAIRMAN") ? "NOT_A_CHAIRMAN" : "SERVER_ERROR" };
+    return {
+      error: error.message.includes("NOT_AN_AUTHORITY") ? "NOT_AN_AUTHORITY" : "SERVER_ERROR",
+    };
   }
-  return { ok: true, societyId: data?.society_id ?? null, needsSetup: Boolean(data?.needs_setup) };
+  return {
+    ok: true,
+    societyId: data?.society_id ?? null,
+    needsSetup: Boolean(data?.needs_setup),
+    needsFlat: Boolean(data?.needs_flat),
+  };
 }
 
 /**
  * Guard's first login: link their auth user to the pre-created society_guards row
  * (matched on phone) so the Auth Hook can inject their guard_society_id claim.
- * Mirrors claimChairman — runs as the just-authenticated user via their token.
+ * Mirrors claimAuthority — runs as the just-authenticated user via their token.
  */
 export async function claimGuard(accessToken) {
   if (!accessToken) return { error: "AUTH_REQUIRED" };

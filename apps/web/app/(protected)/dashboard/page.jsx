@@ -54,13 +54,14 @@ export default async function DashboardPage() {
   if (user.id) {
     const { data } = await supabase
       .from("society_memberships")
-      .select("society_id, role, societies:society_id(name)")
+      .select("society_id, role, flat_id, societies:society_id(name)")
       .eq("user_id", user.id)
       .eq("status", "active");
     if (Array.isArray(data)) {
       memberships = data.map((r) => ({
         society_id: r.society_id,
         role: r.role,
+        flat_id: r.flat_id,
         society_name: r.societies?.name ?? "Society",
       }));
     }
@@ -98,6 +99,7 @@ export default async function DashboardPage() {
       fullName={fullName}
       memberships={memberships}
       initialSummary={initialSummary}
+      needsFlat={!active.flat_id}
     />
   );
 }

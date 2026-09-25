@@ -30,6 +30,7 @@ import {
   TriangleAlert,
   UserPlus,
   Users,
+  X,
   Zap,
 } from "lucide-react";
 import Image from "next/image";
@@ -113,9 +114,11 @@ const EMPTY_FORM = {
   landmark: "",
   state: "",
   pincode: "",
-  secName: "",
-  secPhone: "",
+  // Society Authorities: everyone who will manage the society (name + mobile).
+  authorities: [{ name: "", phone: "" }],
 };
+
+const PHONE_RE = /^[6-9]\d{9}$/;
 
 function fmtWhen(lead) {
   if (lead.call_now) return "ASAP";
@@ -265,8 +268,9 @@ export function AdminConsole({
     setForm({
       ...EMPTY_FORM,
       name: lead.society_name ?? "",
-      secName: lead.contact_name ?? "",
-      secPhone: (lead.phone ?? "").replace(/^\+91/, ""),
+      authorities: [
+        { name: lead.contact_name ?? "", phone: (lead.phone ?? "").replace(/^\+91/, "") },
+      ],
     });
     setSection("create");
   }
@@ -282,8 +286,15 @@ export function AdminConsole({
     if (!form.state) return setErr("Select the state.");
     if (!/^[1-9]\d{5}$/.test(form.pincode))
       return setErr("PIN code must be 6 digits and cannot start with 0.");
-    if (form.secName.trim().length < 2) return setErr("Enter the chairman's name.");
-    if (!/^[6-9]\d{9}$/.test(form.secPhone)) return setErr("Chairman phone must be 10 digits.");
+    const authorities = form.authorities.map((a) => ({ name: a.name.trim(), phone: a.phone }));
+    if (authorities.length === 0) return setErr("Add at least one society authority.");
+    for (const [i, a] of authorities.entries()) {
+      if (a.name.length < 2) return setErr(`Enter the name of authority ${i + 1}.`);
+      if (!PHONE_RE.test(a.phone))
+        return setErr(`Authority ${i + 1}: mobile must be 10 digits starting 6-9.`);
+    }
+    if (new Set(authorities.map((a) => a.phone)).size !== authorities.length)
+      return setErr("Each authority needs a different mobile number.");
 
     setBusy(true);
     try {
@@ -295,8 +306,7 @@ export function AdminConsole({
         p_state: form.state,
         p_pincode: form.pincode,
         p_landmark: form.landmark.trim() || null,
-        p_secretary_name: form.secName.trim(),
-        p_secretary_phone: form.secPhone,
+        p_authorities: authorities,
         p_request_id: active?.id ?? null,
       });
       if (error) {
@@ -304,7 +314,11 @@ export function AdminConsole({
         setBusy(false);
         return;
       }
-      setCreated({ code: data.code, society: form.name.trim(), chairman: form.secName.trim() });
+      setCreated({
+        code: data.code,
+        society: form.name.trim(),
+        authorities: authorities.map((a) => a.name).join(", "),
+      });
       if (active) setLeads((l) => l.filter((x) => x.id !== active.id));
       await refresh();
       setBusy(false);
@@ -961,8 +975,9 @@ export function AdminConsole({
                 Create society
               </h1>
               <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                The phone entered below becomes the chairman. They are elevated automatically the
-                first time they sign in with the code.
+                Add everyone who will manage this society as a Society Authority. Each signs in
+                with their own mobile: the first one sets up wings and flats, and every authority
+                then joins as a resident and gets the Society Dashboard.
               </p>
 
               <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr] lg:items-start">
@@ -1007,7 +1022,8 @@ export function AdminConsole({
                         </button>
                       </div>
                       <p className="mt-3 text-[13px] leading-relaxed text-[var(--color-neutral-600)]">
-                        {created.chairman} becomes chairman on first sign-in with this code.
+                        Authorities ({created.authorities}) get the Society Dashboard when they
+                        sign in with their own mobile. Share this code with residents.
                       </p>
                       <button
                         type="button"
@@ -1108,38 +1124,91 @@ export function AdminConsole({
                       <div className="mt-1 border-t border-[var(--color-neutral-200)] pt-4">
                         <p className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-brand-600)]">
                           <Phone size={12} strokeWidth={2.6} aria-hidden="true" />
-                          Chairman
+                          Society Authorities
                         </p>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                              Name
-                            </span>
-                            <input
-                              className={input}
-                              value={form.secName}
-                              onChange={(e) => setForm({ ...form, secName: e.target.value })}
-                              placeholder="Ramesh Patil"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                              Mobile (10 digits)
-                            </span>
-                            <input
-                              className={input}
-                              inputMode="numeric"
-                              maxLength={10}
-                              value={form.secPhone}
-                              onChange={(e) =>
-                                setForm({
-                                  ...form,
-                                  secPhone: e.target.value.replace(/\D/g, "").slice(0, 10),
-                                })
-                              }
-                              placeholder="9812345678"
-                            />
-                          </label>
+                        <div className="flex flex-col gap-3">
+                          {form.authorities.map((a, i) => (
+                            <div
+                              // biome-ignore lint/suspicious/noArrayIndexKey: editable rows with no id until saved
+                              key={i}
+                              className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
+                              data-testid="authority-row"
+                            >
+                              <label className="flex flex-col gap-1.5">
+                                <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
+                                  Name
+                                </span>
+                                <input
+                                  className={input}
+                                  value={a.name}
+                                  onChange={(e) =>
+                                    setForm({
+                                      ...form,
+                                      authorities: form.authorities.map((row, j) =>
+                                        j === i ? { ...row, name: e.target.value } : row,
+                                      ),
+                                    })
+                                  }
+                                  placeholder="Ramesh Patil"
+                                />
+                              </label>
+                              <label className="flex flex-col gap-1.5">
+                                <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
+                                  Mobile (10 digits)
+                                </span>
+                                <input
+                                  className={input}
+                                  inputMode="numeric"
+                                  maxLength={10}
+                                  value={a.phone}
+                                  onChange={(e) =>
+                                    setForm({
+                                      ...form,
+                                      authorities: form.authorities.map((row, j) =>
+                                        j === i
+                                          ? {
+                                              ...row,
+                                              phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                                            }
+                                          : row,
+                                      ),
+                                    })
+                                  }
+                                  placeholder="9812345678"
+                                />
+                              </label>
+                              {form.authorities.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setForm({
+                                      ...form,
+                                      authorities: form.authorities.filter((_, j) => j !== i),
+                                    })
+                                  }
+                                  aria-label={`Remove authority ${i + 1}`}
+                                  className="mb-1 rounded-lg p-2 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
+                                >
+                                  <X size={16} strokeWidth={2.4} aria-hidden="true" />
+                                </button>
+                              ) : (
+                                <span />
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                authorities: [...form.authorities, { name: "", phone: "" }],
+                              })
+                            }
+                            className="pk-press inline-flex items-center justify-center gap-1.5 self-start rounded-xl border border-dashed border-[var(--color-neutral-300)] px-3.5 py-2 text-[13px] font-bold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
+                          >
+                            <Plus size={14} strokeWidth={2.6} aria-hidden="true" />
+                            Add authority
+                          </button>
                         </div>
                       </div>
 
@@ -1204,8 +1273,13 @@ export function AdminConsole({
                           [form.addressLine, form.landmark].filter((x) => x.trim()).join(" · "),
                         ],
                         ["PIN", form.pincode],
-                        ["Chairman", form.secName],
-                        ["Chairman mobile", form.secPhone ? `+91 ${form.secPhone}` : ""],
+                        [
+                          "Authorities",
+                          form.authorities
+                            .map((a) => a.name.trim())
+                            .filter(Boolean)
+                            .join(", "),
+                        ],
                       ].map(([label, val]) => (
                         <div
                           key={label}

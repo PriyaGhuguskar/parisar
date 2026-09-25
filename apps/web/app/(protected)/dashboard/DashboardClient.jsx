@@ -21,6 +21,7 @@ import { fetchPendingReviews } from "@parisar/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AuthorityEntry } from "@/components/dashboard/AuthorityEntry";
 import { DashboardTile } from "@/components/dashboard/DashboardTile";
 import { DashboardTilePreview } from "@/components/dashboard/DashboardTilePreview";
 import { HighlightsStrip } from "@/components/dashboard/HighlightsStrip";
@@ -93,6 +94,7 @@ export function DashboardClient({
   societyName,
   fullName,
   initialSummary = null,
+  needsFlat = false,
 }) {
   const router = useRouter();
   const { t } = useTranslation("dashboard");
@@ -221,6 +223,9 @@ export function DashboardClient({
           fullName={fullName}
         />
       </header>
+
+      {/* Society authorities: Society Dashboard entry (+ "add your flat" prompt). */}
+      <AuthorityEntry role={role} needsFlat={needsFlat} />
 
       {/* Emergency: live SOS banners for anyone targeted (the raise button lives
           in the sidebar so it's reachable from every page). */}
