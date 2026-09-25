@@ -14,8 +14,8 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { GrievanceOfficerCard } from "../../../../components/community/GrievanceOfficerCard";
-import { getSupabase } from "../../../../lib/supabase";
+import { GrievanceOfficerCard } from "../../../components/community/GrievanceOfficerCard";
+import { getSupabase } from "../../../lib/supabase";
 
 export default function AboutScreen() {
   const router = useRouter();

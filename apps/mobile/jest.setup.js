@@ -11,6 +11,13 @@
 // This mock follows the package's officially-recommended Jest integration
 // (https://react-native-async-storage.github.io/async-storage/docs/advanced/jest).
 // Individual tests can still override with their own `jest.mock(...)` factory.
+//
+// Quick 260924-ftc (Expo SDK 55 alignment): Reanimated 4 moved its worklet
+// runtime into `react-native-worklets`, and `react-native-reanimated/mock`
+// now imports it at load. Without this mock the native part of Worklets
+// throws "doesn't seem to be initialized" in Jest. Uses the package's own mock.
+jest.mock("react-native-worklets", () => require("react-native-worklets/src/mock"));
+
 jest.mock("@react-native-async-storage/async-storage", () => {
   let store = {};
   return {
