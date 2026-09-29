@@ -25,7 +25,7 @@
     "@parisar/ui-tokens": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.6.0",
-    "@supabase/supabase-js": "2.103.3",
+    "@supabase/supabase-js": "2.117.2",
     "buffer": "^6.0.3",
     "date-fns": "^4.3.0",
     "expo": "~55.0.31",
