@@ -8,19 +8,25 @@ import {
   AlertCircle,
   Bell,
   Building2,
+  CalendarCheck,
   ChevronRight,
   ClipboardCheck,
   Key,
+  MessageSquareWarning,
   Scale,
   ShieldAlert,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { AuthorityEntry } from "@/components/dashboard/AuthorityEntry";
 import { PageHeader, PageShell, SurfaceCard } from "@/components/kit";
 import { AuthoritiesSection } from "./AuthoritiesSection";
+import { SocietyFeaturesSection } from "./SocietyFeaturesSection";
 
 const MANAGE_LINKS = [
+  { href: "/complaints", icon: MessageSquareWarning, labelKey: "dashboard:tiles.allComplaints" },
+  { href: "/bookings", icon: CalendarCheck, labelKey: "dashboard:tiles.bookings" },
   { href: "/society", icon: Building2, labelKey: "auth:profile.societyProfile" },
   { href: "/dashboard/review-queue", icon: ClipboardCheck, labelKey: "dashboard:tiles.reviews" },
   { href: "/dashboard/directory", icon: Users, labelKey: "dashboard:tiles.directory" },
@@ -40,6 +46,7 @@ export function SocietyDashboardClient({ societyId, userId }) {
 
   return (
     <PageShell>
+      <AuthorityEntry active="society" />
       <PageHeader
         backHref="/dashboard"
         backLabel={t("dashboard:nav.home")}
@@ -48,6 +55,8 @@ export function SocietyDashboardClient({ societyId, userId }) {
       />
       <div className="flex flex-col gap-10">
         <AuthoritiesSection societyId={societyId} userId={userId} />
+
+        <SocietyFeaturesSection societyId={societyId} />
 
         <section className="flex flex-col gap-3" data-testid="society-dashboard-manage">
           <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">

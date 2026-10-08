@@ -645,8 +645,20 @@ export function AdminConsole({
                       className="pk-press a-lift flex items-center gap-4 rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-bold text-[var(--color-neutral-900)]">
-                          {s.name}
+                        <p className="flex items-center gap-2 truncate text-[15px] font-bold text-[var(--color-neutral-900)]">
+                          <span className="truncate">{s.name}</span>
+                          {s.service_status && s.service_status !== "active" ? (
+                            <span
+                              className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase"
+                              style={
+                                s.service_status === "blocked"
+                                  ? { backgroundColor: "#FCE9E6", color: "#94291A" }
+                                  : { backgroundColor: "#FDF0DF", color: "#8A4708" }
+                              }
+                            >
+                              {s.service_status === "blocked" ? "Blocked" : "Service stopped"}
+                            </span>
+                          ) : null}
                         </p>
                         <p className="mt-0.5 text-[12.5px] text-[var(--color-neutral-600)]">
                           {[s.city, s.state].filter(Boolean).join(", ") || "—"}
@@ -975,9 +987,9 @@ export function AdminConsole({
                 Create society
               </h1>
               <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                Add everyone who will manage this society as a Society Authority. Each signs in
-                with their own mobile: the first one sets up wings and flats, and every authority
-                then joins as a resident and gets the Society Dashboard.
+                Add everyone who will manage this society as a Society Authority. Each signs in with
+                their own mobile: the first one sets up wings and flats, and every authority then
+                joins as a resident and gets the Society Dashboard.
               </p>
 
               <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr] lg:items-start">
@@ -1022,8 +1034,8 @@ export function AdminConsole({
                         </button>
                       </div>
                       <p className="mt-3 text-[13px] leading-relaxed text-[var(--color-neutral-600)]">
-                        Authorities ({created.authorities}) get the Society Dashboard when they
-                        sign in with their own mobile. Share this code with residents.
+                        Authorities ({created.authorities}) get the Society Dashboard when they sign
+                        in with their own mobile. Share this code with residents.
                       </p>
                       <button
                         type="button"
@@ -1317,9 +1329,10 @@ export function AdminConsole({
             onClick={() => setOpenId(null)}
             className="a-scrim fixed inset-0 z-40 bg-[rgba(18,38,28,.42)] backdrop-blur-[2px]"
           />
-          <div className="a-drawer fixed right-0 top-0 z-50 h-full w-full max-w-[520px] border-l border-[var(--color-neutral-200)] bg-white shadow-2xl">
+          <div className="a-drawer fixed right-0 top-0 z-50 h-full w-full max-w-[1100px] lg:w-[88vw] border-l border-[var(--color-neutral-200)] bg-white shadow-2xl">
             <SocietyDetail
               societyId={open.id}
+              isAdmin={isAdmin}
               onClose={() => setOpenId(null)}
               onChanged={refresh}
             />

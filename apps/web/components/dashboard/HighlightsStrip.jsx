@@ -32,6 +32,15 @@ function fmtEvent(iso) {
 const FIELD =
   "h-11 w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
 
+// Soft tinted cards so each pinned highlight stands out from the white tiles.
+// Label colours are the -700 shade of each tint (all >= 4.5:1 on their tint).
+const HIGHLIGHT_TONES = [
+  { bg: "#ECFDF5", border: "#A7F3D0", fg: "#047857" },
+  { bg: "#EFF6FF", border: "#BFDBFE", fg: "#1D4ED8" },
+  { bg: "#FFFBEB", border: "#FDE68A", fg: "#B45309" },
+  { bg: "#F5F3FF", border: "#DDD6FE", fg: "#6D28D9" },
+];
+
 function Manager({ societyId, initial, onClose, onSaved }) {
   const { t } = useTranslation("auth");
   const [items, setItems] = useState(() =>
@@ -235,7 +244,7 @@ export function HighlightsStrip({ societyId, role }) {
   return (
     <section className="mb-6">
       <div className="mb-2 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-brand-600)]">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-neutral-600)]">
           <Pin size={13} strokeWidth={2.4} aria-hidden="true" />
           {t("highlights.manageTitle")}
         </span>
@@ -255,47 +264,47 @@ export function HighlightsStrip({ societyId, role }) {
           {nextEvent ? (
             <a
               href="/facilities"
-              className="rounded-[16px] border border-[var(--color-neutral-200)] bg-white p-4"
-              style={{
-                boxShadow: "0 1px 2px rgba(18,38,28,.05)",
-                borderLeft: "4px solid var(--color-warning)",
-              }}
+              className="rounded-[12px] border px-4 py-3"
+              style={{ backgroundColor: "#FFF7ED", borderColor: "#FED7AA" }}
             >
-              <p className="inline-flex items-center gap-1 text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--color-warning)]">
+              <p className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#C2410C]">
                 <CalendarClock size={12} strokeWidth={2.4} aria-hidden="true" />
                 {t(`facility.${nextEvent.category}`)}
               </p>
-              <p className="mt-1 text-[16px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--color-neutral-900)]">
+              <p className="mt-0.5 text-[15px] font-semibold leading-snug text-[var(--color-neutral-900)]">
                 {nextEvent.title}
               </p>
-              <p className="text-[13px] font-semibold text-[var(--color-neutral-500)]">
+              <p className="text-[12px] font-medium text-[var(--color-neutral-600)]">
                 {fmtEvent(nextEvent.starts_at)}
               </p>
             </a>
           ) : null}
-          {highlights.map((h) => (
-            <div
-              key={h.id}
-              className="rounded-[16px] border border-[var(--color-neutral-200)] bg-white p-4"
-              style={{
-                boxShadow: "0 1px 2px rgba(18,38,28,.05)",
-                borderLeft: "4px solid var(--color-brand-500)",
-              }}
-            >
-              <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--color-neutral-500)]">
-                {h.title}
-              </p>
-              <p className="mt-1 text-[18px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--color-neutral-900)]">
-                {h.body}
-              </p>
-            </div>
-          ))}
+          {highlights.map((h, i) => {
+            const tone = HIGHLIGHT_TONES[i % HIGHLIGHT_TONES.length];
+            return (
+              <div
+                key={h.id}
+                className="rounded-[12px] border px-4 py-3"
+                style={{ backgroundColor: tone.bg, borderColor: tone.border }}
+              >
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-[0.06em]"
+                  style={{ color: tone.fg }}
+                >
+                  {h.title}
+                </p>
+                <p className="mt-0.5 text-[15px] font-semibold leading-snug text-[var(--color-neutral-900)]">
+                  {h.body}
+                </p>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <button
           type="button"
           onClick={() => setManaging(true)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-[var(--color-neutral-200)] py-5 text-[14px] font-semibold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
+          className="flex w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-[var(--color-neutral-200)] py-4 text-[13px] font-semibold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
         >
           <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
           {t("highlights.addFirst")}

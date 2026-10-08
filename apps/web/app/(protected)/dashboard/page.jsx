@@ -73,6 +73,17 @@ export default async function DashboardPage() {
     memberships.find((m) => m.society_id === meta.society_id) ?? memberships[0] ?? null;
   if (!active) redirect("/onboarding");
 
+  // A society authority must finish onboarding before the app opens: set up the
+  // society's wings/flats first if there are none, then join as a resident
+  // (their authority membership has no flat until then).
+  if ((active.role === "secretary" || active.role === "co_secretary") && !active.flat_id) {
+    const { count } = await supabase
+      .from("flats")
+      .select("id", { count: "exact", head: true })
+      .eq("society_id", active.society_id);
+    redirect((count ?? 0) === 0 ? "/setup/structure" : "/onboarding");
+  }
+
   const societyId = active.society_id;
   const role = meta.role ?? active.role ?? "member";
   const resolvedSocietyName = meta.society_name ?? active.society_name ?? "Your Society";
@@ -85,7 +96,12 @@ export default async function DashboardPage() {
   // silent-omission contract).
   let initialSummary = null;
   try {
-    initialSummary = await getDashboardSummary(supabase);
+    // An authority's home is the resident view (management is on the Society
+    // Dashboard), so ask for the resident summary to match its tiles.
+    const isAuthority = role === "secretary" || role === "co_secretary";
+    initialSummary = await getDashboardSummary(supabase, {
+      view: isAuthority ? "member" : null,
+    });
   } catch {
     initialSummary = null;
   }
@@ -99,7 +115,6 @@ export default async function DashboardPage() {
       fullName={fullName}
       memberships={memberships}
       initialSummary={initialSummary}
-      needsFlat={!active.flat_id}
     />
   );
 }

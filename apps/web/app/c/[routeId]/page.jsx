@@ -22,6 +22,7 @@ import { redirect } from "next/navigation";
 import { AdminConsole } from "@/components/admin/AdminConsole";
 import { StaffConsole } from "@/components/console/StaffConsole";
 import { GuardClient } from "@/components/guard/GuardClient";
+import { ServiceStatusScreen } from "@/components/society/ServiceStatusScreen";
 import { resolveCallerRole } from "@/lib/auth/callerRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { homeHrefForRole } from "@/lib/surface-routes";
@@ -59,10 +60,23 @@ export default async function SurfacePage({ params }) {
       return <StaffConsole fullName={profile?.full_name} phone={profile?.phone} />;
     }
 
-    case SURFACE.SECURITY:
+    case SURFACE.SECURITY: {
+      // A paused/blocked society's guards see the same notice as residents.
+      const { data: service } = await supabase.rpc("my_society_service_status");
+      if (service?.status && service.status !== "active") {
+        return (
+          <ServiceStatusScreen
+            status={service.status}
+            societyName={service.society_name}
+            reason={service.reason}
+            changedAt={service.changed_at}
+          />
+        );
+      }
       return (
         <GuardClient guardName={guard.name} societyName={guard.societies?.name ?? "Society"} />
       );
+    }
 
     default:
       // Secretary and resident map to /dashboard, so homeHrefForRole never

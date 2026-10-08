@@ -35,6 +35,7 @@ const EMPTY_TILE = { count: 0, previews: [] };
  * tests/isolation/dashboard-summary.test.js (T-07-04).
  *
  * @param {object} supabase Authenticated supabase-js client
+ * @param {{view?: "member"|null}} [opts] view "member" forces the resident view
  * @returns {Promise<{
  *   role: string,
  *   complaints:    {count: number, previews: Array<object>},
@@ -48,8 +49,11 @@ const EMPTY_TILE = { count: 0, previews: [] };
  * @throws Error when the RPC raises (e.g. AUTH_REQUIRED, NO_SOCIETY) or when
  *         the network call fails.
  */
-export async function getDashboardSummary(supabase) {
-  const { data, error } = await supabase.rpc("get_dashboard_summary");
+export async function getDashboardSummary(supabase, { view = null } = {}) {
+  // view "member" = the resident view, used for a society authority's own home.
+  const { data, error } = view
+    ? await supabase.rpc("get_dashboard_summary", { p_view: view })
+    : await supabase.rpc("get_dashboard_summary");
   if (error) throw error;
   return normalize(data);
 }

@@ -14,7 +14,7 @@
 import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setPin as setPinAction } from "@/app/actions/codeLogin";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -54,17 +54,18 @@ export function OnboardingWizard({
   const [pin2, setPin2] = useState("");
 
   // --- step 1: code ------------------------------------------------------
-  async function onCode(e) {
-    e.preventDefault();
+  async function lookupCode(raw) {
     setErr(null);
     setBusy(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const norm = code.toUpperCase().replace(/\s/g, "");
+      const norm = String(raw).toUpperCase().replace(/\s/g, "");
       const withDash = norm.includes("-") ? norm : `${norm.slice(0, 4)}-${norm.slice(4)}`;
       const { data } = await supabase.rpc("onboard_flats_for_code", { p_code: withDash });
       if (!data || data.error) {
-        setErr(t("auth.obCodeInvalid"));
+        setErr(
+          data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obCodeInvalid"),
+        );
         setBusy(false);
         return;
       }
@@ -76,6 +77,18 @@ export function OnboardingWizard({
       setBusy(false);
     }
   }
+
+  function onCode(e) {
+    e.preventDefault();
+    lookupCode(code);
+  }
+
+  // A society authority already belongs to the society — skip the code step and
+  // open straight on their details (the code is pre-filled from their society).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount for the pre-filled code
+  useEffect(() => {
+    if (initialCode) lookupCode(initialCode);
+  }, []);
 
   function onDetails(e) {
     e.preventDefault();
@@ -132,7 +145,7 @@ export function OnboardingWizard({
           })),
       });
       if (error || data?.error) {
-        setErr(t("auth.obErr"));
+        setErr(data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obErr"));
         setBusy(false);
         return;
       }

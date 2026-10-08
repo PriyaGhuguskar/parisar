@@ -80,11 +80,14 @@ export const useDashboardSummary = create((set, get) => ({
    * Fetch the role-aware summary from the RPC. Status transitions
    * idle → loading → ready on success, idle → loading → error on failure.
    * On failure the prior `summary` is preserved (UI keeps last-known-good).
+   * `opts.view` = "member" asks for the resident view (an authority's home).
    */
-  async fetchSummary(supabase) {
+  async fetchSummary(supabase, opts) {
     set({ status: "loading", error: null });
     try {
-      const data = await getDashboardSummary(supabase);
+      const data = opts
+        ? await getDashboardSummary(supabase, opts)
+        : await getDashboardSummary(supabase);
       set({ summary: data, status: "ready", error: null });
       return data;
     } catch (err) {

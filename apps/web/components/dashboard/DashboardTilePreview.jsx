@@ -121,7 +121,7 @@ export function DashboardTilePreview({ status, tileKey, tile }) {
     if (!emptyKey) return null;
     return (
       <div aria-hidden="true" className="mt-2">
-        <p className="line-clamp-1 text-[13px] leading-[17px]" style={{ color: NEUTRAL_400 }}>
+        <p className="line-clamp-1 text-[12px] leading-[16px]" style={{ color: NEUTRAL_400 }}>
           {t(emptyKey)}
         </p>
       </div>
@@ -140,7 +140,7 @@ export function DashboardTilePreview({ status, tileKey, tile }) {
           // Prefer row.id for stable React keys; fall back to index for the
           // unlikely "no id" case (malformed CDC payload).
           key={row?.id ?? `preview-${i}`}
-          className="line-clamp-1 text-[13px] leading-[17px]"
+          className="line-clamp-1 text-[12px] leading-[16px]"
           style={{
             color: NEUTRAL_900,
             marginBottom: i === rows.length - 1 ? 0 : 2,

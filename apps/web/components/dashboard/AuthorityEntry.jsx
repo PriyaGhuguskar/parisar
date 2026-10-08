@@ -1,65 +1,60 @@
 "use client";
 
-// Dashboard entry points for society authorities (secretary/co-secretary role):
-//   - "Add your flat" prompt when their authority membership has no flat yet
-//     (they claimed as an authority but haven't onboarded as a resident);
-//   - the Society Dashboard card — their society-management hub.
-// Residents see nothing here.
+// Home ⇄ Society Dashboard switch for society authorities (secretary/co-secretary
+// role). An authority is also a resident: /dashboard is their own resident home,
+// and /society-dashboard is where they manage the society. Residents see nothing.
+// (Authorities only reach either page after onboarding as a resident — /dashboard
+// sends a flat-less authority to setup/onboarding first.)
 
-import { ChevronRight, Home, ShieldCheck } from "lucide-react";
+import { Home, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 
-const AUTHORITY_ROLES = new Set(["secretary", "co_secretary"]);
+export const AUTHORITY_ROLES = new Set(["secretary", "co_secretary"]);
 
-export function AuthorityEntry({ role, needsFlat = false }) {
+const VIEWS = [
+  { id: "home", href: "/dashboard", icon: Home, labelKey: "authority.switchHome" },
+  {
+    id: "society",
+    href: "/society-dashboard",
+    icon: ShieldCheck,
+    labelKey: "authority.societyDashboard",
+  },
+];
+
+/**
+ * @param {{ role?: string, active?: "home" | "society" }} props
+ *   `role` is optional: the Society Dashboard only renders for authorities.
+ */
+export function AuthorityEntry({ role, active = "home" }) {
   const { t } = useTranslation("auth");
-  if (!AUTHORITY_ROLES.has(role)) return null;
+  if (role !== undefined && !AUTHORITY_ROLES.has(role)) return null;
 
   return (
-    <section className="mb-6 flex flex-col gap-3">
-      {needsFlat ? (
-        <div
-          className="flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3"
-          style={{ borderColor: "var(--color-warning-500)", backgroundColor: "#fffbeb" }}
-          data-testid="authority-add-flat"
-        >
-          <Home size={20} className="shrink-0 text-[var(--color-warning-700)]" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-bold text-[var(--color-neutral-900)]">
-              {t("authority.addFlatTitle")}
-            </p>
-            <p className="text-[13px] text-[var(--color-neutral-600)]">
-              {t("authority.addFlatBody")}
-            </p>
-          </div>
+    <nav
+      aria-label={t("authority.switchLabel")}
+      className="mb-6 inline-flex rounded-2xl border border-[var(--color-neutral-200)] bg-white p-1"
+      data-testid="authority-view-switch"
+    >
+      {VIEWS.map(({ id, href, icon: Icon, labelKey }) => {
+        const on = id === active;
+        return (
           <Link
-            href="/onboarding"
-            className="pk-press rounded-xl bg-[var(--color-brand-500)] px-4 py-2 text-[14px] font-bold text-white hover:bg-[var(--color-brand-600)]"
+            key={id}
+            href={href}
+            aria-current={on ? "page" : undefined}
+            data-testid={id === "society" ? "authority-society-dashboard" : "authority-home"}
+            className="pk-press inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+            style={{
+              backgroundColor: on ? "var(--color-brand-500)" : "transparent",
+              color: on ? "#fff" : "var(--color-neutral-600)",
+            }}
           >
-            {t("authority.addFlatCta")}
+            <Icon size={15} aria-hidden="true" />
+            {t(labelKey)}
           </Link>
-        </div>
-      ) : null}
-
-      <Link
-        href="/society-dashboard"
-        className="pk-press flex items-center gap-3 rounded-2xl border border-[var(--color-neutral-200)] bg-white px-4 py-4 hover:border-[var(--color-brand-500)]"
-        data-testid="authority-society-dashboard"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-50)] text-[var(--color-brand-600)]">
-          <ShieldCheck size={20} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-bold text-[var(--color-neutral-900)]">
-            {t("authority.societyDashboard")}
-          </span>
-          <span className="block text-[13px] text-[var(--color-neutral-600)]">
-            {t("authority.societyDashboardLead")}
-          </span>
-        </span>
-        <ChevronRight size={18} className="text-[var(--color-neutral-400)]" aria-hidden="true" />
-      </Link>
-    </section>
+        );
+      })}
+    </nav>
   );
 }

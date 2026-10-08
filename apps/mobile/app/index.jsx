@@ -1,4 +1,5 @@
 import { colors } from "@parisar/ui-tokens";
+import { Redirect } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useAuthStore } from "../lib/auth-store";
 
@@ -14,11 +15,17 @@ import { useAuthStore } from "../lib/auth-store";
  * loading interstitial (UI-SPEC Screen 1).
  */
 export default function SplashScreen() {
-  // Read loading state — the Stack.Protected guard handles redirects once loaded
   const loading = useAuthStore((s) => s.loading);
+  const session = useAuthStore((s) => s.session);
 
-  // Always render the splash — _layout.jsx shows this screen while loading.
-  // If somehow we get here after loading, the guard will redirect shortly.
+  // Once the session check is done, leave the splash. Stack.Protected only
+  // blocks routes whose guard is false — it never navigates away from this
+  // always-accessible index route, so without this redirect the app sat on
+  // the splash forever on a real device.
+  if (!loading) {
+    return <Redirect href={session ? "/(protected)/(tabs)" : "/(auth)/login"} />;
+  }
+
   return (
     <View className="flex-1 items-center justify-center bg-neutral-50">
       {/* Parisar wordmark — Display / 28px / semibold / brand.500 */}

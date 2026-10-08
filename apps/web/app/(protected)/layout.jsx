@@ -14,6 +14,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "../../components/AppSidebar";
+import { ServiceStatusScreen } from "../../components/society/ServiceStatusScreen";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "../../components/ui/sidebar";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
@@ -35,6 +36,21 @@ export default async function ProtectedLayout({ children }) {
     redirect("/login");
   }
 
+  // SERVICE STATUS: Parisar paused or blocked this user's society. Nothing else
+  // is reachable — show the admin's reason and a sign-out. (The database also
+  // stops serving the society's data; this is the explanation, not the lock.)
+  const { data: service } = await supabase.rpc("my_society_service_status");
+  if (service?.status && service.status !== "active") {
+    return (
+      <ServiceStatusScreen
+        status={service.status}
+        societyName={service.society_name}
+        reason={service.reason}
+        changedAt={service.changed_at}
+      />
+    );
+  }
+
   // Identity bits for the sidebar's society switcher + profile menu (Wave 3).
   // JWT shape (04.1-00-JWT-SHAPE.md): app_metadata carries ONLY society_id + role.
   // society_name / full_name / flat_label are NOT in the JWT — society_name is
@@ -51,13 +67,14 @@ export default async function ProtectedLayout({ children }) {
   if (user.id) {
     const { data } = await supabase
       .from("society_memberships")
-      .select("society_id, role, societies:society_id(name)")
+      .select("society_id, role, flat_id, societies:society_id(name)")
       .eq("user_id", user.id)
       .eq("status", "active");
     if (Array.isArray(data)) {
       memberships = data.map((r) => ({
         society_id: r.society_id,
         role: r.role,
+        flat_id: r.flat_id,
         society_name: r.societies?.name ?? "Society",
       }));
     }
@@ -97,11 +114,19 @@ export default async function ProtectedLayout({ children }) {
   // an escape hatch out of an unfinished setup. Deliberately a RULE rather than a
   // list of routes — a blacklist rots when a screen is added. These screens carry
   // their own header, so nothing is lost.
-  if (!societyId || setupIncomplete) {
+  // A society authority who hasn't finished PERSONAL onboarding yet (their
+  // authority membership has no flat) is in the same state: the app opens only
+  // after they have joined as a resident. /dashboard sends them to /onboarding.
+  const activeMembership = memberships.find((m) => m.society_id === societyId);
+  const onboardingIncomplete =
+    (activeRole === "secretary" || activeRole === "co_secretary") &&
+    Boolean(activeMembership) &&
+    !activeMembership.flat_id;
+
+  if (!societyId || setupIncomplete || onboardingIncomplete) {
     return <main id="main-content">{children}</main>;
   }
 
-  const activeMembership = memberships.find((m) => m.society_id === societyId);
   const resolvedSocietyName =
     meta.society_name ??
     activeMembership?.society_name ??

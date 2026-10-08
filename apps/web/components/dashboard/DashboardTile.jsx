@@ -25,7 +25,8 @@
 //     tiles, so a disabled tile never moves and never promises a click.
 //
 // LAYOUT INVARIANTS (asserted by __tests__/responsive-breakpoints.test.jsx —
-// do not remove): aspect-square + flex + flex-col on the root, an `mt-auto`
+// do not remove): a fixed min-h-[128px] (compact, every tile in a row the same
+// height) + flex + flex-col on the root, an `mt-auto`
 // block pinning the label to the bottom, and `line-clamp-2` on the label so
 // long Devanagari labels survive a narrow phone tile.
 //
@@ -133,7 +134,7 @@ export function DashboardTile({
       aria-label={ariaLabel}
       className={[
         // aspect-square + flex + flex-col are layout invariants (see header).
-        "group relative flex aspect-square flex-col rounded-[18px] p-4 text-left",
+        "group relative flex min-h-[128px] flex-col rounded-[14px] p-4 text-left",
         "border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         placeholder ? "cursor-not-allowed opacity-60" : "pk-tile pk-press cursor-pointer",
@@ -160,12 +161,12 @@ export function DashboardTile({
       <div className="flex items-start justify-between gap-2">
         <span
           aria-hidden="true"
-          className="pk-well inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]"
+          className="pk-well inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
           style={{
             backgroundColor: placeholder ? "var(--color-neutral-100)" : "var(--color-brand-50)",
           }}
         >
-          <Icon size={22} color={iconColor} />
+          <Icon size={18} color={iconColor} />
         </span>
 
         {/* Count / "5d" pill. A dark warning fill with white text clears AA at
@@ -190,13 +191,13 @@ export function DashboardTile({
           height variance (layout invariant — see header). */}
       <div className="mt-auto">
         <span
-          className="line-clamp-2 block text-[15px] font-bold leading-snug tracking-[-0.01em]"
+          className="line-clamp-2 block text-[14px] font-semibold leading-snug"
           style={{ color: labelColor }}
         >
           {label}
         </span>
         {placeholder && placeholderPhase ? (
-          <span className="mt-1 line-clamp-2 block text-[13px] text-[var(--color-neutral-400)]">
+          <span className="mt-1 line-clamp-2 block text-[12px] text-[var(--color-neutral-400)]">
             {placeholderPhase}
           </span>
         ) : null}

@@ -154,7 +154,7 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
         <SidebarMenuButton
           render={<Link href={href} aria-current={active ? "page" : undefined} />}
           isActive={active}
-          className="group/nav relative h-10 gap-3 rounded-[10px] px-3 text-[14px] font-semibold transition-colors"
+          className="group/nav relative h-9 gap-3 rounded-[8px] px-3 text-[13.5px] font-medium transition-colors"
           style={
             active
               ? {
@@ -173,7 +173,7 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
               opacity: active ? 1 : 0,
             }}
           />
-          <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+          <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
           <span>{label}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -198,7 +198,7 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
             />
           </span>
           <span
-            className="text-[17px] font-extrabold tracking-[-0.03em]"
+            className="text-[17px] font-bold tracking-[-0.02em]"
             style={{ color: "var(--color-neutral-900)" }}
           >
             Parisar
@@ -219,7 +219,7 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
         {societyId ? (
           <SosButton
             societyId={societyId}
-            triggerClassName="mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[14px] font-extrabold text-white transition-transform active:scale-[0.99]"
+            triggerClassName="mt-1 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-white transition-transform active:scale-[0.99]"
           />
         ) : null}
       </SidebarHeader>

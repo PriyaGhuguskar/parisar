@@ -21,7 +21,7 @@ import { fetchPendingReviews } from "@parisar/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AuthorityEntry } from "@/components/dashboard/AuthorityEntry";
+import { AUTHORITY_ROLES, AuthorityEntry } from "@/components/dashboard/AuthorityEntry";
 import { DashboardTile } from "@/components/dashboard/DashboardTile";
 import { DashboardTilePreview } from "@/components/dashboard/DashboardTilePreview";
 import { HighlightsStrip } from "@/components/dashboard/HighlightsStrip";
@@ -94,10 +94,16 @@ export function DashboardClient({
   societyName,
   fullName,
   initialSummary = null,
-  needsFlat = false,
 }) {
   const router = useRouter();
   const { t } = useTranslation("dashboard");
+
+  // A society authority is a resident here: /dashboard is their own home with
+  // the resident tiles, and the summary is fetched in the resident view so
+  // those tiles get real previews. Society management lives on
+  // /society-dashboard, reached via the switch at the top.
+  const viewRole = AUTHORITY_ROLES.has(role) ? "member" : role;
+  const summaryView = viewRole === role ? null : "member";
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingBookings, setPendingBookings] = useState(0);
   const [rotatesAt, setRotatesAt] = useState(null);
@@ -132,14 +138,14 @@ export function DashboardClient({
       (event) => patchEvent(event, userId),
       () => {
         // Reconnect → reconcile against the server (D-03).
-        fetchSummary(supabase).catch(() => {
+        fetchSummary(supabase, { view: summaryView }).catch(() => {
           // Last-known-good preserved by the store on error (UI-SPEC).
         });
       },
     );
 
     const onFocus = () => {
-      fetchSummary(supabase).catch(() => {});
+      fetchSummary(supabase, { view: summaryView }).catch(() => {});
     };
     window.addEventListener("focus", onFocus);
 
@@ -147,7 +153,7 @@ export function DashboardClient({
       window.removeEventListener("focus", onFocus);
       unsubscribe();
     };
-  }, [societyId, userId, fetchSummary, patchEvent]);
+  }, [societyId, userId, summaryView, fetchSummary, patchEvent]);
 
   // Hydrate the volatile Reviews badge count + code-rotation date client-side
   // (D-04 / D-05 / Pitfall 5). force-dynamic on the page re-runs SSR on
@@ -157,19 +163,22 @@ export function DashboardClient({
     let cancelled = false;
     const supabase = createSupabaseBrowserClient();
 
-    fetchPendingReviews(supabase, societyId)
-      .then((rows) => {
-        if (!cancelled) setPendingCount(Array.isArray(rows) ? rows.length : 0);
-      })
-      .catch(() => {
-        if (!cancelled) setPendingCount(0);
-      });
+    // Only the views that show a Reviews tile need its count.
+    if (getRoleTiles(viewRole).some((tile) => tile.badge === "pending_reviews")) {
+      fetchPendingReviews(supabase, societyId)
+        .then((rows) => {
+          if (!cancelled) setPendingCount(Array.isArray(rows) ? rows.length : 0);
+        })
+        .catch(() => {
+          if (!cancelled) setPendingCount(0);
+        });
+    }
 
     // DT-02 — board pending-bookings badge (the Bookings tile action-queue glance
     // count). Society-scoped; RLS authoritative. Members never query this. In the
     // current test env this resolves to 0 (badge hidden) — graceful degradation
     // matching the reviews-badge cadence.
-    if (BOARD_ROLES.has(role)) {
+    if (BOARD_ROLES.has(viewRole)) {
       supabase
         .from("bookings")
         .select("id")
@@ -204,15 +213,15 @@ export function DashboardClient({
     return () => {
       cancelled = true;
     };
-  }, [societyId, role]);
+  }, [societyId, viewRole]);
 
-  const tiles = getRoleTiles(role);
+  const tiles = getRoleTiles(viewRole);
 
   return (
     <main className="bg-neutral-50 min-h-screen px-8 py-6">
       {/* Heading row — society pill (left) + profile avatar trigger (right). */}
       <header className="flex items-center justify-between mb-6">
-        <SocietyHeaderPill societyId={societyId} societyName={societyName} />
+        <SocietyHeaderPill societyName={societyName} />
 
         {/* DT-08 second profile trigger — the heading-row avatar opens the same
             ProfileMenuDropdown that the sidebar footer avatar does. */}
@@ -224,8 +233,8 @@ export function DashboardClient({
         />
       </header>
 
-      {/* Society authorities: Society Dashboard entry (+ "add your flat" prompt). */}
-      <AuthorityEntry role={role} needsFlat={needsFlat} />
+      {/* Society authorities: switch between this home and the Society Dashboard. */}
+      <AuthorityEntry role={role} active="home" />
 
       {/* Emergency: live SOS banners for anyone targeted (the raise button lives
           in the sidebar so it's reachable from every page). */}
@@ -235,7 +244,7 @@ export function DashboardClient({
       <HighlightsStrip societyId={societyId} role={role} />
 
       {/* Tile grid (UI-SPEC §Screen 2 — responsive columns). */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {tiles.map((tile) => {
           const tileLabel = t(`tiles.${tile.key}`, { defaultValue: tile.key });
           const announceUnavailable = tile.live
@@ -265,7 +274,7 @@ export function DashboardClient({
           // that owns its own loading/empty/ready/error state machine.
           let previewNode = null;
           if (tile.live) {
-            const summaryKey = getSummaryKeyForTile(tile.key, role);
+            const summaryKey = getSummaryKeyForTile(tile.key, viewRole);
             if (summaryKey) {
               previewNode = (
                 <DashboardTilePreview

@@ -38,11 +38,19 @@ export default async function OnboardingPage() {
     .select("full_name, pin_set")
     .eq("user_id", user.id)
     .maybeSingle();
-  const initialName = profile?.full_name ?? user.user_metadata?.full_name ?? "";
+  let initialName = profile?.full_name ?? user.user_metadata?.full_name ?? "";
 
-  // An authority already belongs to the society — fill in its code for them.
+  // An authority already belongs to the society. If its wings/flats haven't been
+  // set up yet, that comes first (any authority can do it); otherwise fill in the
+  // society code for them so they go straight to picking their flat.
   let initialCode = "";
   if (flatless) {
+    const { count: flatCount } = await supabase
+      .from("flats")
+      .select("id", { count: "exact", head: true })
+      .eq("society_id", flatless.society_id);
+    if ((flatCount ?? 0) === 0) redirect("/setup/structure");
+
     const { data: code } = await supabase
       .from("society_codes")
       .select("code")
@@ -51,6 +59,18 @@ export default async function OnboardingPage() {
       .limit(1)
       .maybeSingle();
     initialCode = code?.code ?? "";
+
+    // Staff already entered the authority's name when adding them — reuse it
+    // instead of asking again (they can still edit it in the wizard).
+    if (!initialName) {
+      const { data: authority } = await supabase
+        .from("society_authorities")
+        .select("full_name")
+        .eq("society_id", flatless.society_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      initialName = authority?.full_name ?? "";
+    }
   }
 
   const phone = user.phone ? `+${user.phone}` : "";

@@ -179,8 +179,7 @@ describe("DashboardClient (web)", () => {
     expect(tiles.length).toBeGreaterThanOrEqual(11);
   });
 
-  it("Reviews tile shows the pendingCount from fetchPendingReviews", async () => {
-    fetchPendingReviews.mockResolvedValue([{}, {}, {}, {}]); // 4 pending
+  it("an authority's home is the resident view; management lives on the Society Dashboard", () => {
     render(
       <DashboardClient
         userId="u1"
@@ -191,7 +190,12 @@ describe("DashboardClient (web)", () => {
         memberships={[]}
       />,
     );
-    await waitFor(() => expect(screen.getByText("4")).toBeInTheDocument());
+    expect(screen.queryByText(/^Reviews$/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("authority-view-switch")).toBeInTheDocument();
+    expect(screen.getByTestId("authority-society-dashboard")).toHaveAttribute(
+      "href",
+      "/society-dashboard",
+    );
   });
 
   it("tile grid has responsive Tailwind classes grid-cols-2 md:grid-cols-3 lg:grid-cols-4", () => {

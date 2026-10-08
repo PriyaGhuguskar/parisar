@@ -12,6 +12,7 @@ import "./globals.css";
 import { AUTH_NAMESPACE, NAMESPACES } from "@parisar/i18n/namespaces";
 import { I18nProvider } from "../components/I18nProvider";
 import {
+  inter,
   manrope,
   notoSans,
   notoSansDevanagari,
@@ -66,6 +67,7 @@ export default async function RootLayout({ children }) {
     <html
       lang={lng}
       className={[
+        inter.variable,
         manrope.variable,
         notoSans.variable,
         notoSansDevanagari.variable,

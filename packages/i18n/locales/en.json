@@ -742,6 +742,8 @@
   "authority": {
     "societyDashboard": "Society Dashboard",
     "societyDashboardLead": "Manage your society — authorities, members, notices and more.",
+    "switchHome": "My home",
+    "switchLabel": "Switch view",
     "open": "Open",
     "authoritiesTitle": "Society Authorities",
     "authoritiesLead": "People who manage this society. Each one signs in with their mobile and gets the Society Dashboard.",
@@ -765,6 +767,33 @@
     "manageTitle": "Manage",
     "addFlatTitle": "Add your flat",
     "addFlatBody": "You're a society authority. Add your own flat to use Parisar as a resident too.",
-    "addFlatCta": "Add my flat"
+    "addFlatCta": "Add my flat",
+    "featuresTitle": "Features & add-ons",
+    "featuresLead": "Ask Parisar to turn a paid feature on or off for your society. Our team confirms every change.",
+    "statusOn": "On",
+    "statusOff": "Off",
+    "included": "Included",
+    "perMonth": "₹{{price}}/month",
+    "monthlyTotal": "Your add-ons: ₹{{total}}/month",
+    "requestAdd": "Request to add",
+    "requestRemove": "Request to remove",
+    "pendingAdd": "Add requested — waiting for Parisar",
+    "pendingRemove": "Removal requested — waiting for Parisar",
+    "requestNotePh": "Anything we should know? (optional)",
+    "sendRequest": "Send request",
+    "requestSent": "Request sent. Parisar will review it.",
+    "requestError": "Couldn't send the request. Please try again.",
+    "alreadyRequested": "A request for this feature is already waiting.",
+    "featuresLoadError": "Couldn't load features."
+  },
+  "service": {
+    "pausedTitle": "Service paused",
+    "blockedTitle": "Society blocked",
+    "pausedBody": "Parisar service for {{society}} is paused. You can't use the app until it is resumed.",
+    "blockedBody": "{{society}} has been blocked on Parisar. The app and the society code are not available.",
+    "reasonLabel": "Message from Parisar",
+    "since": "Since {{date}}",
+    "help": "Please contact your society committee or Parisar support.",
+    "blockedJoin": "This society is blocked on Parisar, so new residents can't join right now."
   }
 }

@@ -1,6 +1,7 @@
 // /setup/structure — a society authority sets up wings + flats after claiming.
 //
-// Guarded: only the active secretary of a society that has no flats yet belongs
+// Guarded: only an active authority (secretary or co-secretary) of a society that
+// has no flats yet belongs
 // here. Anyone else is redirected — a resident cannot reach the society-setup
 // screen, and an authority whose society already has flats is sent on.
 
@@ -18,13 +19,16 @@ export default async function StructurePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // The caller's active secretary membership, if any. RLS scopes this to them.
+  // The caller's active authority membership, if any. RLS scopes this to them.
+  // Must accept co-secretaries too: /dashboard sends every flat-less authority
+  // here, so a narrower check bounced them back and forth forever.
   const { data: mem } = await supabase
     .from("society_memberships")
     .select("society_id, role")
     .eq("user_id", user.id)
-    .eq("role", "secretary")
+    .in("role", ["secretary", "co_secretary"])
     .eq("status", "active")
+    .limit(1)
     .maybeSingle();
   if (!mem) redirect("/dashboard");
 

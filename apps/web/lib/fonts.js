@@ -1,5 +1,6 @@
 import {
   IBM_Plex_Mono,
+  Inter,
   Manrope,
   Noto_Sans,
   Noto_Sans_Devanagari,
@@ -62,5 +63,15 @@ export const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+// UI face for the signed-in app (sidebar, dashboard, forms). Inter is built for
+// dense, small UI text — compact and very readable at 13–14px. Like Manrope it
+// has no Devanagari, so the app stack falls back to Noto Sans Devanagari.
+export const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
 });

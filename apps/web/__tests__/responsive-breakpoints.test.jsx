@@ -83,13 +83,13 @@ describe("responsive breakpoints — automated class-presence floor", () => {
   //    individual tile MUST stay square-shaped + keep the label pinned to the
   //    bottom so the visual rhythm survives the 2/3/4-column collapse.
   // -------------------------------------------------------------------------
-  it("DashboardTile root has aspect-square + flex-col so 2/3/4-col grid stays balanced", () => {
+  it("DashboardTile root has a fixed min height + flex-col so 2/3/4-col grid stays balanced", () => {
     const { container } = render(
       <DashboardTile icon={StubIcon} label="Complaints" onPress={() => {}} />,
     );
     const button = container.querySelector("button");
     expect(button).not.toBeNull();
-    expect(button.className).toContain("aspect-square");
+    expect(button.className).toContain("min-h-[128px]");
     expect(button.className).toContain("flex");
     expect(button.className).toContain("flex-col");
     // The label sits in an `mt-auto` block so it stays pinned to the bottom of
