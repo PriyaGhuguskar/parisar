@@ -52,12 +52,16 @@ export default async function SurfacePage({ params }) {
       return renderConsole(supabase, requested === SURFACE.CONSOLE_ADMIN);
 
     case SURFACE.CONSOLE_STAFF: {
+      // profiles.phone isn't readable by users (column privilege) — take the
+      // phone from the auth account.
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, phone")
+        .select("full_name")
         .eq("user_id", user.id)
         .maybeSingle();
-      return <StaffConsole fullName={profile?.full_name} phone={profile?.phone} />;
+      return (
+        <StaffConsole fullName={profile?.full_name} phone={user.phone ? `+${user.phone}` : null} />
+      );
     }
 
     case SURFACE.SECURITY: {

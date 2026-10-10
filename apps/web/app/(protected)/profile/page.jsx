@@ -21,7 +21,9 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone")
+    // Only full_name: users can't SELECT profiles.phone (column privilege — phones
+    // are revealed via reveal_phone), and asking for it failed the whole query.
+    .select("full_name")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -43,7 +45,7 @@ export default async function ProfilePage() {
 
   const me = {
     fullName: profile?.full_name ?? user.user_metadata?.full_name ?? "",
-    phone: profile?.phone ?? (user.phone ? `+${user.phone}` : null),
+    phone: user.phone ? `+${user.phone}` : null,
     flatLabel,
     emergency: membership?.emergency_contact ?? null,
     membershipId: membership?.id ?? null,

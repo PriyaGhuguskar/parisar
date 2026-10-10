@@ -136,40 +136,17 @@ describe("ProfileMenuSheet", () => {
   });
 });
 
-// Warning #3 — Profile tab useFocusEffect test (the (tabs)/profile.jsx host).
-// Verifies that focusing the Profile tab opens the sheet (the captured
-// useFocusEffect callback flips open=true → the sheet mounts and shows Sign Out).
-describe("ProfileTab focus effect (Warning #3)", () => {
+// Profile screen (website /profile port): shows the person's details and an
+// Edit button. Reached from the Menu tab.
+describe("Profile screen", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const ProfileTab = require("../app/(protected)/(tabs)/profile").default;
+  const ProfileScreen = require("../app/(protected)/(tabs)/profile").default;
 
-  beforeEach(() => {
-    mockBack.mockReset();
-    mockReplace.mockReset();
-    mockCanGoBack.mockReset().mockReturnValue(true);
-    focusCb = null;
-    setSessionRole("member");
-  });
-
-  it("focusing the tab opens the sheet (setOpen(true)) so Sign Out becomes visible", async () => {
-    const { findByText } = render(<ProfileTab />);
-    expect(focusCb).not.toBeNull();
-    // Invoke the captured useFocusEffect callback (focus) inside act so the
-    // setOpen(true) state update is flushed before assertion.
-    act(() => {
-      focusCb();
-    });
-    expect(await findByText("Sign out")).toBeTruthy();
-  });
-
-  it("exposes router.canGoBack for the close fallback path", () => {
-    mockCanGoBack.mockReturnValue(false);
-    render(<ProfileTab />);
-    act(() => {
-      focusCb();
-    });
-    // Wiring assertion: the close handler reads router.canGoBack; full setTimeout
-    // dismiss simulation is left for QA.
-    expect(mockCanGoBack).toBeDefined();
+  it("shows name, flat and the Edit button", () => {
+    setSessionRole("secretary");
+    const { getByText, getAllByText } = render(<ProfileScreen />);
+    expect(getByText("Aman Khan")).toBeTruthy();
+    expect(getAllByText("B-203").length).toBeGreaterThan(0);
+    expect(getByText("Edit")).toBeTruthy();
   });
 });

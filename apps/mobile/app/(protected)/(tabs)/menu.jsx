@@ -23,6 +23,7 @@ import {
   LogOut,
   Scale,
   ShieldCheck,
+  User,
   UserCog,
   UserRound,
 } from "lucide-react-native";
@@ -148,6 +149,11 @@ export default function MenuScreen() {
         ) : null}
 
         <Group>
+          <LinkRow
+            icon={User}
+            label={t("dashboard:nav.profile")}
+            onPress={() => go(`${T}/profile`)}
+          />
           <LinkRow
             icon={Bell}
             label={t("dashboard:profile.notificationSettings")}
