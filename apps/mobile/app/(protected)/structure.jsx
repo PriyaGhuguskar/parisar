@@ -221,7 +221,7 @@ export default function StructureScreen() {
                       accessibilityRole="button"
                       className="p-2"
                     >
-                      <X size={18} color="#627368" />
+                      <X size={18} color="#64748B" />
                     </Pressable>
                   ) : null}
                 </View>

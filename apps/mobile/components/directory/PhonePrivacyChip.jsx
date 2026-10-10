@@ -76,7 +76,7 @@ export function PhonePrivacyChip({ targetUserId, mode = "member" }) {
         accessibilityRole="button"
         accessibilityLabel={`${t("directory.phoneHidden")}. Press to reveal.`}
       >
-        <EyeOff size={16} color="#6e6e6e" />
+        <EyeOff size={16} color="#64748B" />
         <Text className="text-sm text-neutral-400">{t("directory.phoneHidden")}</Text>
       </Pressable>
     );

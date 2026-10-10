@@ -81,7 +81,7 @@ export function ImageSafetyState({
         height: size,
         borderRadius: 12,
         overflow: "hidden",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "#F1F5F9",
         borderWidth: rejected ? 1.5 : 0,
         borderColor: rejected ? DANGER_500 : "transparent",
       }}

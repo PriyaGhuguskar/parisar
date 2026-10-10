@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { FlatActionCard } from "../../../../components/flat-actions/FlatActionCard";
 import { FlatPicker, PrivateFlatSubtitle } from "../../../../components/flat-actions/FlatPicker";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { fetchFlatLabel } from "../../../../lib/flat-label";
 import { getSupabase } from "../../../../lib/supabase";
@@ -156,7 +157,7 @@ export default function FlatActionsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text className="text-base text-brand-500">{"←"}</Text>
+            <BackArrow />
           </Pressable>
           <Text className="text-xl font-semibold text-neutral-900 flex-1">
             {t("flatAction.memberTitle")}
@@ -270,7 +271,7 @@ function EmptyState({ t, isBoard }) {
   const body = isBoard ? t("flatAction.emptyBodyBoard") : t("flatAction.emptyBody");
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <ShieldCheck size={80} color="#8a8a8a" />
+      <ShieldCheck size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}
@@ -285,7 +286,7 @@ function EmptyState({ t, isBoard }) {
 function ErrorState({ t, onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
-      <WifiOff size={48} color="#8a8a8a" />
+      <WifiOff size={48} color="#94A3B8" />
       <Text className="text-xl font-semibold text-neutral-900 text-center">
         {t("flatAction.loadError")}
       </Text>

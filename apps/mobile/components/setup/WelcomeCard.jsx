@@ -61,16 +61,16 @@ function ApartmentIllustration() {
           width="50"
           height="65"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="2"
           rx="2"
         />
-        <Rect x="30" y="20" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
-        <Rect x="50" y="20" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
-        <Rect x="30" y="38" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
-        <Rect x="50" y="38" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
-        <Rect x="30" y="56" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
-        <Rect x="50" y="56" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
+        <Rect x="30" y="20" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+        <Rect x="50" y="20" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+        <Rect x="30" y="38" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+        <Rect x="50" y="38" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+        <Rect x="30" y="56" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
+        <Rect x="50" y="56" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
 
         {/* Building B — shorter */}
         <Rect
@@ -79,28 +79,28 @@ function ApartmentIllustration() {
           width="45"
           height="50"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="2"
           rx="2"
         />
-        <Rect x="90" y="35" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
+        <Rect x="90" y="35" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
         <Rect
           x="106"
           y="35"
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
-        <Rect x="90" y="53" width="10" height="10" fill="none" stroke="#e5e5e5" strokeWidth="1.5" />
+        <Rect x="90" y="53" width="10" height="10" fill="none" stroke="#E2E8F0" strokeWidth="1.5" />
         <Rect
           x="106"
           y="53"
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
 
@@ -111,7 +111,7 @@ function ApartmentIllustration() {
           width="45"
           height="60"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="2"
           rx="2"
         />
@@ -121,7 +121,7 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
         <Rect
@@ -130,7 +130,7 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
         <Rect
@@ -139,7 +139,7 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
         <Rect
@@ -148,7 +148,7 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
         <Rect
@@ -157,7 +157,7 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
         <Rect
@@ -166,12 +166,12 @@ function ApartmentIllustration() {
           width="10"
           height="10"
           fill="none"
-          stroke="#e5e5e5"
+          stroke="#E2E8F0"
           strokeWidth="1.5"
         />
 
         {/* Ground line */}
-        <Line x1="10" y1="76" x2="190" y2="76" stroke="#e5e5e5" strokeWidth="1.5" />
+        <Line x1="10" y1="76" x2="190" y2="76" stroke="#E2E8F0" strokeWidth="1.5" />
       </Svg>
     );
   } catch {

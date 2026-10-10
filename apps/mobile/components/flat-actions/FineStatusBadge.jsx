@@ -10,7 +10,7 @@ import { isOverdue } from "../../lib/fine-overdue";
 const STATUS_STYLES = {
   outstanding: { bg: "#fffbeb", text: "#f59e0b", border: "#f59e0b" },
   acknowledged: { bg: "#ecfdf5", text: "#047857", border: "#047857" },
-  waived: { bg: "#f5f5f5", text: "#525252", border: "transparent" },
+  waived: { bg: "#F1F5F9", text: "#475569", border: "transparent" },
   // Derived display-only state (not a DB value).
   overdue: { bg: "#fef2f2", text: "#c81e1e", border: "#c81e1e" },
 };

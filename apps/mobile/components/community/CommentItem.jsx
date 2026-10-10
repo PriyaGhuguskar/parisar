@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 
 const DANGER_500 = "#c81e1e";
-const NEUTRAL_400 = "#6e6e6e";
+const NEUTRAL_400 = "#64748B";
 
 function formatFlat(flatJoin) {
   if (!flatJoin) return "—";

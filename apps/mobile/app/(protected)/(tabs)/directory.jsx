@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { MemberRow } from "../../../components/directory/MemberRow";
 import { RecentJoinersSection } from "../../../components/directory/RecentJoinersSection";
+import { BackArrow } from "../../../components/kit";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
 
@@ -123,7 +124,7 @@ export default function DirectoryScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text className="text-base text-brand-500">{"←"}</Text>
+            <BackArrow />
           </Pressable>
           <Text className="text-xl font-semibold text-neutral-900 flex-1">
             {t("directory.title")}
@@ -136,12 +137,12 @@ export default function DirectoryScreen() {
 
         {/* Search input */}
         <View className="flex-row items-center bg-neutral-100 rounded-xl px-3 h-10 gap-2">
-          <Search size={16} color="#6e6e6e" />
+          <Search size={16} color="#64748B" />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder={t("directory.search")}
-            placeholderTextColor="#6e6e6e"
+            placeholderTextColor="#64748B"
             className="flex-1 text-base text-neutral-900"
             returnKeyType="search"
             autoCorrect={false}
@@ -217,7 +218,7 @@ export default function DirectoryScreen() {
       ) : filtered.length === 0 ? (
         /* Empty state */
         <View className="flex-1 items-center justify-center gap-3 px-8">
-          <Users size={48} color="#d4d4d4" />
+          <Users size={48} color="#CBD5E1" />
           <Text className="text-xl text-neutral-600 text-center">{t("directory.noResults")}</Text>
         </View>
       ) : (

@@ -20,7 +20,7 @@ import { isOverdue, overdueDays } from "../../lib/fine-overdue";
 import { FineStatusBadge } from "./FineStatusBadge";
 
 const BRAND_500 = "#12715A";
-const NEUTRAL_600 = "#525252";
+const NEUTRAL_600 = "#475569";
 const DANGER_500 = "#c81e1e";
 
 function safeDate(value) {

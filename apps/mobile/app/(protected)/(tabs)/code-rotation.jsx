@@ -191,7 +191,7 @@ export default function CodeRotationScreen() {
         accessibilityRole="button"
         accessibilityLabel="Close"
       >
-        <X size={20} color="#737373" />
+        <X size={20} color="#64748B" />
       </Pressable>
     );
   }
@@ -432,7 +432,7 @@ export default function CodeRotationScreen() {
           onPress={handleRotate}
           disabled={working}
           className="h-14 rounded-xl items-center justify-center mb-3"
-          style={{ backgroundColor: working ? "#d4d4d4" : "#c81e1e" }}
+          style={{ backgroundColor: working ? "#CBD5E1" : "#c81e1e" }}
           accessibilityRole="button"
           accessibilityLabel={t("codeRotation.confirm")}
         >

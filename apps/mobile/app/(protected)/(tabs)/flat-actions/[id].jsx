@@ -30,6 +30,7 @@ import { OwnerChip } from "../../../../components/complaints/OwnerChip";
 import { FineDetailBlock } from "../../../../components/flat-actions/FineDetailBlock";
 import { FlatActionKindBadge } from "../../../../components/flat-actions/FlatActionKindBadge";
 import { formatFlatLabel } from "../../../../components/flat-actions/FlatPicker";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -225,7 +226,7 @@ export default function FlatActionDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("flatAction.detailTitle")}

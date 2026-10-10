@@ -82,7 +82,7 @@ export function AuditLogRow({ event, isLast = false }) {
           }}
         />
         {!isLast ? (
-          <View style={{ flex: 1, width: 1, backgroundColor: "#e5e5e5", marginTop: 4 }} />
+          <View style={{ flex: 1, width: 1, backgroundColor: "#E2E8F0", marginTop: 4 }} />
         ) : null}
       </View>
 

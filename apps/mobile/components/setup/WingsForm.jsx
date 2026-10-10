@@ -96,7 +96,7 @@ export function WingsForm({ onNext, onBack }) {
                     setWingInput(v);
                   }}
                   placeholder={t("setup.step2.wingPlaceholder")}
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   maxLength={20}
                   returnKeyType="done"
                   onSubmitEditing={addWing}
@@ -149,7 +149,7 @@ export function WingsForm({ onNext, onBack }) {
                 setError(null);
                 if (v) setWings([]);
               }}
-              trackColor={{ false: "#e5e5e5", true: "#12715A" }}
+              trackColor={{ false: "#E2E8F0", true: "#12715A" }}
               thumbColor="#ffffff"
               accessibilityRole="switch"
               accessibilityLabel={t("setup.step2.noWings")}

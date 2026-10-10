@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { PostComposer } from "../../../../components/community/PostComposer";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -30,7 +31,7 @@ export default function NewPostScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("community.composeTitle")}

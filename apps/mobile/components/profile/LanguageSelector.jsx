@@ -25,8 +25,8 @@ import { changeLanguage } from "../../lib/i18n";
 const BRAND_500 = "#12715A";
 const BRAND_50 = "#f5f7ff";
 const NEUTRAL_0 = "#ffffff";
-const NEUTRAL_100 = "#f5f5f5";
-const NEUTRAL_900 = "#171717";
+const NEUTRAL_100 = "#F1F5F9";
+const NEUTRAL_900 = "#1E293B";
 const DANGER_500 = "#c81e1e";
 
 const OPTIONS = [

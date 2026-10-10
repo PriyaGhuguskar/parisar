@@ -16,6 +16,7 @@ import { CheckCircle2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from "react-native";
+import { BackArrow } from "../../../../components/kit";
 import { NoticeComposer } from "../../../../components/notices/NoticeComposer";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
@@ -102,7 +103,7 @@ export default function NewNoticeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("notice.composeTitle")}

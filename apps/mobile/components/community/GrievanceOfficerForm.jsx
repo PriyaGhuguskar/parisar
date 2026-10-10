@@ -79,7 +79,7 @@ export function GrievanceOfficerForm({
           value={name}
           onChangeText={setName}
           placeholder={t("grievance.namePlaceholder")}
-          placeholderTextColor="#6e6e6e"
+          placeholderTextColor="#64748B"
           maxLength={80}
           className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
           accessibilityLabel={t("grievance.nameLabel")}
@@ -93,7 +93,7 @@ export function GrievanceOfficerForm({
           value={contact}
           onChangeText={setContact}
           placeholder={t("grievance.contactPlaceholder")}
-          placeholderTextColor="#6e6e6e"
+          placeholderTextColor="#64748B"
           autoCapitalize="none"
           keyboardType="email-address"
           className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"

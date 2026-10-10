@@ -43,7 +43,7 @@ function SocietyRow({ s }) {
       </View>
       <View className="flex-row items-center gap-4">
         <View className="flex-row items-center gap-1">
-          <Users size={14} color="#627368" />
+          <Users size={14} color="#64748B" />
           <Text className="text-sm text-neutral-600">
             {Number(s.member_count ?? 0)} residents
             {Number(s.pending_count ?? 0) > 0 ? ` · ${s.pending_count} pending` : ""}

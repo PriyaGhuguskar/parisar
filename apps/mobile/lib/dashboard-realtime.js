@@ -74,7 +74,10 @@ export function subscribeDashboardRealtime(supabase, societyId, onPatch, onRecon
     return () => {};
   }
 
-  const channelName = `dashboard:${societyId}`;
+  // Unique suffix: supabase.channel() hands back an existing channel with the
+  // same name, and adding callbacks to an already-subscribed channel throws —
+  // which happens when Home remounts before the old channel is torn down.
+  const channelName = `dashboard:${societyId}:${Math.random().toString(36).slice(2)}`;
   const channel = supabase.channel(channelName);
   let armedOnce = false;
 

@@ -31,6 +31,7 @@ import {
 import { z } from "zod";
 import { FormError } from "../../../../components/auth/FormError";
 import { PhotoPicker } from "../../../../components/complaints/PhotoPicker";
+import { BackArrow } from "../../../../components/kit";
 import { getSupabase } from "../../../../lib/supabase";
 import { useMyContext } from "../../../../lib/use-my-context";
 
@@ -136,7 +137,7 @@ export default function NewComplaintScreen() {
       ? "#c81e1e"
       : description.length >= 900
         ? "#f59e0b"
-        : "#6e6e6e";
+        : "#64748B";
 
   return (
     <KeyboardAvoidingView
@@ -151,7 +152,7 @@ export default function NewComplaintScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("complaint.fileTitle")}
@@ -221,7 +222,7 @@ export default function NewComplaintScreen() {
                   value={value}
                   onChangeText={onChange}
                   placeholder={t("complaint.descriptionPlaceholder")}
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   multiline
                   numberOfLines={5}
                   maxLength={DESCRIPTION_MAX}

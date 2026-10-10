@@ -173,7 +173,7 @@ export default function CommunityFeedScreen() {
 function EmptyState({ t, onNewPost }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <Users2 size={80} color="#8a8a8a" />
+      <Users2 size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}
@@ -196,7 +196,7 @@ function EmptyState({ t, onNewPost }) {
 function ErrorState({ t, onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
-      <WifiOff size={48} color="#8a8a8a" />
+      <WifiOff size={48} color="#94A3B8" />
       <Text className="text-xl font-semibold text-neutral-900 text-center">
         {t("community.loadError")}
       </Text>

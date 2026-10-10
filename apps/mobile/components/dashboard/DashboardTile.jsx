@@ -17,9 +17,9 @@
 //
 // Locked color tokens (UI-SPEC §Color > Tile Color Contract; do NOT change):
 //   - Live icon: #12715A (brand.500)
-//   - Placeholder icon: #6e6e6e (neutral.400)
+//   - Placeholder icon: #64748B (neutral.400)
 //   - Badge: bg #f59e0b (warning.500), text #ffffff, text-xs font-semibold
-//   - "Coming soon" pill: bg #f5f5f5 (neutral.100), text #525252 (neutral.600)
+//   - "Coming soon" pill: bg #F1F5F9 (neutral.100), text #475569 (neutral.600)
 //   - Tile: rounded-2xl, border-neutral-200, bg-white, aspect-square
 //   - Label: numberOfLines={2} (Pitfall 6 Devanagari — `सदस्य निर्देशिका`
 //     wraps to 2 lines without breaking the grid)
@@ -169,7 +169,7 @@ export function DashboardTile({
             style={{ backgroundColor: WARNING_500 }}
           >
             {/* PAR-066: white on amber was 2.15:1 — amber needs DARK text (8.35:1). */}
-            <Text className="text-xs font-semibold text-[#171717]">{badgeDisplay}</Text>
+            <Text className="text-xs font-semibold text-[#1E293B]">{badgeDisplay}</Text>
           </View>
         ) : null}
 

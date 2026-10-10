@@ -105,7 +105,7 @@ export function CodeEntry({ initialCode = "", onValid }) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="XXXX-XXXX"
-          placeholderTextColor="#6e6e6e"
+          placeholderTextColor="#64748B"
           autoCapitalize="characters"
           autoCorrect={false}
           maxLength={9}
@@ -116,11 +116,11 @@ export function CodeEntry({ initialCode = "", onValid }) {
             fontWeight: "600",
             letterSpacing: 8,
             borderWidth: focused ? 2 : 1.5,
-            borderColor: focused ? "#4338ca" : "#e5e5e5",
+            borderColor: focused ? "#4338ca" : "#E2E8F0",
             borderRadius: 12,
             paddingHorizontal: 12,
             backgroundColor: "#ffffff",
-            color: "#171717",
+            color: "#1E293B",
             textTransform: "uppercase",
           }}
           accessibilityLabel={t("join.codeLabel")}

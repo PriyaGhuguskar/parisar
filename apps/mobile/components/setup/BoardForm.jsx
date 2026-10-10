@@ -245,7 +245,7 @@ export function BoardForm({
                 value={memberName}
                 onChangeText={setMemberName}
                 placeholder="Member's name"
-                placeholderTextColor="#6e6e6e"
+                placeholderTextColor="#64748B"
                 maxLength={60}
                 autoCapitalize="words"
               />
@@ -340,7 +340,7 @@ export function BoardForm({
                 value={memberPhone}
                 onChangeText={setMemberPhone}
                 placeholder="98765 43210"
-                placeholderTextColor="#6e6e6e"
+                placeholderTextColor="#64748B"
                 keyboardType="phone-pad"
                 maxLength={10}
               />

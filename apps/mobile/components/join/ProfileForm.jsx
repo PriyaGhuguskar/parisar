@@ -43,7 +43,7 @@ function DropdownPicker({ label, value, options, placeholder, disabled, onSelect
         >
           {value || placeholder}
         </Text>
-        <ChevronDown size={20} color="#6e6e6e" />
+        <ChevronDown size={20} color="#64748B" />
       </Pressable>
 
       {open && (
@@ -55,7 +55,7 @@ function DropdownPicker({ label, value, options, placeholder, disabled, onSelect
                   {label || placeholder}
                 </Text>
                 <Pressable onPress={() => setOpen(false)} className="p-2">
-                  <X size={20} color="#737373" />
+                  <X size={20} color="#64748B" />
                 </Pressable>
               </View>
               <ScrollView>
@@ -305,7 +305,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
             value={fullName}
             onChangeText={setFullName}
             placeholder="Full name"
-            placeholderTextColor="#6e6e6e"
+            placeholderTextColor="#64748B"
             maxLength={60}
             autoCapitalize="words"
             className="h-14 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
@@ -385,7 +385,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
             value={emergencyContact}
             onChangeText={setEmergencyContact}
             placeholder="98765 43210"
-            placeholderTextColor="#6e6e6e"
+            placeholderTextColor="#64748B"
             keyboardType="phone-pad"
             maxLength={10}
             className="h-14 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
@@ -423,7 +423,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
                     value={fm.name}
                     onChangeText={(v) => updateFamilyMember(fm.id, "name", v)}
                     placeholder={t("join.familyNamePlaceholder", { defaultValue: "Name" })}
-                    placeholderTextColor="#6e6e6e"
+                    placeholderTextColor="#64748B"
                     maxLength={60}
                     autoCapitalize="words"
                     className="h-12 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
@@ -436,7 +436,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
                     placeholder={t("join.familyPhonePlaceholder", {
                       defaultValue: "Mobile (optional)",
                     })}
-                    placeholderTextColor="#6e6e6e"
+                    placeholderTextColor="#64748B"
                     keyboardType="phone-pad"
                     maxLength={10}
                     className="h-12 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"

@@ -43,7 +43,7 @@ export function PhoneInput({ value, onChangeText, hasError = false }) {
         keyboardType="number-pad"
         maxLength={10}
         placeholder="98765 43210"
-        placeholderTextColor="#6e6e6e"
+        placeholderTextColor="#64748B"
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         accessibilityLabel="Mobile phone number"

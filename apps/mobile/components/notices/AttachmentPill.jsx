@@ -38,7 +38,7 @@ export function AttachmentPill({ mimeType }) {
       accessibilityRole="text"
       accessibilityLabel={label}
     >
-      <Paperclip size={12} color="#525252" />
+      <Paperclip size={12} color="#475569" />
       <Text className="text-sm text-neutral-600" numberOfLines={1}>
         {label}
       </Text>

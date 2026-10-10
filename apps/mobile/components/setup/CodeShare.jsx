@@ -94,7 +94,7 @@ export function CodeShare({ code }) {
             accessibilityRole="button"
             accessibilityLabel={copied ? t("setup.step6.copied") : t("setup.step6.copyCode")}
           >
-            {copied ? <Check size={16} color="#047857" /> : <Copy size={16} color="#737373" />}
+            {copied ? <Check size={16} color="#047857" /> : <Copy size={16} color="#64748B" />}
             <Text
               className={[
                 "text-sm font-medium",

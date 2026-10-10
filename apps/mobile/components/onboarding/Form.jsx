@@ -25,7 +25,7 @@ export function TextField({ style, ...props }) {
       {...props}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      placeholderTextColor="#6e6e6e"
+      placeholderTextColor="#64748B"
       className={[
         "h-12 rounded-lg bg-neutral-0 px-3 text-base text-neutral-900",
         focused ? "border-2 border-brand-700" : "border border-neutral-200",
@@ -45,7 +45,7 @@ export function StepHeader({ title, sub, onBack, backLabel }) {
           accessibilityRole="button"
           className="flex-row items-center gap-1 self-start py-1"
         >
-          <ArrowLeft size={14} color="#4A5C50" />
+          <ArrowLeft size={14} color="#475569" />
           <Text className="text-sm font-semibold text-neutral-600">{backLabel}</Text>
         </Pressable>
       ) : null}

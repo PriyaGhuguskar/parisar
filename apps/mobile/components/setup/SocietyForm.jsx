@@ -116,7 +116,7 @@ export function SocietyForm({ supabase, secretaryPhone, onNext }) {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder={t("setup.step1.societyNamePlaceholder")}
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   maxLength={100}
                   returnKeyType="next"
                   autoCapitalize="words"
@@ -144,7 +144,7 @@ export function SocietyForm({ supabase, secretaryPhone, onNext }) {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder={t("setup.step1.addressPlaceholder")}
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   maxLength={500}
                   multiline
                   numberOfLines={3}
@@ -164,7 +164,7 @@ export function SocietyForm({ supabase, secretaryPhone, onNext }) {
               <Text className="text-base text-neutral-600">
                 {secretaryPhoneDigits ? `+91 ${secretaryPhoneDigits}` : "—"}
               </Text>
-              <LockKeyhole size={16} color="#737373" />
+              <LockKeyhole size={16} color="#64748B" />
             </View>
             <Text className="text-sm text-neutral-400 mt-1">
               {t("setup.step1.secretaryPhoneHelper")}
@@ -188,7 +188,7 @@ export function SocietyForm({ supabase, secretaryPhone, onNext }) {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="98765 43210"
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   keyboardType="phone-pad"
                   maxLength={10}
                   returnKeyType="done"

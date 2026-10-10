@@ -17,6 +17,7 @@
 
 import { NOTIFICATION_CATEGORY, NOTIFICATION_KIND } from "@parisar/shared-types";
 import { cryptoRandomUUID } from "./uuid.js";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { fileNotification, NOTIFICATION_CATEGORY } from '@parisar/api-client';
@@ -261,7 +262,7 @@ export async function markNoticeRead(_supabase, _noticeId) {
  */
 export function subscribeToNotices(supabase, societyId, handlers) {
   const channel = supabase
-    .channel(`notifications-${societyId}`)
+    .channel(uniqueChannelName(`notifications-${societyId}`))
     .on(
       "postgres_changes",
       {

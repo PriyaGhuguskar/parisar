@@ -23,8 +23,8 @@ import { useMyContext } from "../../lib/use-my-context";
 import { LanguageSelector } from "../profile/LanguageSelector";
 
 const DANGER_500 = "#c81e1e";
-const NEUTRAL_400 = "#6e6e6e";
-const NEUTRAL_900 = "#171717";
+const NEUTRAL_400 = "#64748B";
+const NEUTRAL_900 = "#1E293B";
 
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
 
@@ -160,7 +160,7 @@ export function ProfileMenuSheet({ visible, onClose }) {
               <Text style={{ color: NEUTRAL_900 }} className="flex-1 text-base">
                 {t("dashboard:profile.language")}
               </Text>
-              <Text style={{ color: "#525252" }} className="text-sm">
+              <Text style={{ color: "#475569" }} className="text-sm">
                 {activeLangLabel}
               </Text>
               <ChevronRight size={16} color="#12715A" />

@@ -25,7 +25,7 @@ import {
 import { FlatPicker } from "./FlatPicker";
 
 const BRAND_500 = "#12715A";
-const NEUTRAL_600 = "#525252";
+const NEUTRAL_600 = "#475569";
 const DANGER_500 = "#c81e1e";
 
 const REASON_MAX = 1000;
@@ -148,10 +148,10 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
 
   const reasonLen = reason.length;
   const reasonCounterColor =
-    reasonLen >= REASON_MAX ? DANGER_500 : reasonLen >= 900 ? "#f59e0b" : "#6e6e6e";
+    reasonLen >= REASON_MAX ? DANGER_500 : reasonLen >= 900 ? "#f59e0b" : "#64748B";
   const messageLen = message.length;
   const messageCounterColor =
-    messageLen >= MESSAGE_MAX ? DANGER_500 : messageLen >= 1900 ? "#f59e0b" : "#6e6e6e";
+    messageLen >= MESSAGE_MAX ? DANGER_500 : messageLen >= 1900 ? "#f59e0b" : "#64748B";
 
   return (
     <ScrollView
@@ -192,7 +192,7 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
               value={amount}
               onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, ""))}
               placeholder={t("flatAction.amountPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               keyboardType="number-pad"
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
               accessibilityLabel={t("flatAction.amountLabel")}
@@ -208,7 +208,7 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
               value={message}
               onChangeText={setMessage}
               placeholder={t("flatAction.messagePlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={5}
               maxLength={MESSAGE_MAX}
@@ -227,7 +227,7 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
               value={reason}
               onChangeText={setReason}
               placeholder={t("flatAction.reasonPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={5}
               maxLength={REASON_MAX}

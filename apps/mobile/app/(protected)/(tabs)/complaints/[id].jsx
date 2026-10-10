@@ -28,6 +28,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { ResponseChip } from "../../../../components/complaints/ResponseChip";
 import { ResponseTrailItem } from "../../../../components/complaints/ResponseTrailItem";
 import { StatusBadge } from "../../../../components/complaints/StatusBadge";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -275,7 +276,7 @@ export default function ComplaintDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("complaint.detailTitle")}
@@ -373,7 +374,7 @@ export default function ComplaintDetailScreen() {
                 value={freeText}
                 onChangeText={setFreeText}
                 placeholder={t("complaint.freeTextPlaceholder")}
-                placeholderTextColor="#6e6e6e"
+                placeholderTextColor="#64748B"
                 multiline
                 numberOfLines={3}
                 maxLength={500}
@@ -400,7 +401,7 @@ export default function ComplaintDetailScreen() {
 
         {actionCase === "c" ? (
           <View className="rounded-xl border border-neutral-200 bg-neutral-100 p-4 flex-row gap-3 items-start">
-            <Lock size={20} color="#6e6e6e" />
+            <Lock size={20} color="#64748B" />
             <Text className="flex-1 text-base text-neutral-600">
               {t("complaint.ownedByBanner", { name: ownerName, flat: "—" })}
             </Text>

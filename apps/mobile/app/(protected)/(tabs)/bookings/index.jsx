@@ -31,6 +31,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from "react-native";
 import { BookingCard } from "../../../../components/bookings/BookingCard";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -222,7 +223,7 @@ export default function BookingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">{title}</Text>
       </View>
@@ -417,7 +418,7 @@ export default function BookingsScreen() {
               value={rejectReason}
               onChangeText={(v) => setRejectReason(v.slice(0, REASON_MAX))}
               placeholder={t("booking.reasonPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={3}
               maxLength={REASON_MAX}
@@ -479,18 +480,18 @@ function BookingListSkeleton() {
           key={i}
           className="flex-row bg-white rounded-xl border border-neutral-200 overflow-hidden"
         >
-          <View style={{ width: 4, backgroundColor: "#f5f5f5" }} />
+          <View style={{ width: 4, backgroundColor: "#F1F5F9" }} />
           <View className="flex-1 p-4 flex-row gap-3">
-            <View style={{ width: 56, height: 56, backgroundColor: "#f5f5f5", borderRadius: 12 }} />
+            <View style={{ width: 56, height: 56, backgroundColor: "#F1F5F9", borderRadius: 12 }} />
             <View className="flex-1 gap-2">
               <View
-                style={{ height: 20, width: "60%", backgroundColor: "#f5f5f5", borderRadius: 6 }}
+                style={{ height: 20, width: "60%", backgroundColor: "#F1F5F9", borderRadius: 6 }}
               />
               <View
-                style={{ height: 14, width: "40%", backgroundColor: "#f5f5f5", borderRadius: 6 }}
+                style={{ height: 14, width: "40%", backgroundColor: "#F1F5F9", borderRadius: 6 }}
               />
               <View
-                style={{ height: 16, width: "80%", backgroundColor: "#f5f5f5", borderRadius: 6 }}
+                style={{ height: 16, width: "80%", backgroundColor: "#F1F5F9", borderRadius: 6 }}
               />
             </View>
           </View>
@@ -503,7 +504,7 @@ function BookingListSkeleton() {
 function EmptyState({ t, isBoard, onRequest }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <Calendar size={80} color="#8a8a8a" />
+      <Calendar size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}
@@ -530,7 +531,7 @@ function EmptyState({ t, isBoard, onRequest }) {
 function ErrorState({ t, onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
-      <WifiOff size={48} color="#8a8a8a" />
+      <WifiOff size={48} color="#94A3B8" />
       <Text className="text-xl font-semibold text-neutral-900 text-center">
         {t("booking.loadError")}
       </Text>

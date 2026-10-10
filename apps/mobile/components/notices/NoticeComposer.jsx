@@ -149,9 +149,9 @@ export function NoticeComposer({
   }
 
   const titleCount = `${title.length}/${TITLE_MAX}`;
-  const titleCountColor = title.length >= 110 ? "#f59e0b" : "#6e6e6e";
+  const titleCountColor = title.length >= 110 ? "#f59e0b" : "#64748B";
   const bodyCount = `${body.length}/${BODY_MAX}`;
-  const bodyCountColor = body.length >= 1900 ? "#f59e0b" : "#6e6e6e";
+  const bodyCountColor = body.length >= 1900 ? "#f59e0b" : "#64748B";
 
   const isPdf = attachment?.mimeType === "application/pdf";
 
@@ -169,7 +169,7 @@ export function NoticeComposer({
               value={title}
               onChangeText={setTitle}
               placeholder={t("notice.titlePlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               maxLength={TITLE_MAX}
               className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
               accessibilityLabel={t("notice.titleLabel")}
@@ -186,7 +186,7 @@ export function NoticeComposer({
               value={body}
               onChangeText={setBody}
               placeholder={t("notice.bodyPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={6}
               maxLength={BODY_MAX}
@@ -210,11 +210,11 @@ export function NoticeComposer({
               accessibilityLabel={t("notice.attachLabel")}
               style={{
                 minHeight: attachment ? 120 : 96,
-                backgroundColor: "#f5f5f5",
+                backgroundColor: "#F1F5F9",
                 borderRadius: 12,
                 borderWidth: 1.5,
                 borderStyle: "dashed",
-                borderColor: attachError ? "#c81e1e" : "#e5e5e5",
+                borderColor: attachError ? "#c81e1e" : "#E2E8F0",
                 overflow: "hidden",
                 alignItems: "center",
                 justifyContent: "center",
@@ -237,7 +237,7 @@ export function NoticeComposer({
                 )
               ) : (
                 <View className="items-center gap-1">
-                  <Paperclip size={24} color="#6e6e6e" />
+                  <Paperclip size={24} color="#64748B" />
                   <Text className="text-sm text-neutral-400">{t("notice.attachLabel")}</Text>
                 </View>
               )}

@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { authorityOnly } from "../../../components/AuthorityOnly";
+import { BackArrow } from "../../../components/kit";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
 
@@ -255,7 +256,7 @@ function ReviewQueueScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <View className="flex-1">
           <Text className="text-xl font-semibold text-neutral-900">{t("reviewQueue.heading")}</Text>

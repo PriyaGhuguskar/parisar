@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { ComplaintCard } from "../../../../components/complaints/ComplaintCard";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -138,7 +139,7 @@ export default function ComplaintsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text className="text-base text-brand-500">{"←"}</Text>
+            <BackArrow />
           </Pressable>
           <Text className="text-xl font-semibold text-neutral-900 flex-1">
             {isBoard ? "Complaints" : "My Complaints"}
@@ -254,7 +255,7 @@ function EmptyState({ t, isBoard, activeTab, onFile }) {
 
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <MessageSquareWarning size={80} color="#8a8a8a" />
+      <MessageSquareWarning size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}
@@ -279,7 +280,7 @@ function EmptyState({ t, isBoard, activeTab, onFile }) {
 function ErrorState({ t, onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
-      <WifiOff size={48} color="#8a8a8a" />
+      <WifiOff size={48} color="#94A3B8" />
       <Text className="text-xl font-semibold text-neutral-900 text-center">
         {t("complaint.loadError")}
       </Text>

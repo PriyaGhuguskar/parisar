@@ -227,7 +227,7 @@ describe("subscribeToComplaints", () => {
 
     const cleanup = subscribeToComplaints(client, "soc-1", handlers);
 
-    expect(client.channel).toHaveBeenCalledWith("complaints-soc-1");
+    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^complaints-soc-1:/));
     // Two .on() calls — one for INSERT, one for UPDATE.
     expect(onFn).toHaveBeenCalledTimes(2);
     expect(onFn.mock.calls[0][0]).toBe("postgres_changes");
@@ -280,7 +280,7 @@ describe("subscribeToComplaintResponses", () => {
 
     const cleanup = subscribeToComplaintResponses(client, "comp-7", onInsert);
 
-    expect(client.channel).toHaveBeenCalledWith("complaint-responses-comp-7");
+    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^complaint-responses-comp-7:/));
     expect(onFn).toHaveBeenCalledTimes(1);
     expect(onFn.mock.calls[0][1]).toMatchObject({
       event: "INSERT",

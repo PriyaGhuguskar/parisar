@@ -15,8 +15,8 @@
 import { Switch, Text, View } from "react-native";
 
 const BRAND_500 = "#12715A";
-const NEUTRAL_200 = "#e5e5e5";
-const NEUTRAL_600 = "#525252";
+const NEUTRAL_200 = "#E2E8F0";
+const NEUTRAL_600 = "#475569";
 
 /**
  * @param {{

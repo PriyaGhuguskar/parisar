@@ -84,7 +84,7 @@ export function PollBuilder({ value, onChange }) {
           value={question}
           onChangeText={setQuestion}
           placeholder={t("polls:poll.questionPlaceholder")}
-          placeholderTextColor="#6e6e6e"
+          placeholderTextColor="#64748B"
           maxLength={QUESTION_MAX}
           className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
           accessibilityLabel={t("polls:poll.questionLabel")}
@@ -100,7 +100,7 @@ export function PollBuilder({ value, onChange }) {
               value={opt}
               onChangeText={(v) => setOption(index, v)}
               placeholder={optLabel}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               maxLength={120}
               className="flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
               style={{ minHeight: 44 }}
@@ -115,7 +115,7 @@ export function PollBuilder({ value, onChange }) {
                 className="items-center justify-center"
                 style={{ width: 44, height: 44 }}
               >
-                <X size={18} color="#525252" />
+                <X size={18} color="#475569" />
               </Pressable>
             ) : null}
           </View>

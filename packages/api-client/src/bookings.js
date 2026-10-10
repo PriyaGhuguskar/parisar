@@ -14,6 +14,7 @@
 //   6. subscribeToBookings(supabase, societyId, handlers)
 
 import { BOOKING_STATUS } from "@parisar/shared-types";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export so callers can pull the enum from the bookings module.
 export { BOOKING_STATUS };
@@ -195,7 +196,7 @@ export async function rejectBooking(supabase, { bookingId, reason = null }) {
  */
 export function subscribeToBookings(supabase, societyId, handlers) {
   const channel = supabase
-    .channel(`bookings-${societyId}`)
+    .channel(uniqueChannelName(`bookings-${societyId}`))
     .on(
       "postgres_changes",
       {

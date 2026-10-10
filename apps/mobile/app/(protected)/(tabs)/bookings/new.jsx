@@ -31,6 +31,7 @@ import {
 } from "react-native";
 import { AmenityPicker } from "../../../../components/bookings/AmenityPicker";
 import { TimeSlotPicker } from "../../../../components/bookings/TimeSlotPicker";
+import { BackArrow } from "../../../../components/kit";
 import { getSupabase } from "../../../../lib/supabase";
 
 const PURPOSE_MAX = 300;
@@ -119,7 +120,7 @@ export default function NewBookingScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("booking.requestTitle")}
@@ -147,7 +148,7 @@ export default function NewBookingScreen() {
               value={purpose}
               onChangeText={(v) => setPurpose(v.slice(0, PURPOSE_MAX))}
               placeholder={t("booking.purposePlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={3}
               maxLength={PURPOSE_MAX}
@@ -184,7 +185,7 @@ export default function NewBookingScreen() {
           {submitting ? <ActivityIndicator color="#ffffff" /> : null}
           <Text
             className="text-base font-semibold"
-            style={{ color: canSubmit ? "#ffffff" : "#6e6e6e" }}
+            style={{ color: canSubmit ? "#ffffff" : "#64748B" }}
           >
             {submitting ? t("booking.submitting") : t("booking.submitCta")}
           </Text>

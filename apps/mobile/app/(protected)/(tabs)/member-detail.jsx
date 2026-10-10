@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { PhonePrivacyChip } from "../../../components/directory/PhonePrivacyChip";
+import { BackArrow } from "../../../components/kit";
 import { DestructiveConfirmDialog } from "../../../components/shared/DestructiveConfirmDialog";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
@@ -183,7 +184,7 @@ export default function MemberDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1" numberOfLines={1}>
           {name}

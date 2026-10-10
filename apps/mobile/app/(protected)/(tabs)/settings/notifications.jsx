@@ -34,6 +34,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { BackArrow } from "../../../../components/kit";
 import { PreferenceToggleRow } from "../../../../components/settings/PreferenceToggleRow";
 import { QuietHoursRow } from "../../../../components/settings/QuietHoursRow";
 import { useAuthStore } from "../../../../lib/auth-store";
@@ -156,7 +157,7 @@ export default function NotificationSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">{t("prefs.title")}</Text>
         {saved ? (
@@ -235,7 +236,7 @@ export default function NotificationSettingsScreen() {
                 accessibilityState={{ disabled: cap <= CAP_MIN }}
                 className="w-10 h-10 rounded-full border border-neutral-200 items-center justify-center"
               >
-                <Minus size={18} color={cap <= CAP_MIN ? "#6e6e6e" : "#171717"} />
+                <Minus size={18} color={cap <= CAP_MIN ? "#64748B" : "#1E293B"} />
               </Pressable>
               <Text className="text-base font-semibold text-neutral-900 min-w-[24px] text-center">
                 {cap}
@@ -248,7 +249,7 @@ export default function NotificationSettingsScreen() {
                 accessibilityState={{ disabled: cap >= CAP_MAX }}
                 className="w-10 h-10 rounded-full border border-neutral-200 items-center justify-center"
               >
-                <Plus size={18} color={cap >= CAP_MAX ? "#6e6e6e" : "#171717"} />
+                <Plus size={18} color={cap >= CAP_MAX ? "#64748B" : "#1E293B"} />
               </Pressable>
             </View>
           </View>

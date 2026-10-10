@@ -27,6 +27,7 @@ import {
   POST_KIND_LABELS,
   REPORT_TARGET_KIND,
 } from "@parisar/shared-types";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export enum constants alongside the API.
 export { MODERATION_EVENT_KIND, POST_KIND, POST_KIND_LABELS, REPORT_TARGET_KIND };
@@ -484,7 +485,7 @@ export async function setGrievanceOfficer(supabase, { name, contact }) {
  */
 export function subscribeToFeed(supabase, societyId, handlers) {
   const channel = supabase
-    .channel(`community-${societyId}`)
+    .channel(uniqueChannelName(`community-${societyId}`))
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "posts", filter: `society_id=eq.${societyId}` },
@@ -521,7 +522,7 @@ export function subscribeToFeed(supabase, societyId, handlers) {
  */
 export function subscribeToPostComments(supabase, postId, handlers) {
   const channel = supabase
-    .channel(`post-comments-${postId}`)
+    .channel(uniqueChannelName(`post-comments-${postId}`))
     .on(
       "postgres_changes",
       {
@@ -564,7 +565,7 @@ export function subscribeToPostComments(supabase, postId, handlers) {
  */
 export function subscribeToModerationQueue(supabase, societyId, handlers) {
   const channel = supabase
-    .channel(`moderation-${societyId}`)
+    .channel(uniqueChannelName(`moderation-${societyId}`))
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "posts", filter: `society_id=eq.${societyId}` },

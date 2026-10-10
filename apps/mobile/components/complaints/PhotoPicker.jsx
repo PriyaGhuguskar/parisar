@@ -186,11 +186,11 @@ export function PhotoPicker({
         accessibilityLabel={t("complaint.photoLabel")}
         style={{
           height: hasPhoto ? 160 : 96,
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "#F1F5F9",
           borderRadius: 12,
           borderWidth: 1.5,
           borderStyle: "dashed",
-          borderColor: error ? "#c81e1e" : "#e5e5e5",
+          borderColor: error ? "#c81e1e" : "#E2E8F0",
           overflow: "hidden",
           alignItems: "center",
           justifyContent: "center",
@@ -228,7 +228,7 @@ export function PhotoPicker({
           </>
         ) : (
           <View className="items-center gap-1">
-            <Camera size={24} color="#6e6e6e" />
+            <Camera size={24} color="#64748B" />
             <Text className="text-sm text-neutral-400">{t("complaint.photoPlaceholder")}</Text>
           </View>
         )}

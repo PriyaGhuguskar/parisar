@@ -224,7 +224,7 @@ describe("subscribeToNotices", () => {
 
     const cleanup = subscribeToNotices(client, "soc-1", handlers);
 
-    expect(client.channel).toHaveBeenCalledWith("notifications-soc-1");
+    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^notifications-soc-1:/));
     expect(onFn).toHaveBeenCalledTimes(1);
     expect(onFn.mock.calls[0][0]).toBe("postgres_changes");
     expect(onFn.mock.calls[0][1]).toMatchObject({

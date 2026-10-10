@@ -233,7 +233,7 @@ export function PollBlock({ supabase, poll, options, myVote, role = "member", on
                     height: 20,
                     borderRadius: 10,
                     borderWidth: 2,
-                    borderColor: isSel ? BRAND_500 : "#6e6e6e",
+                    borderColor: isSel ? BRAND_500 : "#64748B",
                     alignItems: "center",
                     justifyContent: "center",
                   }}

@@ -19,7 +19,7 @@ export default function PhotoViewerScreen() {
   const { signedUrl } = useLocalSearchParams();
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#171717" }}>
+    <View style={{ flex: 1, backgroundColor: "#1E293B" }}>
       {/* Close button */}
       <Pressable
         onPress={() => router.back()}

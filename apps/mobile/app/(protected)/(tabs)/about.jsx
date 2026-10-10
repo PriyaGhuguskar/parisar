@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { GrievanceOfficerCard } from "../../../components/community/GrievanceOfficerCard";
+import { BackArrow } from "../../../components/kit";
 import { getSupabase } from "../../../lib/supabase";
 
 export default function AboutScreen() {
@@ -52,7 +53,7 @@ export default function AboutScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">{t("about.title")}</Text>
       </View>

@@ -28,6 +28,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native
 import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { AuditLogRow } from "../../../../components/community/AuditLogRow";
 import { ModerationCard } from "../../../../components/community/ModerationCard";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -280,7 +281,7 @@ function Header({ onBack, title }) {
         accessibilityRole="button"
         accessibilityLabel="Go back"
       >
-        <Text className="text-base text-brand-500">{"←"}</Text>
+        <BackArrow />
       </Pressable>
       <Text className="text-xl font-semibold text-neutral-900 flex-1">{title}</Text>
     </View>
@@ -312,7 +313,7 @@ function TabButton({ label, active, onPress }) {
 function ReviewEmpty({ t }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <ShieldCheck size={80} color="#8a8a8a" />
+      <ShieldCheck size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}

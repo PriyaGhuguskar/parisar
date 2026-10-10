@@ -14,7 +14,7 @@ import { PhotoGrid } from "./PhotoGrid";
 import { PostTypeChip } from "./PostTypeChip";
 
 const DANGER_500 = "#c81e1e";
-const NEUTRAL_400 = "#6e6e6e";
+const NEUTRAL_400 = "#64748B";
 
 function formatFlat(flatJoin) {
   if (!flatJoin) return "—";
@@ -133,7 +133,7 @@ export function PostCard({
         accessibilityLabel={commentCountLabel}
         className="flex-row items-center gap-1 mt-1"
       >
-        <MessageCircle size={14} color="#525252" />
+        <MessageCircle size={14} color="#475569" />
         <Text className="text-sm text-neutral-600">{commentCountLabel}</Text>
       </Pressable>
 

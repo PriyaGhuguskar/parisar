@@ -183,7 +183,7 @@ export function PrivateFlatSubtitle({ flatLabel }) {
       accessibilityRole="text"
       accessibilityLabel={text}
     >
-      <Lock size={14} color="#6e6e6e" />
+      <Lock size={14} color="#64748B" />
       <Text className="text-sm text-neutral-600 flex-1" numberOfLines={2}>
         {text}
       </Text>

@@ -32,6 +32,7 @@ import {
   FLAT_ACTION_KIND,
   FLAT_ACTION_KIND_LABELS,
 } from "@parisar/shared-types";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { issueFlatAction, FLAT_ACTION_KIND } from '@parisar/api-client';
@@ -388,7 +389,7 @@ export function subscribeFlatActions(
  */
 export function subscribeFlatAction(supabase, { id, onUpdate }) {
   const channel = supabase
-    .channel(`flat-action-${id}`)
+    .channel(uniqueChannelName(`flat-action-${id}`))
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "flat_actions", filter: `id=eq.${id}` },

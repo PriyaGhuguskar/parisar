@@ -34,7 +34,7 @@ export function GrievanceOfficerCard({ officer }) {
   return (
     <View className="bg-white rounded-xl p-6 gap-2">
       <View className="flex-row items-center gap-2">
-        <Scale size={16} color="#525252" />
+        <Scale size={16} color="#475569" />
         <Text className="text-sm text-neutral-600">{t("grievance.cardLabel")}</Text>
       </View>
 

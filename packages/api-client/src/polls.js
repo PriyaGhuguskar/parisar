@@ -13,6 +13,7 @@
 //   4. subscribeToVotes(supabase, pollId, onChange)
 
 import { POLL_STATUS } from "@parisar/shared-types";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export so callers can pull the enum from the polls module.
 export { POLL_STATUS };
@@ -110,7 +111,7 @@ export async function getPollTally(supabase, pollId) {
  */
 export function subscribeToVotes(supabase, pollId, onChange) {
   const channel = supabase
-    .channel(`poll-votes-${pollId}`)
+    .channel(uniqueChannelName(`poll-votes-${pollId}`))
     .on(
       "postgres_changes",
       {

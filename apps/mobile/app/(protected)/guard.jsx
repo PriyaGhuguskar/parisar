@@ -156,7 +156,7 @@ export default function GuardScreen() {
               accessibilityLabel={t("auth.logout")}
               className="rounded-lg p-2"
             >
-              <LogOut size={20} color="#4A5C50" />
+              <LogOut size={20} color="#475569" />
             </Pressable>
           </View>
 

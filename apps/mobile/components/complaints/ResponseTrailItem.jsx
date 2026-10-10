@@ -17,7 +17,7 @@ const DOT_COLOR = {
   will_resolve: "#12715A",
   need_info: "#f59e0b",
   resolved: "#047857",
-  open: "#6e6e6e",
+  open: "#64748B",
 };
 
 function resolveStatusLabel(t, kind) {
@@ -84,7 +84,7 @@ export function ResponseTrailItem({ response, isLast = false }) {
             style={{
               flex: 1,
               width: 1,
-              backgroundColor: "#e5e5e5",
+              backgroundColor: "#E2E8F0",
               marginTop: 4,
             }}
           />

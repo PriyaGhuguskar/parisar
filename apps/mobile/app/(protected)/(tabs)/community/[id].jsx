@@ -42,6 +42,7 @@ import { CommentItem } from "../../../../components/community/CommentItem";
 import { HiddenPendingBanner } from "../../../../components/community/HiddenPendingBanner";
 import { PostCard } from "../../../../components/community/PostCard";
 import { ReportReasonSheet } from "../../../../components/community/ReportReasonSheet";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -227,7 +228,7 @@ export default function PostDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("community.detailTitle")}
@@ -285,7 +286,7 @@ export default function PostDetailScreen() {
           value={commentText}
           onChangeText={setCommentText}
           placeholder={t("community.commentPlaceholder")}
-          placeholderTextColor="#6e6e6e"
+          placeholderTextColor="#64748B"
           multiline
           maxLength={COMMENT_MAX}
           className="flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
@@ -304,7 +305,7 @@ export default function PostDetailScreen() {
             borderRadius: 22,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: commentText.trim() && !sending ? "#12715A" : "#e5e5e5",
+            backgroundColor: commentText.trim() && !sending ? "#12715A" : "#E2E8F0",
           }}
         >
           {sending ? <ActivityIndicator color="#ffffff" /> : <Send size={20} color="#ffffff" />}

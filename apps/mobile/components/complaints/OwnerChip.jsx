@@ -32,7 +32,7 @@ export function OwnerChip({ ownerName, ownerFlat, label = null }) {
       accessibilityRole="text"
       accessibilityLabel={text}
     >
-      <User size={12} color="#525252" />
+      <User size={12} color="#475569" />
       <Text className="text-sm text-neutral-600" numberOfLines={1}>
         {text}
       </Text>

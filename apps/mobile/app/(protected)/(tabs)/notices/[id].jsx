@@ -19,6 +19,7 @@ import { FileText, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { BackArrow } from "../../../../components/kit";
 import { AttachmentPill } from "../../../../components/notices/AttachmentPill";
 import { PollBlock } from "../../../../components/polls/PollBlock";
 import { useAuthStore } from "../../../../lib/auth-store";
@@ -164,7 +165,7 @@ export default function NoticeDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("notice.detailTitle")}
@@ -234,7 +235,7 @@ export default function NoticeDetailScreen() {
         animationType="fade"
         onRequestClose={() => setLightboxOpen(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "#171717" }}>
+        <View style={{ flex: 1, backgroundColor: "#1E293B" }}>
           <Pressable
             onPress={() => setLightboxOpen(false)}
             accessibilityRole="button"

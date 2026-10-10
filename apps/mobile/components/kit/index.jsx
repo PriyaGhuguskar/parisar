@@ -125,3 +125,8 @@ export function SmallButton({ label, icon: Icon, onPress, tone = "brand", disabl
     </Pressable>
   );
 }
+
+/** Back arrow for screen headers — the website's ArrowLeft in slate. */
+export function BackArrow() {
+  return <ArrowLeft size={20} color="#475569" />;
+}

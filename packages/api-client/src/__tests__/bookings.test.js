@@ -168,7 +168,7 @@ describe("subscribeToBookings", () => {
 
     const cleanup = subscribeToBookings(client, "soc-1", handlers);
 
-    expect(client.channel).toHaveBeenCalledWith("bookings-soc-1");
+    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^bookings-soc-1:/));
     expect(onFn).toHaveBeenCalledTimes(2);
     expect(onFn.mock.calls[0][1]).toMatchObject({
       event: "INSERT",

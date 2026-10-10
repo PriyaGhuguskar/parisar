@@ -38,9 +38,9 @@ import { Text, View } from "react-native";
 // Locked design tokens (UI-SPEC §Color / §Typography). The only places these
 // hex literals appear in this file — kept here so future audits can grep for
 // "accent reserved" violations.
-const NEUTRAL_200 = "#e5e5e5";
-const NEUTRAL_400 = "#6e6e6e";
-const NEUTRAL_900 = "#171717";
+const NEUTRAL_200 = "#E2E8F0";
+const NEUTRAL_400 = "#64748B";
+const NEUTRAL_900 = "#1E293B";
 
 // Per-tile preview row template. The keys map 1:1 to dashboard.json
 // `previews.<tileKey>` and to the tile-bucket keys exported from

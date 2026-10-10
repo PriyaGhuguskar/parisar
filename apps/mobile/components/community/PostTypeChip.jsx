@@ -22,8 +22,8 @@ const TYPE_STYLES = {
     labelKey: "community.typeHelp",
   },
   general: {
-    bg: "#f5f5f5",
-    text: "#525252",
+    bg: "#F1F5F9",
+    text: "#475569",
     border: "transparent",
     Icon: MessageCircle,
     labelKey: "community.typeGeneral",

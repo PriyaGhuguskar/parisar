@@ -12,8 +12,8 @@ import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 
 const BRAND_500 = "#12715A";
-const NEUTRAL_300 = "#d4d4d4";
-const NEUTRAL_200 = "#e5e5e5";
+const NEUTRAL_300 = "#CBD5E1";
+const NEUTRAL_200 = "#E2E8F0";
 
 /**
  * @param {{

@@ -134,7 +134,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           accessibilityRole="button"
           accessibilityLabel="Copy society code"
         >
-          <Copy size={16} color={copied ? "#047857" : "#737373"} />
+          <Copy size={16} color={copied ? "#047857" : "#64748B"} />
           <Text
             className={`text-sm font-medium ${copied ? "text-success-500" : "text-neutral-600"}`}
           >
@@ -149,7 +149,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           accessibilityRole="button"
           accessibilityLabel="Share society code"
         >
-          <Share2 size={16} color="#737373" />
+          <Share2 size={16} color="#64748B" />
           <Text className="text-sm font-medium text-neutral-600">
             {t("setup.step6.shareWhatsApp")}
           </Text>

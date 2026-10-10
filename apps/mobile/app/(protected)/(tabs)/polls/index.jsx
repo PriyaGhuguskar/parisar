@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { BackArrow } from "../../../../components/kit";
 import { NoticeCard } from "../../../../components/notices/NoticeCard";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
@@ -96,7 +97,7 @@ export default function PollsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">{t("poll.listTitle")}</Text>
       </View>
@@ -134,9 +135,9 @@ function PollListSkeleton() {
     <View style={{ padding: 16, gap: 12 }}>
       {[0, 1, 2, 3, 4].map((i) => (
         <View key={i} className="bg-white rounded-xl border border-neutral-200 p-4 gap-2">
-          <View style={{ height: 20, width: "70%", backgroundColor: "#f5f5f5", borderRadius: 6 }} />
+          <View style={{ height: 20, width: "70%", backgroundColor: "#F1F5F9", borderRadius: 6 }} />
           <View
-            style={{ height: 14, width: "100%", backgroundColor: "#f5f5f5", borderRadius: 6 }}
+            style={{ height: 14, width: "100%", backgroundColor: "#F1F5F9", borderRadius: 6 }}
           />
           <View
             style={{ height: 18, width: "45%", backgroundColor: "#f5f7ff", borderRadius: 999 }}
@@ -150,7 +151,7 @@ function PollListSkeleton() {
 function EmptyState({ t }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-4">
-      <BarChart3 size={80} color="#8a8a8a" />
+      <BarChart3 size={80} color="#94A3B8" />
       <Text
         className="font-semibold text-neutral-600 text-center"
         style={{ fontSize: 28, lineHeight: 32 }}
@@ -165,7 +166,7 @@ function EmptyState({ t }) {
 function ErrorState({ onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
-      <WifiOff size={48} color="#8a8a8a" />
+      <WifiOff size={48} color="#94A3B8" />
       <Text className="text-xl font-semibold text-neutral-900 text-center">
         Couldn't load polls
       </Text>

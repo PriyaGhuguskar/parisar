@@ -150,7 +150,7 @@ export function AmenitiesForm({ supabase, societyId, onNext, onBack, onSkip }) {
 
                 <Icon
                   size={24}
-                  color={isSelected ? "#12715A" : "#737373"}
+                  color={isSelected ? "#12715A" : "#64748B"}
                   style={{ marginBottom: 8 }}
                 />
                 <Text
@@ -174,7 +174,7 @@ export function AmenitiesForm({ supabase, societyId, onNext, onBack, onSkip }) {
               value={customInput}
               onChangeText={setCustomInput}
               placeholder={t("setup.step5.customPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               maxLength={40}
               returnKeyType="done"
               onSubmitEditing={addCustom}
@@ -204,7 +204,7 @@ export function AmenitiesForm({ supabase, societyId, onNext, onBack, onSkip }) {
                     accessibilityLabel={`Remove ${name}`}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={14} color="#737373" />
+                    <X size={14} color="#64748B" />
                   </Pressable>
                 </View>
               ))}

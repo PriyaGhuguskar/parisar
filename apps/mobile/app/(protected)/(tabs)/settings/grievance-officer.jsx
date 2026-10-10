@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { GrievanceOfficerForm } from "../../../../components/community/GrievanceOfficerForm";
+import { BackArrow } from "../../../../components/kit";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -60,7 +61,7 @@ function GrievanceOfficerSettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text className="text-base text-brand-500">{"←"}</Text>
+          <BackArrow />
         </Pressable>
         <Text className="text-xl font-semibold text-neutral-900 flex-1">
           {t("moderation:grievance.settingsTitle")}

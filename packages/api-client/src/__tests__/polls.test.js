@@ -126,7 +126,7 @@ describe("subscribeToVotes", () => {
 
     const cleanup = subscribeToVotes(client, "p-1", onChange);
 
-    expect(client.channel).toHaveBeenCalledWith("poll-votes-p-1");
+    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^poll-votes-p-1:/));
     expect(onFn).toHaveBeenCalledTimes(2);
     expect(onFn.mock.calls[0][1]).toMatchObject({
       event: "INSERT",

@@ -388,7 +388,7 @@ export default function OnboardingScreen() {
                         accessibilityLabel={t("auth.obBack")}
                         className="p-2"
                       >
-                        <X size={18} color="#627368" />
+                        <X size={18} color="#64748B" />
                       </Pressable>
                     </View>
                     <View className="flex-row gap-2">

@@ -214,7 +214,7 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
   }
 
   const textLen = text.length;
-  const counterColor = textLen >= TEXT_MAX ? DANGER_500 : textLen >= 1900 ? "#f59e0b" : "#6e6e6e";
+  const counterColor = textLen >= TEXT_MAX ? DANGER_500 : textLen >= 1900 ? "#f59e0b" : "#64748B";
 
   const types = useMemo(
     () => [
@@ -270,7 +270,7 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
               value={text}
               onChangeText={setText}
               placeholder={t("community.textPlaceholder")}
-              placeholderTextColor="#6e6e6e"
+              placeholderTextColor="#64748B"
               multiline
               numberOfLines={5}
               maxLength={TEXT_MAX}
@@ -310,13 +310,13 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
                     borderRadius: 12,
                     borderWidth: 1.5,
                     borderStyle: "dashed",
-                    borderColor: "#e5e5e5",
-                    backgroundColor: "#f5f5f5",
+                    borderColor: "#E2E8F0",
+                    backgroundColor: "#F1F5F9",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <ImagePlus size={24} color="#6e6e6e" />
+                  <ImagePlus size={24} color="#64748B" />
                 </Pressable>
               ) : null}
             </View>

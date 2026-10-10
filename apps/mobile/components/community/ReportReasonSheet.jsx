@@ -87,10 +87,10 @@ export function ReportReasonSheet({
                     minHeight: 48,
                     backgroundColor: selected ? "#f5f7ff" : "#ffffff",
                     borderWidth: 1,
-                    borderColor: selected ? BRAND_500 : "#e5e5e5",
+                    borderColor: selected ? BRAND_500 : "#E2E8F0",
                   }}
                 >
-                  <Text className="text-base" style={{ color: selected ? BRAND_500 : "#171717" }}>
+                  <Text className="text-base" style={{ color: selected ? BRAND_500 : "#1E293B" }}>
                     {reasonLabel}
                   </Text>
                 </Pressable>
@@ -103,7 +103,7 @@ export function ReportReasonSheet({
             value={note}
             onChangeText={setNote}
             placeholder={t("community.reportNotePlaceholder")}
-            placeholderTextColor="#6e6e6e"
+            placeholderTextColor="#64748B"
             maxLength={NOTE_MAX}
             className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900"
             style={{ minHeight: 44 }}
@@ -124,7 +124,7 @@ export function ReportReasonSheet({
             accessibilityLabel={t("community.reportConfirm")}
             accessibilityState={{ disabled: !canConfirm, busy: submitting }}
             className="h-12 w-full rounded-xl items-center justify-center"
-            style={{ backgroundColor: canConfirm ? DANGER_500 : "#e5e5e5" }}
+            style={{ backgroundColor: canConfirm ? DANGER_500 : "#E2E8F0" }}
           >
             <Text
               className={`text-base font-semibold ${canConfirm ? "text-white" : "text-neutral-400"}`}

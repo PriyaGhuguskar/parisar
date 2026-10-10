@@ -25,7 +25,7 @@ export function HiddenPendingBanner() {
       accessibilityRole="alert"
       accessibilityLabel={label}
     >
-      <Clock size={20} color="#6e6e6e" />
+      <Clock size={20} color="#64748B" />
       <Text className="flex-1 text-base text-neutral-600">{label}</Text>
     </View>
   );

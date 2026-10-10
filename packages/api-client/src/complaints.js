@@ -18,6 +18,7 @@
 //  10. registerPushToken(supabase, opts)
 
 import { COMPLAINT_KIND, COMPLAINT_STATUS, RESPONSE_LABELS } from "@parisar/shared-types";
+import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { fileComplaint, COMPLAINT_STATUS } from '@parisar/api-client';
@@ -266,7 +267,7 @@ export async function addComplaintResponse(
  */
 export function subscribeToComplaints(supabase, societyId, handlers) {
   const channel = supabase
-    .channel(`complaints-${societyId}`)
+    .channel(uniqueChannelName(`complaints-${societyId}`))
     .on(
       "postgres_changes",
       {
@@ -308,7 +309,7 @@ export function subscribeToComplaints(supabase, societyId, handlers) {
  */
 export function subscribeToComplaintResponses(supabase, complaintId, onInsert) {
   const channel = supabase
-    .channel(`complaint-responses-${complaintId}`)
+    .channel(uniqueChannelName(`complaint-responses-${complaintId}`))
     .on(
       "postgres_changes",
       {

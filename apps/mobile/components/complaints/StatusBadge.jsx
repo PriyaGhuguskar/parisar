@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 
 const STATUS_STYLES = {
-  open: { bg: "#f5f5f5", text: "#525252", border: "transparent" },
+  open: { bg: "#F1F5F9", text: "#475569", border: "transparent" },
   checking: { bg: "#f5f7ff", text: "#12715A", border: "#12715A" },
   will_resolve: { bg: "#f5f7ff", text: "#12715A", border: "#12715A" },
   need_info: { bg: "#fffbeb", text: "#f59e0b", border: "#f59e0b" },
@@ -64,7 +64,7 @@ export function StatusBadge({ status }) {
 // Export the style map so other components (ComplaintCard left stripe) can pick the
 // same accent color without duplicating the table.
 export const STATUS_ACCENT = {
-  open: "#e5e5e5", // neutral.200 — softer than the badge text color for a calm stripe
+  open: "#E2E8F0", // neutral.200 — softer than the badge text color for a calm stripe
   checking: "#12715A",
   will_resolve: "#12715A",
   need_info: "#f59e0b",

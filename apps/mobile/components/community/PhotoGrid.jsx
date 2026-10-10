@@ -146,7 +146,7 @@ function PhotoThumb({ attachment, urls, onPress, aspectRatio = 1 }) {
         aspectRatio,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "#F1F5F9",
       }}
     >
       {url ? (

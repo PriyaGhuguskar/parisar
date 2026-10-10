@@ -221,7 +221,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                   value={flatInputs[wingName] ?? ""}
                   onChangeText={(v) => setFlatInputs((prev) => ({ ...prev, [wingName]: v }))}
                   placeholder={t("setup.step3.flatPlaceholder")}
-                  placeholderTextColor="#6e6e6e"
+                  placeholderTextColor="#64748B"
                   maxLength={10}
                   returnKeyType="done"
                   onSubmitEditing={() => addFlat(wingName)}
@@ -251,7 +251,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                         accessibilityLabel={`Remove flat ${num}`}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <X size={14} color="#737373" />
+                        <X size={14} color="#64748B" />
                       </Pressable>
                     </View>
                   ))}
@@ -285,7 +285,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                     value={bulkFrom[wingName] ?? ""}
                     onChangeText={(v) => setBulkFrom((prev) => ({ ...prev, [wingName]: v }))}
                     placeholder="From"
-                    placeholderTextColor="#6e6e6e"
+                    placeholderTextColor="#64748B"
                     keyboardType="number-pad"
                     maxLength={5}
                   />
@@ -295,7 +295,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                     value={bulkTo[wingName] ?? ""}
                     onChangeText={(v) => setBulkTo((prev) => ({ ...prev, [wingName]: v }))}
                     placeholder="To"
-                    placeholderTextColor="#6e6e6e"
+                    placeholderTextColor="#64748B"
                     keyboardType="number-pad"
                     maxLength={5}
                   />
