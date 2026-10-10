@@ -39,7 +39,12 @@ async function load(userId, tokenSocietyId) {
       )
       .eq("user_id", userId)
       .in("status", ["active", "pending_review"]),
-    supabase.from("profiles").select("full_name, phone").eq("user_id", userId).maybeSingle(),
+    // Only full_name: phone is not readable by users (privacy — revealed via reveal_phone).
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
   const list = rows ?? [];
   // The society in the token is the one RLS uses; prefer it, then a row with a flat.
@@ -57,7 +62,6 @@ async function load(userId, tokenSocietyId) {
     flatId: m?.flat_id ?? null,
     flatLabel: flatLabelOf(m?.flats),
     fullName: profile?.full_name ?? "",
-    phone: profile?.phone ?? "",
     memberships: list.map((r) => ({
       society_id: r.society_id,
       society_name: r.societies?.name ?? "",
@@ -76,7 +80,7 @@ export async function refreshMyContext() {
 
 /**
  * @returns {{ ready: boolean, societyId, societyName, role, flatId, flatLabel,
- *   fullName, phone, membershipId, memberships, isAuthority, isBoard }}
+ *   fullName, membershipId, memberships, isAuthority, isBoard }}
  */
 export function useMyContext() {
   const session = useAuthStore((s) => s.session);

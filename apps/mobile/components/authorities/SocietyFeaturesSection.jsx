@@ -142,7 +142,7 @@ export function SocietyFeaturesSection({ societyId }) {
                   }}
                 />
               ) : (
-                <View className="mt-3">
+                <View className="mt-3 flex-row">
                   <SmallButton
                     tone="outline"
                     icon={Check}

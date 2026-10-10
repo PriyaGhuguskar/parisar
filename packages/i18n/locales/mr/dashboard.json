@@ -3,7 +3,8 @@
   "nav": {
     "home": "होम",
     "myComplaints": "माझ्या तक्रारी",
-    "profile": "प्रोफाइल"
+    "profile": "प्रोफाइल",
+    "menu": "मेनू"
   },
   "header": {
     "joinedPercent": " · {{percent}}% सामील",

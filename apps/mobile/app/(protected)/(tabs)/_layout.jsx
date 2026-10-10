@@ -17,7 +17,7 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { Tabs } from "expo-router";
-import { LayoutDashboard, MessageSquareWarning, User } from "lucide-react-native";
+import { Bell, LayoutDashboard, Menu, MessageSquareWarning, Users2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,7 +27,7 @@ import { getSupabase } from "../../../lib/supabase";
 
 // Locked nav tokens (UI-SPEC §Color, §Badge Color Contract).
 const BRAND_500 = "#12715A"; // active tab tint
-const NEUTRAL_400 = "#6e6e6e"; // inactive tab tint
+const NEUTRAL_400 = "#64748B"; // inactive tab tint (website slate)
 const DANGER_500 = "#c81e1e"; // My Complaints red-dot
 
 export default function TabsLayout() {
@@ -63,7 +63,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: NEUTRAL_400,
         tabBarStyle: {
           backgroundColor: "#ffffff",
-          borderTopColor: "#e5e5e5",
+          borderTopColor: "#E2E8F0",
           paddingBottom: insets.bottom,
           height: 56 + insets.bottom,
         },
@@ -95,38 +95,49 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="notices"
         options={{
-          title: t("nav.profile"),
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+          title: t("tiles.notices"),
+          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: t("tiles.community"),
+          tabBarIcon: ({ color, size }) => <Users2 color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: t("nav.menu"),
+          tabBarIcon: ({ color, size }) => <Menu color={color} size={size} />,
         }}
       />
 
-      {/* Hidden routes (Option A — user decision #3): routable, but not tab buttons.
-          The bottom-nav stays visible while these screens are open. */}
-      <Tabs.Screen name="directory" options={{ href: null }} />
-      <Tabs.Screen name="code-rotation" options={{ href: null }} />
-      <Tabs.Screen name="review-queue" options={{ href: null }} />
-      <Tabs.Screen name="role-transfer" options={{ href: null }} />
-      <Tabs.Screen name="member-detail" options={{ href: null }} />
-      <Tabs.Screen name="complaints" options={{ href: null }} />
-      <Tabs.Screen name="notices" options={{ href: null }} />
-      <Tabs.Screen name="polls" options={{ href: null }} />
-      <Tabs.Screen name="bookings" options={{ href: null }} />
-      <Tabs.Screen name="settings/notifications" options={{ href: null }} />
-      <Tabs.Screen name="notifications/permission" options={{ href: null }} />
-
-      {/* Phase 6 hidden routes (DT-02 durable contract — still exactly 3 visible
-          tabs). The member flat-actions tab and the community feed are reached
-          via dashboard tiles / push deep-links, NOT bottom-nav tabs.
-          `about` is registered here (this plan owns _layout.jsx) even though
-          Plan 05 creates about.jsx — href:null keeps it from surfacing as a tab. */}
-      <Tabs.Screen name="community" options={{ href: null }} />
-      <Tabs.Screen name="flat-actions" options={{ href: null }} />
-      <Tabs.Screen name="moderation" options={{ href: null }} />
-      <Tabs.Screen name="settings/grievance-officer" options={{ href: null }} />
-      <Tabs.Screen name="about" options={{ href: null }} />
-      <Tabs.Screen name="society-dashboard" options={{ href: null }} />
+      {/* Everything else is reachable (tiles, the Menu tab, the Society
+          Dashboard, push deep links) but is not a tab button. Feature folders
+          have their own _layout.jsx, so each is ONE route here. */}
+      {[
+        "profile",
+        "directory",
+        "code-rotation",
+        "review-queue",
+        "role-transfer",
+        "member-detail",
+        "complaints",
+        "polls",
+        "bookings",
+        "flat-actions",
+        "moderation",
+        "settings",
+        "notifications",
+        "about",
+        "society-dashboard",
+      ].map((name) => (
+        <Tabs.Screen key={name} name={name} options={{ href: null }} />
+      ))}
     </Tabs>
   );
 }

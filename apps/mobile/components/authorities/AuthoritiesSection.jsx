@@ -134,7 +134,7 @@ export function AuthoritiesSection({ societyId, userId }) {
   return (
     <View>
       <SectionTitle title={t("authority.authoritiesTitle")} lead={t("authority.authoritiesLead")} />
-      <View className="pb-3">
+      <View className="flex-row pb-3">
         <SmallButton
           icon={Plus}
           label={t("authority.addAuthority")}

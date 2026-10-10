@@ -3,7 +3,8 @@
   "nav": {
     "home": "Home",
     "myComplaints": "My Complaints",
-    "profile": "Profile"
+    "profile": "Profile",
+    "menu": "Menu"
   },
   "header": {
     "joinedPercent": " · {{percent}}% joined",

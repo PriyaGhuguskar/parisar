@@ -40,19 +40,25 @@ import TabsLayout from "../app/(protected)/(tabs)/_layout";
 
 // The first three Tabs.Screen entries are the visible tabs (declared first in
 // the layout); the remaining are hidden routes with href:null.
-const VISIBLE = ["index", "my-complaints", "profile"];
+// Website sidebar → mobile: four main tabs + Menu (everything else).
+const VISIBLE = ["index", "my-complaints", "notices", "community", "menu"];
+// Feature folders have their own _layout, so each is ONE hidden route here.
 const HIDDEN = [
+  "profile",
   "directory",
   "code-rotation",
   "review-queue",
   "role-transfer",
   "member-detail",
   "complaints",
-  "notices",
   "polls",
   "bookings",
-  "settings/notifications",
-  "notifications/permission",
+  "flat-actions",
+  "moderation",
+  "settings",
+  "notifications",
+  "about",
+  "society-dashboard",
 ];
 
 describe("TabsLayout", () => {
@@ -60,13 +66,13 @@ describe("TabsLayout", () => {
     tabScreenConfigs.length = 0;
   });
 
-  it("declares 3 visible tabs first: index, my-complaints, profile", () => {
+  it("declares the visible tabs first: Home, My Complaints, Notices, Community, Menu", () => {
     render(<TabsLayout />);
     const names = tabScreenConfigs.map((c) => c.name);
-    expect(names.slice(0, 3)).toEqual(VISIBLE);
+    expect(names.slice(0, VISIBLE.length)).toEqual(VISIBLE);
   });
 
-  it("declares the 11 hidden routes with href:null", () => {
+  it("declares every other route hidden with href:null", () => {
     render(<TabsLayout />);
     for (const name of HIDDEN) {
       const cfg = tabScreenConfigs.find((c) => c.name === name);
@@ -85,9 +91,9 @@ describe("TabsLayout", () => {
     expect(tabScreenConfigs[1].options.title).toBe(en.nav.myComplaints);
   });
 
-  it("Profile tab title matches en.nav.profile", () => {
+  it("Menu tab title matches en.nav.menu", () => {
     render(<TabsLayout />);
-    expect(tabScreenConfigs[2].options.title).toBe(en.nav.profile);
+    expect(tabScreenConfigs[4].options.title).toBe(en.nav.menu);
   });
 
   it("tabBarStyle.paddingBottom uses safe-area inset", () => {
@@ -102,10 +108,10 @@ describe("TabsLayout", () => {
     expect(Tabs._lastScreenOptions.tabBarActiveTintColor).toBe("#12715A");
   });
 
-  it("tabBarInactiveTintColor is neutral.400", () => {
+  it("tabBarInactiveTintColor is the website slate", () => {
     const { Tabs } = require("expo-router");
     render(<TabsLayout />);
-    expect(Tabs._lastScreenOptions.tabBarInactiveTintColor).toBe("#6e6e6e");
+    expect(Tabs._lastScreenOptions.tabBarInactiveTintColor).toBe("#64748B");
   });
 
   it("my-complaints tab wires tabBarBadge + danger-500 badge style", () => {
