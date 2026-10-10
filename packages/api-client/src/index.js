@@ -1,4 +1,5 @@
 export * from "./authorities.js";
+export { derivePinSecret } from "./auth/pin-secret.js";
 export * from "./amenities-admin.js";
 export * from "./bookings.js";
 export * from "./community.js";

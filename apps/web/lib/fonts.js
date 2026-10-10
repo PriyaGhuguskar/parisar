@@ -1,6 +1,6 @@
+import localFont from "next/font/local";
 import {
   IBM_Plex_Mono,
-  Inter,
   Manrope,
   Noto_Sans,
   Noto_Sans_Devanagari,
@@ -69,9 +69,14 @@ export const manrope = Manrope({
 // UI face for the signed-in app (sidebar, dashboard, forms). Inter is built for
 // dense, small UI text — compact and very readable at 13–14px. Like Manrope it
 // has no Devanagari, so the app stack falls back to Noto Sans Devanagari.
-export const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+//
+// Self-hosted (Latin subset, variable weight 400–700, from Google Fonts, OFL)
+// rather than next/font/google: Next 15.2's Turbopack dev server fails on
+// Google's current Inter CSS ("next/font/google queries have exactly one
+// entry"), which 500s every page under `pnpm dev`.
+export const inter = localFont({
+  src: "../app/fonts/inter-latin-var.woff2",
+  weight: "400 700",
   variable: "--font-inter",
   display: "swap",
 });

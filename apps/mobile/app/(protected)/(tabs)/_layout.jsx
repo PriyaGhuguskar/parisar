@@ -126,6 +126,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="moderation" options={{ href: null }} />
       <Tabs.Screen name="settings/grievance-officer" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
+      <Tabs.Screen name="society-dashboard" options={{ href: null }} />
     </Tabs>
   );
 }

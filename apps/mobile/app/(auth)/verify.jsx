@@ -1,4 +1,3 @@
-import { isNewUser } from "@parisar/api-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +15,8 @@ import { FormError } from "../../components/auth/FormError";
 import { OtpInput } from "../../components/auth/OtpInput";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { ResendTimer } from "../../components/auth/ResendTimer";
+import { ANY_USER, clearPinPending, setPinPending } from "../../lib/pin-pending";
+import { ROUTES, resolvePostLoginRoute } from "../../lib/post-login";
 import { getSupabase } from "../../lib/supabase";
 
 /**
@@ -35,17 +36,24 @@ export default function VerifyScreen() {
   // Display phone without leading +91 prefix for the sub-heading
   const displayPhone = phone ? phone.replace(/^\+91/, "") : "";
 
-  async function handleVerify() {
-    if (otp.length < 6) return;
+  // `code` comes from OtpInput's onComplete: the full 6 digits, passed in
+  // directly because the `otp` state hasn't updated yet in that same tick.
+  async function handleVerify(code) {
+    const token = typeof code === "string" ? code : otp;
+    if (token.length < 6 || loading) return;
     setError(null);
     setHasOtpError(false);
     setLoading(true);
 
     try {
       const supabase = getSupabase();
+      // Mark the PIN step pending BEFORE the session exists: the moment
+      // verifyOtp succeeds, the route guard sends us to the splash, which must
+      // also route through the PIN screen (see lib/pin-pending.js).
+      await setPinPending(ANY_USER);
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         phone,
-        token: otp,
+        token,
         type: "sms",
       });
 
@@ -74,25 +82,14 @@ export default function VerifyScreen() {
         return;
       }
 
-      // Detect new vs returning user by checking profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      // PAR-109/116: a failed lookup must not be treated as "new user" — that
-      // would route an existing member into onboarding.
-      if (profileError) {
-        setError(t("auth.networkError"));
-        return;
-      }
-
-      if (isNewUser(profile)) {
-        router.replace("/(protected)/onboard");
-      } else {
-        router.replace("/(protected)/(tabs)");
-      }
+      // Same routing as the website: residents with a flat → app; a society
+      // authority → wings/flats setup or onboarding; anyone else → enter the
+      // society code. A failed lookup must not be treated as "new user"
+      // (PAR-109/116) — resolvePostLoginRoute throws and we show a retry.
+      const route = await resolvePostLoginRoute(supabase, { atLogin: true });
+      if (route.startsWith(ROUTES.pin)) await setPinPending(userId);
+      else await clearPinPending();
+      router.replace(route);
     } catch {
       setError(t("auth.networkError"));
     } finally {
@@ -169,7 +166,7 @@ export default function VerifyScreen() {
             {/* Verify button */}
             <PrimaryButton
               label={loading ? t("auth.verifying") : t("auth.verify")}
-              onPress={handleVerify}
+              onPress={() => handleVerify()}
               loading={loading}
               disabled={otp.length < 6}
             />

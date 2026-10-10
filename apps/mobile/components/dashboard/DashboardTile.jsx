@@ -41,8 +41,8 @@ import { AccessibilityInfo, Pressable, Text, View } from "react-native";
 // Locked design tokens — these are the only places these hex literals appear
 // in this file. UI-SPEC §Tile Color Contract is the source of truth.
 const BRAND_500 = "#12715A";
-const NEUTRAL_400 = "#6e6e6e";
-const NEUTRAL_900 = "#171717";
+const NEUTRAL_400 = "#94A3B8";
+const NEUTRAL_900 = "#1E293B";
 const WARNING_500 = "#f59e0b";
 
 /**
@@ -147,14 +147,21 @@ export function DashboardTile({
       accessibilityState={{ disabled: placeholder }}
       accessibilityLabel={a11yLabel}
       className={[
-        "flex-1 min-w-[45%] aspect-square bg-white rounded-2xl p-4 border border-neutral-200",
+        // Website DashboardTile: compact (min-h 128), 14px radius, hairline border.
+        "flex-1 min-w-[45%] min-h-[128px] bg-white rounded-[14px] p-4 border border-neutral-200",
         placeholder ? "opacity-50" : "active:bg-brand-50 active:scale-95",
       ].join(" ")}
       style={placeholder ? { opacity: 0.5 } : undefined}
     >
       {/* Top row: icon + (badge | "Coming soon" pill) */}
       <View className="flex-row items-start justify-between">
-        <Icon size={24} color={iconColor} />
+        <View
+          className={`h-9 w-9 items-center justify-center rounded-[10px] ${
+            placeholder ? "bg-neutral-100" : "bg-brand-50"
+          }`}
+        >
+          <Icon size={18} color={iconColor} />
+        </View>
 
         {badgeDisplay ? (
           <View
@@ -178,11 +185,15 @@ export function DashboardTile({
           mt-auto pins this to the bottom of the aspect-square tile so labels
           align across the grid regardless of icon-row height variance. */}
       <View className="mt-auto">
-        <Text className="text-base font-medium" style={{ color: labelColor }} numberOfLines={2}>
+        <Text
+          className="mt-3 text-sm font-semibold"
+          style={{ color: labelColor }}
+          numberOfLines={2}
+        >
           {label}
         </Text>
         {placeholder && placeholderPhase ? (
-          <Text className="text-sm text-neutral-400 mt-1" numberOfLines={2}>
+          <Text className="text-xs text-neutral-400 mt-1" numberOfLines={2}>
             {placeholderPhase}
           </Text>
         ) : null}

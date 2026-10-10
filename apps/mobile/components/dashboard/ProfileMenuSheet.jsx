@@ -14,13 +14,12 @@ import {
   Scale,
   UserCog,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useAuthStore } from "../../lib/auth-store";
 import { getAvatarColor, initials } from "../../lib/avatar";
-import { fetchFlatLabel } from "../../lib/flat-label";
-import { getSupabase } from "../../lib/supabase";
+import { useMyContext } from "../../lib/use-my-context";
 import { LanguageSelector } from "../profile/LanguageSelector";
 
 const DANGER_500 = "#c81e1e";
@@ -36,15 +35,14 @@ const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
  */
 export function ProfileMenuSheet({ visible, onClose }) {
   const router = useRouter();
-  const session = useAuthStore((s) => s.session);
   const signOut = useAuthStore((s) => s.signOut);
   const { t, i18n } = useTranslation(["dashboard", "moderation"]);
 
-  const meta = session?.user?.app_metadata ?? {};
-  const name = meta.full_name ?? meta.name ?? "Member";
-  const role = meta.role ?? "member";
-  const societyId = meta.society_id ?? null;
-  const userId = session?.user?.id;
+  // Name, flat and membership role come from the database (the access token
+  // carries neither the name nor the flat) — same as the website.
+  const me = useMyContext();
+  const name = me.fullName || "Member";
+  const role = me.role ?? "member";
   const isAdmin = ADMIN_ROLES.has(role);
   const avatarColor = getAvatarColor(name);
 
@@ -53,22 +51,7 @@ export function ProfileMenuSheet({ visible, onClose }) {
   const langLabelMap = { en: "english", hi: "hindi", mr: "marathi" };
   const activeLangLabel = t(`dashboard:language.${langLabelMap[i18n.language] ?? "english"}`);
 
-  // Resolve flat label. If JWT has flat_label, use it; otherwise fetch.
-  const [flatLabel, setFlatLabel] = useState(meta.flat_label ?? "—");
-  useEffect(() => {
-    if (meta.flat_label) {
-      setFlatLabel(meta.flat_label);
-      return;
-    }
-    if (!visible || !userId || !societyId) return;
-    let cancelled = false;
-    fetchFlatLabel(getSupabase(), userId, societyId).then((label) => {
-      if (!cancelled) setFlatLabel(label);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, userId, societyId, meta.flat_label]);
+  const flatLabel = me.flatLabel || "—";
 
   const handleSignOut = async () => {
     onClose?.();

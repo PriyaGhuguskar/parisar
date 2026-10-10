@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { unregisterPushTokenForDevice } from "./push-registration";
 import { getSupabase } from "./supabase";
+import { withTokenClaims } from "./token-claims";
 
 // Auth store. `loading` stays true until the initial SecureStore session check
 // completes — the root layout renders the splash during that window to avoid the
@@ -14,7 +15,7 @@ export const useAuthStore = create((set) => ({
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        set({ session, loading: false });
+        set({ session: withTokenClaims(session), loading: false });
       })
       .catch((err) => {
         // PAR-102: a corrupted/undecryptable SecureStore session must NOT hang the
@@ -25,7 +26,9 @@ export const useAuthStore = create((set) => ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      set({ session, loading: false });
+      // Token claims (society_id, role) live in the access token, not the user
+      // record — merge them so every screen's app_metadata reads work.
+      set({ session: withTokenClaims(session), loading: false });
     });
     return () => subscription.unsubscribe();
   },

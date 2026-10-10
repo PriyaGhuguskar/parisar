@@ -1,57 +1,30 @@
 // apps/mobile/components/dashboard/SocietyHeaderPill.jsx
-// Header pill for the Home screen — "{societyName} · {percent}% joined".
+// The home screen's title — matches the website's SocietyHeaderPill: a small
+// brand-tinted building mark next to the society name in brand green. (The old
+// "· N% joined" suffix was removed on the website at the user's request.)
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
-import { fetchJoinPercent } from "@parisar/api-client";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Building2 } from "lucide-react-native";
 import { Text, View } from "react-native";
-import { getSupabase } from "../../lib/supabase";
 
 /**
  * @param {object} props
- * @param {string|undefined} props.societyId
  * @param {string} [props.societyName]
  */
-export function SocietyHeaderPill({ societyId, societyName = "Your Society" }) {
-  const { t } = useTranslation("dashboard");
-  const [percent, setPercent] = useState(null);
-
-  useEffect(() => {
-    if (!societyId) {
-      setPercent(null);
-      return;
-    }
-    let cancelled = false;
-    fetchJoinPercent(getSupabase(), societyId)
-      .then((p) => {
-        if (!cancelled) setPercent(typeof p === "number" ? p : null);
-      })
-      .catch(() => {
-        if (!cancelled) setPercent(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [societyId]);
-
-  // percent === 0 is a valid value — only null/undefined hides the suffix.
-  const suffix =
-    percent === null || percent === undefined
-      ? ""
-      : t("header.joinedPercent", { percent: String(percent) });
-
+export function SocietyHeaderPill({ societyName }) {
   return (
-    <View className="flex-row items-baseline">
-      <Text className="text-xl font-semibold text-neutral-900 flex-shrink" numberOfLines={1}>
-        {societyName}
+    <View className="flex-row items-center gap-3">
+      <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+        <Building2 size={20} color="#0E5A48" />
+      </View>
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        className="flex-1 text-xl font-semibold capitalize text-brand-700"
+      >
+        {societyName || " "}
       </Text>
-      {suffix ? (
-        <Text className="text-sm text-neutral-600 flex-shrink-0" numberOfLines={1}>
-          {suffix}
-        </Text>
-      ) : null}
     </View>
   );
 }

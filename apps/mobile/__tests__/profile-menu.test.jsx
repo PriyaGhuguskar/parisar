@@ -30,6 +30,14 @@ jest.mock("../lib/auth-store", () => ({
   useAuthStore: (selector) => selector(mockStoreState),
 }));
 
+// Name, flat and role come from the database via useMyContext.
+jest.mock("../lib/use-my-context", () => ({
+  useMyContext: () => {
+    const m = mockStoreState.session?.user?.app_metadata ?? {};
+    return { ready: true, fullName: m.full_name, flatLabel: m.flat_label, role: m.role };
+  },
+}));
+
 import { ProfileMenuSheet } from "../components/dashboard/ProfileMenuSheet";
 
 function setSessionRole(role) {

@@ -79,10 +79,14 @@ export const useDashboardSummary = create((set, get) => ({
    * idle → loading → ready on success, idle → loading → error on failure.
    * On failure the prior `summary` is preserved (UI keeps last-known-good).
    */
-  async fetchSummary(supabase) {
+  // opts.view = "member": the resident view (an authority's own home), same
+  // as the website.
+  async fetchSummary(supabase, opts) {
     set({ status: "loading", error: null });
     try {
-      const data = await getDashboardSummary(supabase);
+      const data = opts?.view
+        ? await getDashboardSummary(supabase, opts)
+        : await getDashboardSummary(supabase);
       set({ summary: data, status: "ready", error: null });
       return data;
     } catch (err) {

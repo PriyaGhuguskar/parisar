@@ -122,7 +122,7 @@ export function DashboardTilePreview({ status, tileKey, tile }) {
     if (!emptyKey) return null;
     return (
       <View accessibilityElementsHidden importantForAccessibility="no" className="mt-2">
-        <Text numberOfLines={1} style={{ color: NEUTRAL_400, fontSize: 13, lineHeight: 17 }}>
+        <Text numberOfLines={1} style={{ color: NEUTRAL_400, fontSize: 12, lineHeight: 16 }}>
           {t(emptyKey)}
         </Text>
       </View>
@@ -144,8 +144,8 @@ export function DashboardTilePreview({ status, tileKey, tile }) {
           numberOfLines={1}
           style={{
             color: NEUTRAL_900,
-            fontSize: 13,
-            lineHeight: 17,
+            fontSize: 12,
+            lineHeight: 16,
             marginBottom: i === rows.length - 1 ? 0 : 2,
           }}
         >

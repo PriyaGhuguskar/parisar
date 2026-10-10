@@ -84,6 +84,32 @@ jest.mock("../lib/auth-store", () => ({
   useAuthStore: (selector) => selector(mockStoreState),
 }));
 
+// The live sections (SOS banners, highlights) have their own queries; stub them
+// here so this test stays about the header, the switch and the tiles.
+jest.mock("../components/sos/SosAlerts", () => ({ SosAlerts: () => null }));
+jest.mock("../components/dashboard/HighlightsStrip", () => ({ HighlightsStrip: () => null }));
+
+// Identity comes from the database via useMyContext (the token has no names).
+jest.mock("../lib/use-my-context", () => {
+  const AUTHORITY_ROLES = new Set(["secretary", "co_secretary"]);
+  return {
+    AUTHORITY_ROLES,
+    BOARD_ROLES: new Set(["board_member", "co_secretary", "secretary"]),
+    useMyContext: () => {
+      const m = mockStoreState.session?.user?.app_metadata ?? {};
+      return {
+        ready: true,
+        societyId: m.society_id,
+        societyName: m.society_name,
+        role: m.role ?? "member",
+        fullName: m.full_name,
+        memberships: [],
+        isAuthority: AUTHORITY_ROLES.has(m.role),
+      };
+    },
+  };
+});
+
 import HomeScreen from "../app/(protected)/(tabs)/index";
 
 function setSession({ role, societyId = "soc-1", fullName = "Aman Khan" }) {
@@ -131,12 +157,13 @@ describe("HomeScreen", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(8);
   });
 
-  it("secretary role renders at least 11 tile/avatar buttons", async () => {
+  it("an authority's home is the resident view plus the Society Dashboard switch", async () => {
     setSession({ role: "secretary" });
-    const { findAllByRole } = render(<HomeScreen />);
-    const buttons = await findAllByRole("button");
-    // secretary set = 11 tiles + 1 avatar
-    expect(buttons.length).toBeGreaterThanOrEqual(11);
+    const { findByText, queryByLabelText } = render(<HomeScreen />);
+    expect(await findByText("Society Dashboard")).toBeTruthy();
+    expect(await findByText("My home")).toBeTruthy();
+    // Management tiles live on the Society Dashboard, like the website.
+    expect(queryByLabelText(/^Reviews/)).toBeNull();
   });
 
   it("tapping live Member-Directory tile pushes its (tabs) route", async () => {
@@ -165,11 +192,11 @@ describe("HomeScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(protected)/(tabs)/bookings");
   });
 
-  it("Reviews badge count reflects fetchPendingReviews result", async () => {
-    setSession({ role: "secretary" });
-    mockFetchPendingReviews.mockResolvedValue([{}, {}, {}]); // 3 pending
-    const { findByText } = render(<HomeScreen />);
-    expect(await findByText("3")).toBeTruthy();
+  it("residents don't see the Society Dashboard switch", async () => {
+    setSession({ role: "member" });
+    const { findByLabelText, queryByText } = render(<HomeScreen />);
+    await findByLabelText("Member Directory");
+    expect(queryByText("Society Dashboard")).toBeNull();
   });
 
   it("renders SocietyHeaderPill with society name", async () => {

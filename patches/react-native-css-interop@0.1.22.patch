@@ -1,0 +1,58 @@
+diff --git a/dist/metro/index.js b/dist/metro/index.js
+index c91ba6adf049dd5c6eec1ec8301ecc0802f41bfc..877cb607d504ac8ca3b4b62839b0abf835014b2f 100644
+--- a/dist/metro/index.js
++++ b/dist/metro/index.js
+@@ -176,12 +176,23 @@ async function startCSSProcessor(filePath, platform, isDev, { input, getCSSForPl
+                 ? css
+                 : getNativeJS((0, css_to_rn_1.cssToReactNativeRuntime)(css, options), debug)));
+             debug(`virtualStyles.emit ${platform}`);
++            // Metro >= 0.83 reads { changes: { addedFiles, modifiedFiles,
++            // removedFiles }, rootDir }; older Metro reads eventsQueue. Send both
++            // so a new Tailwind class no longer crashes the dev server.
++            const modifiedTime = Date.now();
+             haste.emit("change", {
++                changes: {
++                    addedFiles: [],
++                    modifiedFiles: [[filePath, { isSymlink: false, modifiedTime }]],
++                    removedFiles: [],
++                },
++                logger: null,
++                rootDir: "/",
+                 eventsQueue: [
+                     {
+                         filePath,
+                         metadata: {
+-                            modifiedTime: Date.now(),
++                            modifiedTime,
+                             size: 1,
+                             type: "virtual",
+                         },
+diff --git a/src/metro/index.ts b/src/metro/index.ts
+index c45168a021e6a71bae4de9e3401cfc39ea2b07ef..1ab9a45dcb55bede0123ff8a83c6ba7a5eaff424 100644
+--- a/src/metro/index.ts
++++ b/src/metro/index.ts
+@@ -341,12 +341,23 @@ async function startCSSProcessor(
+         );
+ 
+         debug(`virtualStyles.emit ${platform}`);
++        // Metro >= 0.83 reads { changes: { addedFiles, modifiedFiles,
++        // removedFiles }, rootDir }; older Metro reads eventsQueue. Send both
++        // so a new Tailwind class no longer crashes the dev server.
++        const modifiedTime = Date.now();
+         haste.emit("change", {
++          changes: {
++            addedFiles: [],
++            modifiedFiles: [[filePath, { isSymlink: false, modifiedTime }]],
++            removedFiles: [],
++          },
++          logger: null,
++          rootDir: "/",
+           eventsQueue: [
+             {
+               filePath,
+               metadata: {
+-                modifiedTime: Date.now(),
++                modifiedTime,
+                 size: 1, // Can be anything
+                 type: "virtual", // Can be anything
+               },

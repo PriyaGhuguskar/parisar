@@ -133,22 +133,18 @@ export default function RootLayout() {
         {/* index.jsx is the splash anchor — shown while `loading` is true */}
         <Stack.Screen name="index" />
 
-        {/* Auth routes — only accessible when NOT signed in (and not loading) */}
+        {/* Guards name the route GROUPS — (auth) and (protected) each have their
+            own _layout.jsx, so "(auth)/login"-style names never matched and the
+            guards did nothing (signing out left you on the screen you were on).
+            When a guard turns false, expo-router sends the user back to the
+            index anchor, which routes them (login, or where they belong). */}
         <Stack.Protected guard={!loading && !isSignedIn}>
-          <Stack.Screen name="(auth)/login" />
-          <Stack.Screen name="(auth)/verify" />
+          <Stack.Screen name="(auth)" />
         </Stack.Protected>
 
-        {/* Protected routes — only accessible when signed in (and not loading).
-            Post-onboard screens live inside (protected)/(tabs)/ so the bottom-nav
-            stays visible across every reachable screen (Plan 04.1-02 Option A).
-            The bootstrap flows (onboard, setup, join) remain at the Stack level
-            because they intentionally render without a tab bar. */}
+        {/* Everything signed-in: tabs, onboarding, wings/flats setup, staff. */}
         <Stack.Protected guard={!loading && isSignedIn}>
-          <Stack.Screen name="(protected)/(tabs)" />
-          <Stack.Screen name="(protected)/onboard" />
-          <Stack.Screen name="(protected)/setup" />
-          <Stack.Screen name="(protected)/join" />
+          <Stack.Screen name="(protected)" />
         </Stack.Protected>
       </Stack>
     </I18nextProvider>

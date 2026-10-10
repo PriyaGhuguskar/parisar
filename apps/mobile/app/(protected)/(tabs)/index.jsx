@@ -36,11 +36,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthorityEntry } from "../../../components/dashboard/AuthorityEntry";
 import { DashboardTile } from "../../../components/dashboard/DashboardTile";
 import { DashboardTilePreview } from "../../../components/dashboard/DashboardTilePreview";
+import { HighlightsStrip } from "../../../components/dashboard/HighlightsStrip";
 import { ProfileMenuSheet } from "../../../components/dashboard/ProfileMenuSheet";
 import { SocietyHeaderPill } from "../../../components/dashboard/SocietyHeaderPill";
 import { SocietySwitcherSheet } from "../../../components/dashboard/SocietySwitcherSheet";
+import { SosAlerts } from "../../../components/sos/SosAlerts";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getAvatarColor, initials } from "../../../lib/avatar";
 import { subscribeDashboardRealtime } from "../../../lib/dashboard-realtime";
@@ -51,6 +54,7 @@ import {
   getRoleTiles,
 } from "../../../lib/role-tiles";
 import { getSupabase } from "../../../lib/supabase";
+import { AUTHORITY_ROLES, useMyContext } from "../../../lib/use-my-context";
 
 const BRAND_500 = "#12715A";
 
@@ -95,7 +99,6 @@ export default function HomeScreen() {
   const [rotatesAt, setRotatesAt] = useState(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [memberships, setMemberships] = useState([]);
 
   // Phase 7 Plan 07-07 — live dashboard summary (DASH-03).
   // Selector-style subscriptions keep re-renders shallow.
@@ -104,11 +107,17 @@ export default function HomeScreen() {
   const fetchSummary = useDashboardSummary((s) => s.fetchSummary);
   const patchEvent = useDashboardSummary((s) => s.patchEvent);
 
-  const meta = session?.user?.app_metadata ?? {};
-  const societyId = meta.society_id;
-  const societyName = meta.society_name ?? "Your Society";
-  const role = meta.role ?? "member";
-  const nameForAvatar = meta.full_name ?? meta.name ?? "Member";
+  // Society name, role and the person's name come from the database (the
+  // access token carries only society_id + role) — same as the website.
+  const me = useMyContext();
+  const societyId = me.societyId;
+  const societyName = me.societyName;
+  const role = me.role ?? "member";
+  const nameForAvatar = me.fullName || "Member";
+  // An authority's Home is the resident view (management lives on the Society
+  // Dashboard), exactly like the website.
+  const viewRole = AUTHORITY_ROLES.has(role) ? "member" : role;
+  const summaryOpts = viewRole === role ? undefined : { view: "member" };
 
   // Refresh pending-reviews badge + code-rotation date on every focus
   // (Pitfall 5, D-04 / D-05).
@@ -147,7 +156,7 @@ export default function HomeScreen() {
       // tile. RLS scopes the bookings table to the society's board queue; members
       // never reach this branch (their tile carries no badge). Refresh on focus
       // (matches the reviews badge cadence, not realtime).
-      if (BOARD_ROLES.has(role)) {
+      if (BOARD_ROLES.has(viewRole)) {
         supabase
           .from("bookings")
           .select("id")
@@ -167,14 +176,14 @@ export default function HomeScreen() {
       // Errors are intentionally silent: the DashboardTilePreview renders nothing
       // on status="error" per UI-SPEC, the tile-level label + (badge from the
       // legacy badges above) still display. The next focus tries again.
-      fetchSummary(supabase).catch(() => {
+      fetchSummary(supabase, summaryOpts).catch(() => {
         /* silent — UI-SPEC: fetch failure drops preview block */
       });
 
       return () => {
         cancelled = true;
       };
-    }, [societyId, role, fetchSummary]),
+    }, [societyId, viewRole, fetchSummary]),
   );
 
   // Phase 7 Plan 07-07 (D-02 + D-03) — Realtime subscription. Mounted once
@@ -190,7 +199,7 @@ export default function HomeScreen() {
       societyId,
       (event) => patchEvent(event, userId),
       () => {
-        fetchSummary(supabase).catch(() => {
+        fetchSummary(supabase, summaryOpts).catch(() => {
           /* silent */
         });
       },
@@ -198,46 +207,21 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [societyId, session?.user?.id, fetchSummary, patchEvent]);
 
-  // Fetch the user's active memberships (RLS-scoped) so the society switcher can
-  // list them. Single-society users (length === 1) never see the switcher.
-  useFocusEffect(
-    useCallback(() => {
-      const userId = session?.user?.id;
-      if (!userId) return;
-      let cancelled = false;
-      getSupabase()
-        .from("society_memberships")
-        .select("society_id, societies:society_id(name)")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .then(({ data }) => {
-          if (cancelled) return;
-          setMemberships(
-            (data ?? []).map((r) => ({
-              society_id: r.society_id,
-              society_name: r.societies?.name ?? "Society",
-            })),
-          );
-        });
-      return () => {
-        cancelled = true;
-      };
-    }, [session?.user?.id]),
-  );
-
+  // Active memberships come from the shared context (one query for the app).
+  const memberships = me.memberships ?? [];
   const showSwitcher = memberships.length > 1;
 
   // Pitfall 7 — wait for auth hydration before rendering any role-aware UI.
   if (loading || !session) return null;
 
-  const tiles = getRoleTiles(role);
+  const tiles = getRoleTiles(viewRole);
   const avatarColor = getAvatarColor(nameForAvatar);
 
   return (
     <View className="flex-1 bg-neutral-50">
       {/* Header */}
       <View
-        className="flex-row items-center justify-between px-4 pb-3 bg-white border-b border-neutral-100"
+        className="flex-row items-center justify-between px-4 pb-2 bg-neutral-50"
         style={{ paddingTop: insets.top + 8 }}
       >
         <View className="flex-1 mr-2">
@@ -252,19 +236,19 @@ export default function HomeScreen() {
               accessibilityLabel={t("switcher.title")}
             >
               <View className="flex-1">
-                <SocietyHeaderPill societyId={societyId} societyName={societyName} />
+                <SocietyHeaderPill societyName={societyName} />
               </View>
               <ChevronDown size={16} color={BRAND_500} />
             </Pressable>
           ) : (
-            <SocietyHeaderPill societyId={societyId} societyName={societyName} />
+            <SocietyHeaderPill societyName={societyName} />
           )}
         </View>
 
         {/* Profile avatar — opens the ProfileMenuSheet inline (Wave 3). */}
         <Pressable
           onPress={() => setProfileOpen(true)}
-          className="w-9 h-9 rounded-full items-center justify-center"
+          className="w-10 h-10 rounded-full items-center justify-center"
           style={{ backgroundColor: avatarColor.bg }}
           accessibilityRole="button"
           accessibilityLabel={t("header.openProfile")}
@@ -278,6 +262,10 @@ export default function HomeScreen() {
 
       {/* Card grid */}
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 + insets.bottom }}>
+        {/* Same order as the website: authority switch, SOS, highlights, tiles. */}
+        <AuthorityEntry role={role} active="home" />
+        <SosAlerts />
+        <HighlightsStrip societyId={societyId} role={role} />
         <View className="flex-row flex-wrap gap-3">
           {tiles.map((tile) => {
             const tileLabel = t(`tiles.${tile.key}`, { defaultValue: tile.key });
@@ -306,7 +294,7 @@ export default function HomeScreen() {
             // (Visitors / Staff) pass null so the existing "Ships in Phase N"
             // subtitle keeps that slot. Tiles without a bucket (Directory,
             // Society Code, Code Rotation, Reviews, Polls) also pass null.
-            const summaryKey = tile.live ? getSummaryKeyForTile(tile.key, role) : null;
+            const summaryKey = tile.live ? getSummaryKeyForTile(tile.key, viewRole) : null;
             let previewNode = null;
             if (summaryKey) {
               if (summaryStatus === "loading" && !summary) {
