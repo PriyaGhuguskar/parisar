@@ -28,7 +28,8 @@ import { FormError } from "../../components/auth/FormError";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { LogoutButton } from "../../components/LogoutButton";
 import { DashedButton, Field, StepHeader, TextField } from "../../components/onboarding/Form";
-import { buildFlats, initialFloors, nextFloor } from "../../lib/flats/floors";
+import { FloorFlats } from "../../components/structure/FloorFlats";
+import { buildFlats, initialFloors } from "../../lib/flats/floors";
 import { getSupabase } from "../../lib/supabase";
 
 function CheckRow({ label, checked, onToggle }) {
@@ -107,15 +108,10 @@ export default function StructureScreen() {
     };
   }, [router]);
 
-  const { all, perFloor, anyInvalid } = buildFlats(floors);
+  const { all, anyInvalid } = buildFlats(floors);
   const namedWings = wingNames.map((w) => w.trim()).filter(Boolean);
   const wingCount = single ? 1 : namedWings.length;
   const totalFlats = wingCount * all.length;
-
-  function setFloor(id, patch) {
-    setFloors((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
-    setErr(null);
-  }
 
   async function submit() {
     setErr(null);
@@ -243,60 +239,12 @@ export default function StructureScreen() {
                 ? t("auth.structFlatsFor", { wing: t("auth.structSingleName") })
                 : t("auth.structSharedTitle")}
             </Text>
-            <Text className="text-xs text-neutral-600">{tp("floorHint")}</Text>
-            {floors.map((f) => {
-              const pf = perFloor.find((p) => p.id === f.id);
-              return (
-                <View key={f.id} className="gap-1">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="w-16 text-sm font-semibold text-neutral-600">
-                      {tp("floorWord")} {f.level}
-                    </Text>
-                    <View className="flex-1">
-                      <TextField
-                        value={f.from}
-                        onChangeText={(v) => setFloor(f.id, { from: v.replace(/\D/g, "") })}
-                        placeholder="101"
-                        keyboardType="number-pad"
-                      />
-                    </View>
-                    <Text className="text-neutral-400">–</Text>
-                    <View className="flex-1">
-                      <TextField
-                        value={f.to}
-                        onChangeText={(v) => setFloor(f.id, { to: v.replace(/\D/g, "") })}
-                        placeholder="104"
-                        keyboardType="number-pad"
-                      />
-                    </View>
-                    {floors.length > 1 ? (
-                      <Pressable
-                        onPress={() => setFloors((fs) => fs.filter((x) => x.id !== f.id))}
-                        accessibilityRole="button"
-                        accessibilityLabel={tp("removeFloor")}
-                        className="p-1"
-                      >
-                        <X size={16} color="#627368" />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                  <Text
-                    className={`pl-16 text-xs ${pf?.invalid ? "text-danger-500" : "text-neutral-600"}`}
-                  >
-                    {pf?.invalid
-                      ? tp("rangeInvalid")
-                      : pf?.numbers.length
-                        ? pf.numbers.length > 6
-                          ? `${pf.numbers.slice(0, 3).join(", ")} … ${pf.numbers.at(-1)} (${pf.numbers.length})`
-                          : pf.numbers.join(", ")
-                        : tp("floorEmpty")}
-                  </Text>
-                </View>
-              );
-            })}
-            <DashedButton
-              label={tp("addFloor")}
-              onPress={() => setFloors((fs) => [...fs, nextFloor(fs)])}
+            <FloorFlats
+              floors={floors}
+              onChange={(next) => {
+                setFloors(next);
+                setErr(null);
+              }}
             />
           </View>
 

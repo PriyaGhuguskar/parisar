@@ -23,25 +23,22 @@
 import { getRoleTiles } from "../lib/role-tiles";
 
 describe("getRoleTiles — tile counts per role", () => {
-  it("member returns 9 tiles (7 live + 2 placeholders)", () => {
+  it("member returns 9 tiles, all live (Visitors + Staff screens exist now)", () => {
     const tiles = getRoleTiles("member");
     expect(tiles).toHaveLength(9);
-    expect(tiles.filter((t) => t.live)).toHaveLength(7);
-    expect(tiles.filter((t) => !t.live)).toHaveLength(2);
+    expect(tiles.filter((t) => t.live)).toHaveLength(9);
   });
 
-  it("board_member returns 9 tiles (7 live + 2 placeholders)", () => {
+  it("board_member returns 9 tiles, all live", () => {
     const tiles = getRoleTiles("board_member");
     expect(tiles).toHaveLength(9);
-    expect(tiles.filter((t) => t.live)).toHaveLength(7);
-    expect(tiles.filter((t) => !t.live)).toHaveLength(2);
+    expect(tiles.filter((t) => t.live)).toHaveLength(9);
   });
 
-  it("secretary returns 11 tiles (10 live + 1 placeholder)", () => {
+  it("secretary returns 11 tiles, all live", () => {
     const tiles = getRoleTiles("secretary");
     expect(tiles).toHaveLength(11);
-    expect(tiles.filter((t) => t.live)).toHaveLength(10);
-    expect(tiles.filter((t) => !t.live)).toHaveLength(1);
+    expect(tiles.filter((t) => t.live)).toHaveLength(11);
   });
 
   it("co_secretary returns the same tile set as secretary", () => {
@@ -101,19 +98,22 @@ describe("getRoleTiles — placeholder contract", () => {
     }
   });
 
-  it("member has visitors placeholder (phase 9)", () => {
-    const v = getRoleTiles("member").find((t) => t.key === "visitors");
-    expect(v).toEqual(expect.objectContaining({ live: false, phase: 9 }));
+  it("visitors is live for every role and opens the visitor inbox", () => {
+    for (const role of ["member", "board_member", "secretary"]) {
+      const v = getRoleTiles(role).find((t) => t.key === "visitors");
+      expect(v).toEqual(
+        expect.objectContaining({ live: true, route: "/(protected)/(tabs)/visitors" }),
+      );
+    }
   });
 
-  it("member has staff placeholder (phase 10) — per user decision Member matches Board", () => {
-    const s = getRoleTiles("member").find((t) => t.key === "staff");
-    expect(s).toEqual(expect.objectContaining({ live: false, phase: 10 }));
-  });
-
-  it("board_member has staff placeholder (phase 10)", () => {
-    const s = getRoleTiles("board_member").find((t) => t.key === "staff");
-    expect(s).toEqual(expect.objectContaining({ live: false, phase: 10 }));
+  it("staff is live for member and board_member and opens the staff directory", () => {
+    for (const role of ["member", "board_member"]) {
+      const s = getRoleTiles(role).find((t) => t.key === "staff");
+      expect(s).toEqual(
+        expect.objectContaining({ live: true, route: "/(protected)/(tabs)/staff-directory" }),
+      );
+    }
   });
 
   it("secretary does NOT have staff placeholder (admin slot replaced by flatActions)", () => {
@@ -126,18 +126,10 @@ describe("getRoleTiles — placeholder contract", () => {
     expect(f).toEqual(expect.objectContaining({ live: true, phase: null }));
   });
 
-  it("placeholder order in member set: visitors, staff (post-Phase-6 DT-02 flip)", () => {
-    const placeholders = getRoleTiles("member")
-      .filter((t) => !t.live)
-      .map((t) => t.key);
-    expect(placeholders).toEqual(["visitors", "staff"]);
-  });
-
-  it("placeholder order in secretary set: visitors only (post-Phase-6 DT-02 flip)", () => {
-    const placeholders = getRoleTiles("secretary")
-      .filter((t) => !t.live)
-      .map((t) => t.key);
-    expect(placeholders).toEqual(["visitors"]);
+  it("no role has placeholder tiles any more", () => {
+    for (const role of ["member", "board_member", "secretary", "co_secretary"]) {
+      expect(getRoleTiles(role).filter((t) => !t.live)).toEqual([]);
+    }
   });
 });
 

@@ -135,6 +135,10 @@ export default function TabsLayout() {
         "notifications",
         "about",
         "society-dashboard",
+        "visitors",
+        "staff-directory",
+        "facilities",
+        "society",
       ].map((name) => (
         <Tabs.Screen key={name} name={name} options={{ href: null }} />
       ))}

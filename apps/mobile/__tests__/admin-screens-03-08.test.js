@@ -72,6 +72,12 @@ function makeDefaultSupabaseClient() {
   };
 }
 
+// These screens are authority-only (components/AuthorityOnly) — the viewer
+// here is a secretary.
+jest.mock("../lib/use-my-context", () => ({
+  useMyContext: () => ({ ready: true, isAuthority: true, role: "secretary", societyId: "soc-1" }),
+}));
+
 jest.mock("../lib/supabase", () => ({
   getSupabase: jest.fn(),
 }));

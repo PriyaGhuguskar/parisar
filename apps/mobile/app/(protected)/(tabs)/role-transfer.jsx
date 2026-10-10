@@ -4,6 +4,7 @@ import { AlertOctagon } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { authorityOnly } from "../../../components/AuthorityOnly";
 import { DestructiveConfirmDialog } from "../../../components/shared/DestructiveConfirmDialog";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
@@ -85,7 +86,7 @@ function EligibleMemberRow({ membership, selected, onSelect }) {
 // ---------------------------------------------------------------------------
 // RoleTransferScreen
 // ---------------------------------------------------------------------------
-export default function RoleTransferScreen() {
+function RoleTransferScreen() {
   const router = useRouter();
   const { t } = useTranslation("auth");
   const session = useAuthStore((s) => s.session);
@@ -281,3 +282,6 @@ export default function RoleTransferScreen() {
     </View>
   );
 }
+
+// Authorities only — same as the website (others go back to Home).
+export default authorityOnly(RoleTransferScreen);

@@ -23,6 +23,7 @@ import { FlatPicker, PrivateFlatSubtitle } from "../../../../components/flat-act
 import { useAuthStore } from "../../../../lib/auth-store";
 import { fetchFlatLabel } from "../../../../lib/flat-label";
 import { getSupabase } from "../../../../lib/supabase";
+import { useMyContext } from "../../../../lib/use-my-context";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
@@ -36,7 +37,8 @@ export default function FlatActionsScreen() {
   const societyId = jwtMeta.society_id ?? null;
   const role = jwtMeta.role ?? "member";
   const userId = session?.user?.id ?? null;
-  const memberFlatId = jwtMeta.flat_id ?? null;
+  // The token has no flat — a resident's own flat comes from their membership.
+  const memberFlatId = useMyContext().flatId ?? null;
   const isBoard = BOARD_ROLES.has(role);
   const isAdmin = ADMIN_ROLES.has(role);
 

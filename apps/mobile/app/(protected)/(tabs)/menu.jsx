@@ -11,15 +11,20 @@
 
 import { useRouter } from "expo-router";
 import {
+  AlertCircle,
   BarChart3,
   Bell,
+  Building2,
   Calendar,
+  CalendarClock,
+  DoorOpen,
   HelpCircle,
   Languages,
   LogOut,
   Scale,
   ShieldCheck,
   UserCog,
+  UserRound,
 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -95,6 +100,26 @@ export default function MenuScreen() {
             label={t("dashboard:tiles.bookings")}
             onPress={() => go(`${T}/bookings`)}
           />
+          <LinkRow
+            icon={DoorOpen}
+            label={t("auth:visitor.inboxTitle")}
+            onPress={() => go(`${T}/visitors`)}
+          />
+          <LinkRow
+            icon={UserRound}
+            label={t("auth:staff.title")}
+            onPress={() => go(`${T}/staff-directory`)}
+          />
+          <LinkRow
+            icon={CalendarClock}
+            label={t("auth:facility.title")}
+            onPress={() => go(`${T}/facilities`)}
+          />
+          <LinkRow
+            icon={AlertCircle}
+            label={t("dashboard:tiles.flatActions")}
+            onPress={() => go(`${T}/flat-actions`)}
+          />
         </Group>
 
         {me.isAuthority ? (
@@ -103,6 +128,11 @@ export default function MenuScreen() {
               icon={ShieldCheck}
               label={t("auth:authority.societyDashboard")}
               onPress={() => router.replace(`${T}/society-dashboard`)}
+            />
+            <LinkRow
+              icon={Building2}
+              label={t("auth:profile.societyProfile")}
+              onPress={() => go(`${T}/society`)}
             />
             <LinkRow
               icon={UserCog}

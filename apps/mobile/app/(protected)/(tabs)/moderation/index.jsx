@@ -25,6 +25,7 @@ import { ShieldCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { AuditLogRow } from "../../../../components/community/AuditLogRow";
 import { ModerationCard } from "../../../../components/community/ModerationCard";
 import { useAuthStore } from "../../../../lib/auth-store";
@@ -52,7 +53,7 @@ function summarizeReports(reports, reasonLabel) {
   return out;
 }
 
-export default function ModerationScreen() {
+function ModerationScreen() {
   const router = useRouter();
   const { t } = useTranslation(["moderation", "community"]);
   const session = useAuthStore((s) => s.session);
@@ -324,3 +325,6 @@ function ReviewEmpty({ t }) {
     </View>
   );
 }
+
+// Authorities only — same as the website (others go back to Home).
+export default authorityOnly(ModerationScreen);

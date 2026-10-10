@@ -4,6 +4,7 @@ import { AlertTriangle, CircleCheck } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { authorityOnly } from "../../../components/AuthorityOnly";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
 
@@ -156,7 +157,7 @@ function ConflictCard({ group, onApproveFirst, onApproveSecond, onRemoveBoth, pr
 // ---------------------------------------------------------------------------
 // ReviewQueueScreen
 // ---------------------------------------------------------------------------
-export default function ReviewQueueScreen() {
+function ReviewQueueScreen() {
   const router = useRouter();
   const { t } = useTranslation("auth");
   const session = useAuthStore((s) => s.session);
@@ -306,3 +307,6 @@ export default function ReviewQueueScreen() {
     </View>
   );
 }
+
+// Authorities only — same as the website (others go back to Home).
+export default authorityOnly(ReviewQueueScreen);

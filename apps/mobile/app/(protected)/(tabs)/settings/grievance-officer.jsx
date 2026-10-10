@@ -11,13 +11,14 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { GrievanceOfficerForm } from "../../../../components/community/GrievanceOfficerForm";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
 
-export default function GrievanceOfficerSettingsScreen() {
+function GrievanceOfficerSettingsScreen() {
   const router = useRouter();
   const { t } = useTranslation(["moderation", "community"]);
   const session = useAuthStore((s) => s.session);
@@ -91,3 +92,6 @@ export default function GrievanceOfficerSettingsScreen() {
     </View>
   );
 }
+
+// Authorities only — same as the website (others go back to Home).
+export default authorityOnly(GrievanceOfficerSettingsScreen);

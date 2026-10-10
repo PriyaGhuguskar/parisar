@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getSupabase } from "../../../lib/supabase";
+import { useMyContext } from "../../../lib/use-my-context";
 
 // ---------------------------------------------------------------------------
 // Screen states
@@ -53,6 +54,9 @@ export default function CodeRotationScreen() {
 
   // Screen state
   const [screenState, setScreenState] = useState(STATE_LOADING);
+  // Only authorities may rotate / resume the code (the RPCs enforce it too);
+  // everyone else just sees and shares it — same as the website.
+  const { isAuthority } = useMyContext();
   const [currentCode, setCurrentCode] = useState(null);
   const [newCode, setNewCode] = useState(null);
   const [working, setWorking] = useState(false);
@@ -139,9 +143,10 @@ export default function CodeRotationScreen() {
   // ---------------------------------------------------------------------------
   // Share new code via WhatsApp after rotation
   // ---------------------------------------------------------------------------
-  async function handleShareNew() {
-    if (!newCode) return;
-    const joinUrl = `parisar://join?code=${newCode}`;
+  async function handleShareNew(codeArg) {
+    const code = typeof codeArg === "string" ? codeArg : newCode;
+    if (!code) return;
+    const joinUrl = `parisar://join?code=${code}`;
     const message = t("setup.shareMessage", { link: joinUrl });
     const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     const canOpen = await Linking.canOpenURL(waUrl).catch(() => false);
@@ -220,6 +225,43 @@ export default function CodeRotationScreen() {
             accessibilityRole="button"
           >
             <Text className="text-base font-semibold text-neutral-900">Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Residents: view + share only (no rotate / resume)
+  // ---------------------------------------------------------------------------
+  if (!isAuthority && (screenState === STATE_ACTIVE || screenState === STATE_PAUSED)) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <View className="flex-row items-center justify-between px-6 pt-4 pb-4">
+          <Text className="text-xl font-semibold text-neutral-900">
+            {t("dashboard.code.heading")}
+          </Text>
+          <CloseButton />
+        </View>
+        <View className="flex-1 px-6">
+          <CodePill value={currentCode} />
+          {screenState === STATE_PAUSED ? (
+            <View className="border border-warning-500 bg-amber-50 rounded-xl p-4 flex-row gap-3 mb-6">
+              <AlertTriangle size={20} color="#f59e0b" />
+              <Text className="flex-1 text-sm text-neutral-700">
+                {t("dashboard.code.pausedAlert")}
+              </Text>
+            </View>
+          ) : null}
+          <Pressable
+            onPress={() => handleShareNew(currentCode)}
+            className="h-14 rounded-xl items-center justify-center mb-3"
+            style={{ backgroundColor: "#16a34a" }}
+            accessibilityRole="button"
+          >
+            <Text className="text-base font-semibold text-white">
+              {t("setup.step6.shareWhatsApp")}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>

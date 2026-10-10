@@ -200,9 +200,10 @@ export function getRoleTiles(role) {
     key: "visitors",
     labelKey: "tiles.visitors",
     icon: Car,
-    route: null,
-    live: false,
-    phase: 9,
+    // Live: the resident visitor inbox (guards raise requests at the gate).
+    route: "/(protected)/(tabs)/visitors",
+    live: true,
+    phase: null,
     badge: null,
   });
 
@@ -214,9 +215,10 @@ export function getRoleTiles(role) {
       key: "staff",
       labelKey: "tiles.staff",
       icon: UserCheck,
-      route: null,
-      live: false,
-      phase: 10,
+      // Live: the shared staff directory (maid, driver, plumber…).
+      route: "/(protected)/(tabs)/staff-directory",
+      live: true,
+      phase: null,
       badge: null,
     });
   }

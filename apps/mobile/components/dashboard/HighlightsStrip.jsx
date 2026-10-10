@@ -251,8 +251,6 @@ export function HighlightsStrip({ societyId, role }) {
         <View className="gap-2.5">
           {nextEvent ? (
             <Pressable
-              // Facility calendar screen arrives in step 4 — enable the link then.
-              disabled
               onPress={() => router.push("/(protected)/(tabs)/facilities")}
               className="rounded-xl border px-4 py-3"
               style={{ backgroundColor: "#FFF7ED", borderColor: "#FED7AA" }}

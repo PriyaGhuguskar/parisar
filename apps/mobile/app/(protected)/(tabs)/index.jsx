@@ -117,7 +117,7 @@ export default function HomeScreen() {
   // An authority's Home is the resident view (management lives on the Society
   // Dashboard), exactly like the website.
   const viewRole = AUTHORITY_ROLES.has(role) ? "member" : role;
-  const summaryOpts = viewRole === role ? undefined : { view: "member" };
+  const summaryView = viewRole === role ? null : "member";
 
   // Refresh pending-reviews badge + code-rotation date on every focus
   // (Pitfall 5, D-04 / D-05).
@@ -176,14 +176,14 @@ export default function HomeScreen() {
       // Errors are intentionally silent: the DashboardTilePreview renders nothing
       // on status="error" per UI-SPEC, the tile-level label + (badge from the
       // legacy badges above) still display. The next focus tries again.
-      fetchSummary(supabase, summaryOpts).catch(() => {
+      fetchSummary(supabase, summaryView ? { view: summaryView } : undefined).catch(() => {
         /* silent — UI-SPEC: fetch failure drops preview block */
       });
 
       return () => {
         cancelled = true;
       };
-    }, [societyId, viewRole, fetchSummary]),
+    }, [societyId, viewRole, summaryView, fetchSummary]),
   );
 
   // Phase 7 Plan 07-07 (D-02 + D-03) — Realtime subscription. Mounted once
@@ -199,13 +199,13 @@ export default function HomeScreen() {
       societyId,
       (event) => patchEvent(event, userId),
       () => {
-        fetchSummary(supabase, summaryOpts).catch(() => {
+        fetchSummary(supabase, summaryView ? { view: summaryView } : undefined).catch(() => {
           /* silent */
         });
       },
     );
     return unsubscribe;
-  }, [societyId, session?.user?.id, fetchSummary, patchEvent]);
+  }, [societyId, session?.user?.id, summaryView, fetchSummary, patchEvent]);
 
   // Active memberships come from the shared context (one query for the app).
   const memberships = me.memberships ?? [];

@@ -10,6 +10,7 @@ import { Redirect, useRouter } from "expo-router";
 import {
   AlertCircle,
   Bell,
+  Building2,
   CalendarCheck,
   ClipboardCheck,
   Key,
@@ -36,6 +37,7 @@ const MANAGE_LINKS = [
     labelKey: "dashboard:tiles.allComplaints",
   },
   { href: `${T}/bookings`, icon: CalendarCheck, labelKey: "dashboard:tiles.bookings" },
+  { href: `${T}/society`, icon: Building2, labelKey: "auth:profile.societyProfile" },
   { href: `${T}/review-queue`, icon: ClipboardCheck, labelKey: "dashboard:tiles.reviews" },
   { href: `${T}/directory`, icon: Users, labelKey: "dashboard:tiles.directory" },
   { href: `${T}/code-rotation`, icon: Key, labelKey: "dashboard:tiles.societyCode" },

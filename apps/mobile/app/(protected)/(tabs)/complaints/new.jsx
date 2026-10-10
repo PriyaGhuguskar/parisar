@@ -31,8 +31,8 @@ import {
 import { z } from "zod";
 import { FormError } from "../../../../components/auth/FormError";
 import { PhotoPicker } from "../../../../components/complaints/PhotoPicker";
-import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
+import { useMyContext } from "../../../../lib/use-my-context";
 
 const DESCRIPTION_MAX = 1000;
 
@@ -52,14 +52,14 @@ function cryptoRandomUUID() {
 export default function NewComplaintScreen() {
   const router = useRouter();
   const { t } = useTranslation("complaints");
-  const session = useAuthStore((s) => s.session);
 
-  const jwtMeta = session?.user?.app_metadata ?? session?.user?.user_metadata ?? {};
-  const societyId = jwtMeta.society_id ?? null;
-  // The reporter's own flat — read from JWT app_metadata. The auth hook
-  // (Phase 2 inject_society_claims) populates this for active members.
-  // If the JWT doesn't include flat_id, the RPC will reject with INVALID_FLAT.
-  const reporterFlatId = jwtMeta.flat_id ?? null;
+  // Society and the reporter's own flat come from their membership — the
+  // access token carries society_id but never a flat (it used to read
+  // jwtMeta.flat_id, which was always empty, so every complaint failed with
+  // INVALID_FLAT). Same source as the website's complaint form.
+  const me = useMyContext();
+  const societyId = me.societyId ?? null;
+  const reporterFlatId = me.flatId ?? null;
 
   // Build schema once per render to bind the localized error message.
   const schema = useMemo(
