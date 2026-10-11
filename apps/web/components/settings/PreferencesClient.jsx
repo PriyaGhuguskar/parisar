@@ -178,7 +178,7 @@ export function PreferencesClient({ societyId, initialPrefs }) {
             return (
               <div
                 key={col}
-                className={`flex items-center gap-3 min-h-[56px] ${
+                className={`flex items-center gap-3 min-h-14 ${
                   idx < MUTE_ROWS.length - 1 ? "border-b border-neutral-100" : ""
                 }`}
               >
@@ -236,7 +236,7 @@ export function PreferencesClient({ societyId, initialPrefs }) {
         <h2 className="text-xl font-semibold text-[#171717]">{t("prefs.capHeading")}</h2>
         <p className="text-base text-[#525252]">{t("prefs.capSubhead")}</p>
         <Select value={String(state.cap_per_day)} onValueChange={updateCap}>
-          <SelectTrigger className="w-full max-w-[200px]">
+          <SelectTrigger className="w-full max-w-50">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

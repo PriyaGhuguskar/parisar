@@ -36,7 +36,7 @@ import {
 } from "../../actions/codeLogin";
 
 const PIN_FIELD =
-  "h-14 w-full rounded-2xl border bg-[var(--color-neutral-0)] px-4 text-center text-[24px] font-bold tracking-[0.5em] outline-none transition-[border-color,box-shadow] duration-150 placeholder:tracking-[0.35em] placeholder:text-[var(--color-neutral-400)] focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]";
+  "h-14 w-full rounded-2xl border bg-(--color-neutral-0) px-4 text-center text-[24px] font-bold tracking-[0.5em] outline-none transition-[border-color,box-shadow] duration-150 placeholder:tracking-[0.35em] placeholder:text-neutral-400 focus:border-(--color-brand-500) focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]";
 
 function weakPin(p) {
   return p === "1234" || /^(\d)\1{3}$/.test(p); // 1234 or four identical
@@ -357,7 +357,7 @@ function VerifyForm() {
               setReset(true);
               setStage("setpin");
             }}
-            className="self-center text-[13px] font-semibold text-[var(--color-brand-600)] hover:underline"
+            className="self-center text-[13px] font-semibold text-(--color-brand-600) hover:underline"
           >
             {t("auth.pinForgot")}
           </button>
@@ -380,7 +380,7 @@ function VerifyForm() {
     >
       <form onSubmit={onSetPin} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
+          <span className="text-[13px] font-bold text-neutral-900">
             {t("auth.pinLabel")}
           </span>
           <input
@@ -398,7 +398,7 @@ function VerifyForm() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
+          <span className="text-[13px] font-bold text-neutral-900">
             {t("auth.setPinConfirm")}
           </span>
           <input
@@ -432,16 +432,16 @@ function Shell({ heading, sub, extra, phone, children }) {
         <DevOtpHint phone={phone} />
         <a
           href="/login"
-          className="self-start text-[13px] font-semibold text-[var(--color-neutral-600)] hover:underline"
+          className="self-start text-[13px] font-semibold text-neutral-600 hover:underline"
         >
           ‹ Change number
         </a>
         <div className="flex flex-col gap-2">
-          <h2 className="text-[30px] font-extrabold leading-[1.12] tracking-[-0.03em] text-[var(--color-neutral-900)]">
+          <h2 className="text-[30px] font-extrabold leading-[1.12] tracking-[-0.03em] text-neutral-900">
             {heading}
           </h2>
-          <p className="text-[15px] leading-relaxed text-[var(--color-neutral-600)]">{sub}</p>
-          {extra ? <p className="text-[13px] text-[var(--color-neutral-400)]">{extra}</p> : null}
+          <p className="text-[15px] leading-relaxed text-neutral-600">{sub}</p>
+          {extra ? <p className="text-[13px] text-neutral-400">{extra}</p> : null}
         </div>
         {children}
       </div>

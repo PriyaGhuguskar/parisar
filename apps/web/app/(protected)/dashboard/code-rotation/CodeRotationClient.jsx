@@ -27,7 +27,7 @@ const STATE_ERROR = "error";
 function CodePill({ value }) {
   const { t } = useTranslation("auth");
   return (
-    <div className="bg-[var(--color-neutral-100)] rounded-lg p-3 mb-4 text-center">
+    <div className="bg-neutral-100 rounded-lg p-3 mb-4 text-center">
       {/* aria-label is not valid on a plain span; screen readers get the
           sr-only sentence and skip the bare glyphs. */}
       <span className="sr-only">
@@ -35,7 +35,7 @@ function CodePill({ value }) {
       </span>
       <span
         aria-hidden="true"
-        className="font-mono text-xl font-semibold text-[var(--color-brand-500)] tracking-widest select-all"
+        className="font-mono text-xl font-semibold text-(--color-brand-500) tracking-widest select-all"
       >
         {value ?? "—"}
       </span>
@@ -189,7 +189,7 @@ export function CodeRotationClient({ societyId }) {
             <span className="sr-only">{t("common.loading")}</span>
             <span
               aria-hidden="true"
-              className="h-8 w-8 rounded-full border-4 border-[var(--color-brand-500)] border-t-transparent animate-spin"
+              className="h-8 w-8 rounded-full border-4 border-(--color-brand-500) border-t-transparent animate-spin"
             />
           </output>
         </>
@@ -203,13 +203,13 @@ export function CodeRotationClient({ societyId }) {
           <DialogHeader>
             <DialogTitle>{t("codeRotation.title")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-[var(--color-danger)] py-4" role="alert">
+          <p className="text-sm text-(--color-danger) py-4" role="alert">
             {error}
           </p>
           <button
             type="button"
             onClick={handleDone}
-            className="h-10 w-full rounded-xl border border-[var(--color-neutral-200)] text-sm font-semibold text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-50)] transition-colors"
+            className="h-10 w-full rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-900 hover:bg-(--color-neutral-50) transition-colors"
           >
             {t("common.goBack")}
           </button>
@@ -234,14 +234,14 @@ export function CodeRotationClient({ societyId }) {
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="block h-12 w-full rounded-xl bg-green-600 text-white text-sm font-semibold flex items-center justify-center hover:bg-green-700 transition-colors mb-2"
+            className="h-12 w-full rounded-xl bg-green-600 text-white text-sm font-semibold flex items-center justify-center hover:bg-green-700 transition-colors mb-2"
           >
             {t("setup.step6.shareWhatsApp")}
           </a>
           <button
             type="button"
             onClick={handleDone}
-            className="h-10 w-full rounded-xl border border-[var(--color-neutral-200)] text-sm font-semibold text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-50)] transition-colors"
+            className="h-10 w-full rounded-xl border border-neutral-200 text-sm font-semibold text-neutral-900 hover:bg-(--color-neutral-50) transition-colors"
           >
             {t("common.done")}
           </button>
@@ -265,7 +265,7 @@ export function CodeRotationClient({ societyId }) {
           <button
             type="button"
             onClick={handleDone}
-            className="h-10 w-full rounded-xl bg-[var(--color-brand-500)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            className="h-10 w-full rounded-xl bg-(--color-brand-500) text-white text-sm font-semibold hover:opacity-90 transition-opacity"
           >
             {t("common.done")}
           </button>
@@ -288,12 +288,12 @@ export function CodeRotationClient({ societyId }) {
               className="text-amber-500 shrink-0 mt-0.5"
               aria-hidden="true"
             />
-            <p className="text-sm text-[var(--color-neutral-700)]">
+            <p className="text-sm text-neutral-700">
               {t("dashboard.code.pausedAlert")}
             </p>
           </div>
           {error && (
-            <p className="text-sm text-[var(--color-danger)] mb-3" role="alert">
+            <p className="text-sm text-(--color-danger) mb-3" role="alert">
               {error}
             </p>
           )}
@@ -302,7 +302,7 @@ export function CodeRotationClient({ societyId }) {
             type="button"
             onClick={handleResume}
             disabled={working}
-            className="h-12 w-full rounded-xl bg-[var(--color-brand-500)] text-white text-sm font-semibold mb-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 w-full rounded-xl bg-(--color-brand-500) text-white text-sm font-semibold mb-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {working ? t("common.working") : t("codeRotation.resume")}
           </button>
@@ -311,7 +311,7 @@ export function CodeRotationClient({ societyId }) {
             type="button"
             onClick={handleRotate}
             disabled={working}
-            className="h-10 w-full rounded-xl border border-[var(--color-danger)] text-[var(--color-danger)] text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 w-full rounded-xl border border-(--color-danger) text-(--color-danger) text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("codeRotation.rotateToNew")}
           </button>
@@ -327,12 +327,12 @@ export function CodeRotationClient({ societyId }) {
         </DialogHeader>
         <CodePill value={currentCode} />
         {/* Warning block */}
-        <div className="bg-[var(--color-neutral-100)] rounded-xl p-4 flex items-start gap-3 mb-4">
+        <div className="bg-neutral-100 rounded-xl p-4 flex items-start gap-3 mb-4">
           <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-sm text-[var(--color-neutral-700)]">{t("codeRotation.warning")}</p>
+          <p className="text-sm text-neutral-700">{t("codeRotation.warning")}</p>
         </div>
         {error && (
-          <p className="text-sm text-[var(--color-danger)] mb-3" role="alert">
+          <p className="text-sm text-(--color-danger) mb-3" role="alert">
             {error}
           </p>
         )}
@@ -341,7 +341,7 @@ export function CodeRotationClient({ societyId }) {
           type="button"
           onClick={handleRotate}
           disabled={working}
-          className="h-12 w-full rounded-xl bg-[var(--color-danger)] text-white text-sm font-semibold mb-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-12 w-full rounded-xl bg-(--color-danger) text-white text-sm font-semibold mb-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {working ? t("codeRotation.rotating") : t("codeRotation.confirm")}
         </button>
@@ -350,7 +350,7 @@ export function CodeRotationClient({ societyId }) {
           type="button"
           onClick={handleDone}
           disabled={working}
-          className="h-10 w-full rounded-xl border border-[var(--color-neutral-200)] text-[var(--color-neutral-900)] text-sm font-semibold hover:bg-[var(--color-neutral-50)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-10 w-full rounded-xl border border-neutral-200 text-neutral-900 text-sm font-semibold hover:bg-(--color-neutral-50) transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("codeRotation.cancel")}
         </button>
@@ -360,7 +360,7 @@ export function CodeRotationClient({ societyId }) {
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[400px]" showCloseButton={screenState !== STATE_LOADING}>
+      <DialogContent className="max-w-100" showCloseButton={screenState !== STATE_LOADING}>
         {renderContent()}
       </DialogContent>
     </Dialog>

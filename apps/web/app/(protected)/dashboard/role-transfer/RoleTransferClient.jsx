@@ -61,16 +61,16 @@ function EligibleMemberRow({ membership, isSelected, onSelect }) {
       onClick={onSelect}
       className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-colors text-left ${
         isSelected
-          ? "bg-[var(--color-brand-50)] border border-[var(--color-brand-500)]"
-          : "bg-white border border-[var(--color-neutral-200)] hover:bg-[var(--color-neutral-50)]"
+          ? "bg-(--color-brand-50) border border-(--color-brand-500)"
+          : "bg-white border border-neutral-200 hover:bg-(--color-neutral-50)"
       }`}
     >
       {/* Radio indicator */}
       <div
         className={`size-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
           isSelected
-            ? "border-[var(--color-brand-500)] bg-[var(--color-brand-500)]"
-            : "border-[var(--color-neutral-200)]"
+            ? "border-(--color-brand-500) bg-(--color-brand-500)"
+            : "border-neutral-200"
         }`}
       >
         {isSelected && <div className="size-2 rounded-full bg-white" />}
@@ -85,8 +85,8 @@ function EligibleMemberRow({ membership, isSelected, onSelect }) {
 
       {/* Name + flat + role */}
       <div className="flex-1 min-w-0">
-        <p className="text-base font-medium text-[var(--color-neutral-900)] truncate">{name}</p>
-        <p className="text-sm text-[var(--color-neutral-600)]">
+        <p className="text-base font-medium text-neutral-900 truncate">{name}</p>
+        <p className="text-sm text-neutral-600">
           {[flatLabel, roleLabel].filter(Boolean).join(" · ")}
         </p>
       </div>
@@ -199,30 +199,30 @@ export function RoleTransferClient({ societyId }) {
   const selectedName = selectedMember?.profiles?.full_name ?? "";
 
   return (
-    <div className="min-h-screen bg-[var(--color-neutral-50)]">
+    <div className="min-h-screen bg-(--color-neutral-50)">
       {/* Header */}
-      <header className="bg-white border-b border-[var(--color-neutral-200)] px-4 h-14 flex items-center gap-3">
+      <header className="bg-white border-b border-neutral-200 px-4 h-14 flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="flex items-center gap-1 text-[var(--color-neutral-600)] hover:text-[var(--color-neutral-900)] transition-colors"
+          className="flex items-center gap-1 text-neutral-600 hover:text-neutral-900 transition-colors"
           aria-label={t("common.backToDashboard")}
         >
           <ArrowLeft size={20} />
         </Link>
-        <h1 className="text-xl font-semibold text-[var(--color-neutral-900)]">
+        <h1 className="text-xl font-semibold text-neutral-900">
           {t("roleTransfer.heading")}
         </h1>
       </header>
 
-      <main className="max-w-[480px] mx-auto px-4 py-6">
+      <main className="max-w-120 mx-auto px-4 py-6">
         {/* Warning banner */}
-        <div className="flex items-start gap-3 rounded-xl border-[1.5px] border-[var(--color-danger)] bg-[#fff5f5] p-4 mb-6">
+        <div className="flex items-start gap-3 rounded-xl border-[1.5px] border-(--color-danger) bg-[#fff5f5] p-4 mb-6">
           <AlertOctagon
             size={20}
-            className="text-[var(--color-danger)] shrink-0 mt-0.5"
+            className="text-(--color-danger) shrink-0 mt-0.5"
             aria-hidden="true"
           />
-          <p className="text-base text-[var(--color-neutral-700)]">{t("roleTransfer.warning")}</p>
+          <p className="text-base text-neutral-700">{t("roleTransfer.warning")}</p>
         </div>
 
         {/* Error */}
@@ -247,7 +247,7 @@ export function RoleTransferClient({ societyId }) {
         {/* Eligible member list */}
         {!loading && eligible.length > 0 && (
           <>
-            <h2 className="text-xl font-semibold text-[var(--color-neutral-900)] mb-4">
+            <h2 className="text-xl font-semibold text-neutral-900 mb-4">
               {t("roleTransfer.selectLabel")}
             </h2>
             <div className="flex flex-col gap-3 mb-8">
@@ -266,7 +266,7 @@ export function RoleTransferClient({ societyId }) {
               type="button"
               disabled={!selectedMember}
               onClick={() => setShowDialog(true)}
-              className="h-12 w-full rounded-xl bg-[var(--color-danger)] text-white text-base font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="h-12 w-full rounded-xl bg-(--color-danger) text-white text-base font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {t("roleTransfer.confirmCta")}
             </button>
@@ -276,7 +276,7 @@ export function RoleTransferClient({ societyId }) {
         {/* No eligible members */}
         {!loading && eligible.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <p className="text-base text-[var(--color-neutral-600)] text-center">
+            <p className="text-base text-neutral-600 text-center">
               {t("roleTransfer.noEligible")}
             </p>
           </div>

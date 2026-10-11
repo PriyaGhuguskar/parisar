@@ -32,12 +32,12 @@ const MAX_QUESTION = 200;
 const REDIRECT_DELAY_MS = 600;
 
 const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-brand-500) focus-visible:ring-offset-2";
 
 const FIELD =
-  "w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 py-2.5 text-[15px] text-[var(--color-neutral-900)] placeholder:text-[var(--color-neutral-400)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)] focus:ring-offset-2";
+  "w-full rounded-xl border border-neutral-200 bg-(--color-neutral-0) px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 transition-colors focus:border-(--color-brand-500) focus:outline-none focus:ring-2 focus:ring-(--color-brand-500) focus:ring-offset-2";
 
-const LABEL = "text-sm font-bold tracking-[-0.01em] text-[var(--color-neutral-900)]";
+const LABEL = "text-sm font-bold tracking-[-0.01em] text-neutral-900";
 
 function cryptoRandomUUIDClient() {
   const g = globalThis.crypto;
@@ -251,7 +251,7 @@ export function NoticeComposer({ societyId }) {
           {t("notifications:notice.attachLabel")}
         </label>
         {attachment ? (
-          <div className="flex items-center gap-3 rounded-[14px] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)] p-3">
+          <div className="flex items-center gap-3 rounded-[14px] border border-neutral-200 bg-neutral-100 p-3">
             <span
               aria-hidden="true"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
@@ -259,14 +259,14 @@ export function NoticeComposer({ societyId }) {
             >
               <FileText size={18} strokeWidth={2} />
             </span>
-            <span className="flex-1 truncate text-sm font-semibold text-[var(--color-neutral-900)]">
+            <span className="flex-1 truncate text-sm font-semibold text-neutral-900">
               {attachment.fileName}
             </span>
             <button
               type="button"
               onClick={removeAttachment}
               aria-label={t("notifications:notice.removeAttachment")}
-              className={`pk-press inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-neutral-200)] text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-100)] ${FOCUS_RING}`}
+              className={`pk-press inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-neutral-600 transition-colors hover:bg-neutral-100 ${FOCUS_RING}`}
             >
               <X size={16} aria-hidden="true" />
             </button>
@@ -274,7 +274,7 @@ export function NoticeComposer({ societyId }) {
         ) : (
           <label
             htmlFor="notice-attachment"
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-dashed border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)] text-sm font-semibold text-[var(--color-neutral-400)] transition-colors hover:border-[var(--color-brand-500)] hover:text-[var(--color-brand-600)] focus-within:ring-2 focus-within:ring-[var(--color-brand-500)] focus-within:ring-offset-2"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-dashed border-neutral-200 bg-neutral-100 text-sm font-semibold text-neutral-400 transition-colors hover:border-(--color-brand-500) hover:text-(--color-brand-600) focus-within:ring-2 focus-within:ring-(--color-brand-500) focus-within:ring-offset-2"
             style={{ height: 96 }}
           >
             <input
@@ -308,7 +308,7 @@ export function NoticeComposer({ societyId }) {
 
       {/* Poll builder */}
       {pollOpen ? (
-        <div className="flex flex-col gap-3 rounded-[18px] border border-[var(--color-neutral-200)] bg-[var(--color-brand-50)] p-4">
+        <div className="flex flex-col gap-3 rounded-[18px] border border-neutral-200 bg-(--color-brand-50) p-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="poll-question" className={LABEL}>
               {t("polls:poll.questionLabel")}
@@ -340,7 +340,7 @@ export function NoticeComposer({ societyId }) {
                   type="button"
                   onClick={() => removeOption(idx)}
                   aria-label={t("polls:poll.removeOption", { n: idx + 1 })}
-                  className={`pk-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-200)] ${FOCUS_RING}`}
+                  className={`pk-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-neutral-200 ${FOCUS_RING}`}
                 >
                   <X size={16} aria-hidden="true" />
                 </button>
@@ -353,7 +353,7 @@ export function NoticeComposer({ societyId }) {
               <button
                 type="button"
                 onClick={addOption}
-                className={`pk-press inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--color-brand-500)] bg-[var(--color-neutral-0)] px-3 text-sm font-bold text-[var(--color-brand-600)] transition-colors hover:bg-[var(--color-brand-50)] ${FOCUS_RING}`}
+                className={`pk-press inline-flex h-9 items-center gap-1.5 rounded-xl border border-(--color-brand-500) bg-(--color-neutral-0) px-3 text-sm font-bold text-(--color-brand-600) transition-colors hover:bg-(--color-brand-50) ${FOCUS_RING}`}
               >
                 <Plus size={16} strokeWidth={2.4} aria-hidden="true" />
                 {t("polls:poll.addOption")}
@@ -375,7 +375,7 @@ export function NoticeComposer({ societyId }) {
         <button
           type="button"
           onClick={() => setPollOpen(true)}
-          className={`pk-press inline-flex h-11 items-center justify-center gap-1.5 self-start rounded-xl border border-[var(--color-brand-500)] bg-[var(--color-neutral-0)] px-4 text-sm font-bold text-[var(--color-brand-600)] transition-colors hover:bg-[var(--color-brand-50)] ${FOCUS_RING}`}
+          className={`pk-press inline-flex h-11 items-center justify-center gap-1.5 self-start rounded-xl border border-(--color-brand-500) bg-(--color-neutral-0) px-4 text-sm font-bold text-(--color-brand-600) transition-colors hover:bg-(--color-brand-50) ${FOCUS_RING}`}
         >
           <BarChart3 size={16} strokeWidth={2.2} aria-hidden="true" />
           {t("notifications:notice.addPoll")}
@@ -386,7 +386,7 @@ export function NoticeComposer({ societyId }) {
       <button
         type="submit"
         disabled={!canSubmit}
-        className={`pk-press pk-shine inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-brand-600)] text-[15px] font-bold text-white transition-colors hover:bg-[var(--color-brand-700)] disabled:cursor-not-allowed disabled:bg-[var(--color-neutral-200)] disabled:text-[var(--color-neutral-400)] ${FOCUS_RING}`}
+        className={`pk-press pk-shine inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-(--color-brand-600) text-[15px] font-bold text-white transition-colors hover:bg-(--color-brand-700) disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400 ${FOCUS_RING}`}
       >
         {submitting ? (
           <>
@@ -409,7 +409,7 @@ export function NoticeComposer({ societyId }) {
         <div
           role="status"
           aria-live="polite"
-          className="pk-in fixed inset-x-4 top-4 z-50 mx-auto inline-flex max-w-md items-center gap-2 rounded-[14px] border border-[var(--color-brand-500)] bg-[var(--color-brand-50)] px-4 py-3 shadow-lg"
+          className="pk-in fixed inset-x-4 top-4 z-50 mx-auto inline-flex max-w-md items-center gap-2 rounded-[14px] border border-(--color-brand-500) bg-(--color-brand-50) px-4 py-3 shadow-lg"
         >
           <CheckCircle2
             size={17}
@@ -417,7 +417,7 @@ export function NoticeComposer({ societyId }) {
             style={{ color: "var(--color-success)" }}
             aria-hidden="true"
           />
-          <span className="text-sm font-bold text-[var(--color-neutral-900)]">
+          <span className="text-sm font-bold text-neutral-900">
             {t("notifications:notice.postSuccess")}
           </span>
         </div>
