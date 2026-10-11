@@ -78,3 +78,16 @@ export async function initTranslations(lng, namespaces = NAMESPACES) {
     resources: i18n.services.resourceStore.data,
   };
 }
+
+/**
+ * Convenience for server components / server actions: read the cookie locale
+ * and return a bound `t` for the given namespaces (first one is the default).
+ *
+ * @param {string[]} namespaces
+ * @returns {Promise<{ t: Function, lng: string }>}
+ */
+export async function getServerT(namespaces) {
+  const lng = await readLocaleFromCookies();
+  const { t } = await initTranslations(lng, namespaces);
+  return { t, lng };
+}

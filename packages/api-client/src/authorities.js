@@ -3,6 +3,11 @@
 // more. All authorities currently get the same (top) society-management role.
 // Reads are RLS-scoped: only the society's authorities (and platform staff)
 // can see the list.
+//
+// Error contract: known validation / business codes are RETURNED as
+// `{ error: CODE }` (listed per function) so the UI can render localized copy;
+// any other RPC failure (network, auth, unexpected SQL error) is THROWN.
+// Reads (listSocietyAuthorities) THROW on any query error.
 
 const ADD_ERRORS = ["INVALID_NAME", "INVALID_PHONE", "ALREADY_AUTHORITY", "NOT_AUTHORITY"];
 

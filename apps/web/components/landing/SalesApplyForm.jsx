@@ -86,7 +86,14 @@ export function SalesApplyForm() {
       // 23505 is the partial unique index: an open application already exists
       // for this number. Say so plainly rather than showing a generic failure,
       // because "we already have you" is good news, not an error.
-      setErr(error.code === "23505" ? t("landing.salesErrDupe") : t("landing.salesErrGeneric"));
+      const rateLimited = String(error.message ?? "").includes("RATE_LIMITED");
+      setErr(
+        error.code === "23505"
+          ? t("landing.salesErrDupe")
+          : rateLimited
+            ? t("landing.rateLimited")
+            : t("landing.salesErrGeneric"),
+      );
       return;
     }
     setDone(true);
@@ -134,10 +141,7 @@ export function SalesApplyForm() {
                 live region would announce "10… 9… 8…" over the top of whatever
                 the person is reading. Read once in document order is enough,
                 and the link beside it is the actual escape hatch. */}
-            <p
-              className="mt-5 text-[14px]"
-              style={{ color: "var(--color-neutral-500)" }}
-            >
+            <p className="mt-5 text-[14px]" style={{ color: "var(--color-neutral-500)" }}>
               {t("landing.salesDoneRedirect", { count: left })}{" "}
               <Link href="/" className="font-semibold underline underline-offset-2">
                 {t("landing.salesDoneHomeNow")}

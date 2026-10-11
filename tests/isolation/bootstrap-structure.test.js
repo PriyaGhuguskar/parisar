@@ -1,7 +1,7 @@
 // Bootstrap Society Structure Isolation Tests
 // Covers: bootstrap_society_structure RPC (wizard Steps 2+3 backend)
 //   - Creator can batch-insert wings + flats
-//   - Non-creator raises NOT_SOCIETY_CREATOR
+//   - Non-secretary raises NOT_SOCIETY_CREATOR (054: live secretary/co_sec only)
 //   - Unknown wing_name in flats array raises WING_NOT_FOUND
 //
 // Uses:
@@ -14,9 +14,17 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   adminClient,
   cleanupTestUsers,
+  createSocietyAsSecretary,
   resetTestState,
   signInTestPhone,
 } from "./helpers/phase3.js";
+
+// Migration 054 revoked create_society_with_secretary: the society is created via
+// the service role (staff-onboarding state), then the secretary drives the RPC.
+async function createSociety(userId, name) {
+  const { societyId } = await createSocietyAsSecretary(userId, { name });
+  return { society_id: societyId };
+}
 
 afterAll(async () => {
   await resetTestState();
@@ -30,15 +38,7 @@ describe("Phase 3 — bootstrap_society_structure (creator-gate + wings/flats ba
 
   it("bootstrap_society_structure inserts wings + flats for the society creator, returns inserted ids", async () => {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created, error: createError } = await sec.client.rpc(
-      "create_society_with_secretary",
-      {
-        p_name: "Bootstrap Society",
-        p_address: "1 Bootstrap Avenue, Mumbai, MH 400001",
-        p_co_secretary_phone: "9000000002",
-      },
-    );
-    expect(createError).toBeNull();
+    const created = await createSociety(sec.userId, "Bootstrap Society");
 
     const { data: result, error } = await sec.client.rpc("bootstrap_society_structure", {
       p_society_id: created.society_id,
@@ -83,11 +83,7 @@ describe("Phase 3 — bootstrap_society_structure (creator-gate + wings/flats ba
 
   it("bootstrap_society_structure raises NOT_SOCIETY_CREATOR for a different authenticated user", async () => {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created } = await sec.client.rpc("create_society_with_secretary", {
-      p_name: "Bootstrap Guarded Society",
-      p_address: "2 Guard Road, Pune, MH 411001",
-      p_co_secretary_phone: "9000000002",
-    });
+    const created = await createSociety(sec.userId, "Bootstrap Guarded Society");
 
     // Intruder signs in as a different user
     const intruder = await signInTestPhone("+919000000003", "member");
@@ -104,11 +100,7 @@ describe("Phase 3 — bootstrap_society_structure (creator-gate + wings/flats ba
 
   it("bootstrap_society_structure raises WING_NOT_FOUND when flat references an unknown wing_name", async () => {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created } = await sec.client.rpc("create_society_with_secretary", {
-      p_name: "Bootstrap WingRef Society",
-      p_address: "3 Wing Ref Street, Thane, MH 400601",
-      p_co_secretary_phone: "9000000002",
-    });
+    const created = await createSociety(sec.userId, "Bootstrap WingRef Society");
 
     const { error } = await sec.client.rpc("bootstrap_society_structure", {
       p_society_id: created.society_id,
@@ -122,11 +114,7 @@ describe("Phase 3 — bootstrap_society_structure (creator-gate + wings/flats ba
 
   it("bootstrap_society_structure with empty wings and empty flats succeeds with empty result", async () => {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created } = await sec.client.rpc("create_society_with_secretary", {
-      p_name: "Empty Bootstrap Society",
-      p_address: "4 Empty Road, Aurangabad, MH 431001",
-      p_co_secretary_phone: "9000000002",
-    });
+    const created = await createSociety(sec.userId, "Empty Bootstrap Society");
 
     const { data: result, error } = await sec.client.rpc("bootstrap_society_structure", {
       p_society_id: created.society_id,

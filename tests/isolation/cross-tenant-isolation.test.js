@@ -20,8 +20,9 @@
 //   - No type annotations, interfaces, or import type statements
 //   - File extension: .test.js (not .test.ts)
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // ---- Constants from supabase/seed.sql (Plan 02) ----
 const SOCIETY_A_ID = "00000000-0000-0000-0000-00000000000a";
@@ -109,10 +110,7 @@ async function ensureUser(email, password) {
 async function ensureProfile(userId, fullName, phone) {
   const { error } = await adminClient
     .from("profiles")
-    .upsert(
-      { user_id: userId, full_name: fullName, phone },
-      { onConflict: "phone" },
-    );
+    .upsert({ user_id: userId, full_name: fullName, phone }, { onConflict: "phone" });
   if (error) {
     throw new Error(`ensureProfile(${phone}): ${error.message}`);
   }
@@ -236,13 +234,7 @@ describe("Custom Access Token Auth Hook", () => {
 
 describe("RLS — cross-tenant SELECT returns zero rows", () => {
   // For each tenant-scoped table, Alice (Society A) must see ZERO rows that belong to Society B.
-  const TENANT_TABLES = [
-    "societies",
-    "society_codes",
-    "wings",
-    "flats",
-    "society_memberships",
-  ];
+  const TENANT_TABLES = ["societies", "society_codes", "wings", "flats", "society_memberships"];
 
   for (const table of TENANT_TABLES) {
     it(`Alice cannot SELECT Society B rows from ${table}`, async () => {
@@ -303,8 +295,9 @@ describe("RLS — cross-tenant INSERT is rejected", () => {
 
 describe("Storage RLS — cross-tenant upload is rejected", () => {
   it("Alice CANNOT upload to Society B prefix in parisar-attachments", async () => {
-    const path = `${SOCIETY_B_ID}/test-cross-tenant-${Date.now()}.txt`;
-    const blob = new Blob(["isolation test"], { type: "text/plain" });
+    // 054 storage shape: {society}/{complaints|...}/{uuid}/{file}; 057: image/PDF only.
+    const path = `${SOCIETY_B_ID}/complaints/${randomUUID()}/cross-tenant-${Date.now()}.jpg`;
+    const blob = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" });
     const { data, error } = await alice.client.storage
       .from("parisar-attachments")
       .upload(path, blob);
@@ -313,8 +306,8 @@ describe("Storage RLS — cross-tenant upload is rejected", () => {
   });
 
   it("Alice CAN upload to Society A prefix in parisar-attachments", async () => {
-    const filePath = `${SOCIETY_A_ID}/isolation-positive-${Date.now()}.txt`;
-    const blob = new Blob(["alice's own society"], { type: "text/plain" });
+    const filePath = `${SOCIETY_A_ID}/complaints/${randomUUID()}/isolation-positive-${Date.now()}.jpg`;
+    const blob = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" });
     const { data, error } = await alice.client.storage
       .from("parisar-attachments")
       .upload(filePath, blob);
@@ -327,9 +320,7 @@ describe("Storage RLS — cross-tenant upload is rejected", () => {
 
 describe("Sanity — own-society reads return expected rows", () => {
   it("Alice CAN read Society A from societies", async () => {
-    const { data, error } = await alice.client
-      .from("societies")
-      .select("id, name");
+    const { data, error } = await alice.client.from("societies").select("id, name");
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
     expect(data?.[0]?.id).toBe(SOCIETY_A_ID);
@@ -337,9 +328,7 @@ describe("Sanity — own-society reads return expected rows", () => {
   });
 
   it("Bob CAN read Society B from societies", async () => {
-    const { data, error } = await bob.client
-      .from("societies")
-      .select("id, name");
+    const { data, error } = await bob.client.from("societies").select("id, name");
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
     expect(data?.[0]?.id).toBe(SOCIETY_B_ID);

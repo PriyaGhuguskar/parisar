@@ -18,7 +18,7 @@
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { requestBookingAction } from "../../app/actions/bookings";
 import { Calendar } from "../ui/calendar";
@@ -29,6 +29,10 @@ const MAX_PURPOSE = 300;
 const MAX_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000;
 const MIN_LEAD_MS = 60 * 60 * 1000;
+const REDIRECT_DELAY_MS = 600;
+// Society hours and bookings are IST; build instants with an explicit offset so
+// a browser in another time zone still books the wall-clock time it shows.
+const IST_OFFSET = "+05:30";
 
 // Shared field vocabulary — one label size, one control height, one focus ring.
 const LABEL_CLS = "text-[13px] font-semibold text-[var(--color-neutral-600)]";
@@ -69,12 +73,16 @@ export function validateRange({ date, start, end, amenity, nowMs = Date.now() })
 
   if (endMin <= startMin) return { ok: false, errorCode: "time_order" };
 
-  const startsAt = new Date(date);
-  startsAt.setHours(0, 0, 0, 0);
-  startsAt.setMinutes(startMin);
-  const endsAt = new Date(date);
-  endsAt.setHours(0, 0, 0, 0);
-  endsAt.setMinutes(endMin);
+  // `date` is the calendar day the user picked (local midnight) — only its
+  // y-m-d is used; the time of day is interpreted as IST.
+  const ymd = format(date, "yyyy-MM-dd");
+  const hhmm = (min) =>
+    `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+  const startsAt = new Date(`${ymd}T${hhmm(startMin)}:00${IST_OFFSET}`);
+  const endsAt = new Date(`${ymd}T${hhmm(endMin)}:00${IST_OFFSET}`);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    return { ok: false, errorCode: null };
+  }
 
   const durationMs = endsAt.getTime() - startsAt.getTime();
   if (durationMs > MAX_DURATION_MS) return { ok: false, errorCode: "duration" };
@@ -100,14 +108,6 @@ export function validateRange({ date, start, end, amenity, nowMs = Date.now() })
 export function BookingForm({ amenities, hasAmenities }) {
   const { t } = useTranslation("bookings");
   // PAR-001 fix: copy uses t(), so this table is built inside the component.
-  const ERROR_COPY = {
-    time_order: t("booking.timeOrderError"),
-    lead_time: t("booking.leadTimeError"),
-    too_far: t("booking.durationError"),
-    duration: t("booking.durationError"),
-    hours: t("booking.hoursError"),
-    submit_failed: t("booking.submitError"),
-  };
   const router = useRouter();
 
   const [amenityId, setAmenityId] = useState("");
@@ -119,11 +119,32 @@ export function BookingForm({ amenities, hasAmenities }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  // Stays true through the redirect delay so the form can't be re-submitted.
+  const [submitted, setSubmitted] = useState(false);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(redirectTimerRef.current), []);
 
   const amenity = useMemo(
     () => amenities.find((a) => a.id === amenityId) ?? null,
     [amenities, amenityId],
   );
+
+  // PAR-001 fix: copy uses t(), so this table is built inside the component.
+  const hoursParams = {
+    open: amenity?.open_time ? String(amenity.open_time).slice(0, 5) : "—",
+    close: amenity?.close_time ? String(amenity.close_time).slice(0, 5) : "—",
+  };
+  const ERROR_COPY = {
+    time_order: t("booking.timeOrderError"),
+    invalid_time: t("booking.timeOrderError"),
+    lead_time: t("booking.leadTimeError"),
+    too_far: t("booking.tooFarError"),
+    duration: t("booking.durationError"),
+    hours: t("booking.hoursError", hoursParams),
+    too_many_pending: t("booking.tooManyPendingError"),
+    submit_failed: t("booking.submitError"),
+  };
 
   const today = useMemo(() => {
     const d = new Date();
@@ -140,7 +161,14 @@ export function BookingForm({ amenities, hasAmenities }) {
     !validation.ok && validation.errorCode ? ERROR_COPY[validation.errorCode] : null;
 
   const canSubmit =
-    !!amenityId && !!date && !!start && !!end && validation.ok && !submitting && hasAmenities;
+    !!amenityId &&
+    !!date &&
+    !!start &&
+    !!end &&
+    validation.ok &&
+    !submitting &&
+    !submitted &&
+    hasAmenities;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -158,11 +186,12 @@ export function BookingForm({ amenities, hasAmenities }) {
         setSubmitError(ERROR_COPY[result.error] ?? t("booking.submitError"));
         return;
       }
+      setSubmitted(true);
       setSuccessOpen(true);
-      setTimeout(() => {
+      redirectTimerRef.current = setTimeout(() => {
         router.push("/bookings");
         router.refresh();
-      }, 600);
+      }, REDIRECT_DELAY_MS);
     } catch {
       setSubmitError(t("booking.submitError"));
     } finally {
@@ -258,7 +287,7 @@ export function BookingForm({ amenities, hasAmenities }) {
         <div className="flex items-center gap-2">
           <input
             type="time"
-            aria-label="Start time"
+            aria-label={t("booking.startTimeLabel")}
             value={start}
             onChange={(e) => setStart(e.target.value)}
             disabled={!hasAmenities}
@@ -269,7 +298,7 @@ export function BookingForm({ amenities, hasAmenities }) {
           </span>
           <input
             type="time"
-            aria-label="End time"
+            aria-label={t("booking.endTimeLabel")}
             value={end}
             onChange={(e) => setEnd(e.target.value)}
             disabled={!hasAmenities}

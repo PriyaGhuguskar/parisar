@@ -8,6 +8,7 @@
 import { Ban, PauseCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { signOutAction } from "@/app/actions/auth";
+import { resetDashboardSummary } from "@/lib/dashboard-summary-store";
 
 export function ServiceStatusScreen({ status, societyName, reason, changedAt }) {
   const { t } = useTranslation("auth");
@@ -63,7 +64,7 @@ export function ServiceStatusScreen({ status, societyName, reason, changedAt }) 
 
         <p className="mt-5 text-[13px] text-[var(--color-neutral-600)]">{t("service.help")}</p>
 
-        <form action={signOutAction} className="mt-5">
+        <form action={signOutAction} onSubmit={() => resetDashboardSummary()} className="mt-5">
           <button
             type="submit"
             className="w-full rounded-xl border border-[var(--color-neutral-200)] px-4 py-2.5 text-[14px] font-bold text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-100)]"

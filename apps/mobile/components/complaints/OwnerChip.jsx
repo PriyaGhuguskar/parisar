@@ -12,7 +12,8 @@
 
 import { User } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 /**
  * @param {{ ownerName?: string|null, ownerFlat?: string|null, label?: string|null }} props

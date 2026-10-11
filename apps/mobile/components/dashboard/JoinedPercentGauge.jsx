@@ -2,8 +2,9 @@ import { fetchJoinPercent } from "@parisar/api-client";
 import { CheckCircle2 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, Text, View } from "react-native";
+import { AppState, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
+import { Text } from "../ui/Text";
 
 /**
  * JoinedPercentGauge — polled join-% card for the Secretary onboarding dashboard (mobile).
@@ -75,7 +76,7 @@ export function JoinedPercentGauge({ societyId, pollIntervalMs = 30000 }) {
         /* Loading placeholder */
         <View
           className="h-3 w-full rounded-full bg-neutral-100"
-          accessibilityLabel="Loading join percentage"
+          accessibilityLabel={t("dashboard.joinedPercent.loading")}
         />
       ) : (
         <>

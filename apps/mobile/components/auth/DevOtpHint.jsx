@@ -14,7 +14,8 @@
 // Intentionally NOT internationalized: it is developer-facing, never ships to users,
 // and adding keys would trip the en≡hi≡mr i18n-coverage CI gate for a dev-only string.
 
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const DEV_OTP = "123456";
 

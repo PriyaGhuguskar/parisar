@@ -24,7 +24,9 @@
 import { Image } from "expo-image";
 import { Ban, Check, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { Text } from "../ui/Text";
 
 const BRAND_500 = "#12715A";
 const SUCCESS_500 = "#047857";
@@ -56,6 +58,7 @@ export function ImageSafetyState({
   onRemove,
   size = 80,
 }) {
+  const { t } = useTranslation(["community", "auth"]);
   // Brief success badge on PASS, then it fades out (200ms visible window).
   const [showPassBadge, setShowPassBadge] = useState(false);
   useEffect(() => {
@@ -64,8 +67,8 @@ export function ImageSafetyState({
       return undefined;
     }
     setShowPassBadge(true);
-    const t = setTimeout(() => setShowPassBadge(false), 1200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowPassBadge(false), 1200);
+    return () => clearTimeout(timer);
   }, [state]);
 
   const rejected = state === "reject";
@@ -86,7 +89,7 @@ export function ImageSafetyState({
         borderColor: rejected ? DANGER_500 : "transparent",
       }}
       accessibilityRole="image"
-      accessibilityLabel={`Photo ${state}`}
+      accessibilityLabel={t(`community.photoState.${state}`)}
     >
       {uri ? (
         <Image source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
@@ -155,7 +158,7 @@ export function ImageSafetyState({
             onRemove?.();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Remove photo"
+          accessibilityLabel={t("auth:common.removePhoto")}
           style={{
             position: "absolute",
             top: 4,

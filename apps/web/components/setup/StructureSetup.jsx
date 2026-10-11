@@ -20,7 +20,7 @@ import { Building2, Loader2, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setPin as setPinAction } from "@/app/actions/codeLogin";
+import { setMyPin } from "@/app/actions/codeLogin";
 import { FloorFlats } from "@/components/structure/FloorFlats";
 import { buildFlats, initialFloors } from "@/lib/flats/floors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -28,7 +28,14 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 const field =
   "h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[15px] outline-none transition-[border-color,box-shadow] focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
 
-export function StructureSetup({ societyId, initialName = "", phone = "", userId = null }) {
+// setMyPin error code → localized copy (never the raw code).
+function pinErrorCopy(code, t) {
+  if (code === "WEAK_PIN" || code === "INVALID_PIN") return t("auth.setPinWeak");
+  if (code === "REAUTH_REQUIRED") return t("auth.reauthRequired");
+  return t("auth.structErr");
+}
+
+export function StructureSetup({ societyId, initialName = "" }) {
   const { t } = useTranslation("auth");
   const router = useRouter();
 
@@ -151,9 +158,14 @@ export function StructureSetup({ societyId, initialName = "", phone = "", userId
     }
     if (pin !== pin2) return setErr(t("auth.setPinMismatch"));
     setBusy(true);
-    const res = await setPinAction(userId, phone, pin);
+    let res;
+    try {
+      res = await setMyPin(pin);
+    } catch {
+      res = { error: "SERVER_ERROR" };
+    }
     if (res?.error) {
-      setErr(t("auth.structErr"));
+      setErr(pinErrorCopy(res.error, t));
       setBusy(false);
       return;
     }

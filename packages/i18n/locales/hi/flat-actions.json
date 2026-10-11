@@ -52,6 +52,21 @@
     "emptyHeadingBoard": "अभी तक कोई फ्लैट कार्रवाई नहीं",
     "emptyBodyBoard": "जारी की गई चेतावनी, जुर्माने और सूचनाएं यहां दिखाई देंगी।",
     "loadError": "फ्लैट कार्रवाई लोड नहीं हो सकी",
-    "push": { "body": "Your flat has a new notice" }
+    "push": { "body": "Your flat has a new notice" },
+    "back": "वापस",
+    "pdfAttachedName": "उपनियम / AGM प्रस्ताव (PDF)",
+    "removePdf": "PDF हटाएँ",
+    "allFlats": "सभी फ़्लैट",
+    "notFoundTitle": "कार्रवाई नहीं मिली",
+    "notFoundBody": "यह कार्रवाई हटा दी गई हो सकती है, या आपको इसे देखने की अनुमति नहीं है।",
+    "backToList": "फ्लैट कार्रवाइयों पर वापस जाएं",
+    "amountInvalid": "1 से 10,00,000 के बीच पूरे रुपये की राशि दर्ज करें (पैसे नहीं)।",
+    "backToDashboard": "डैशबोर्ड पर वापस जाएँ",
+    "dashboardLink": "डैशबोर्ड",
+    "boardTitle": "फ़्लैट कार्रवाइयाँ — सोसाइटी",
+    "tabAll": "सभी",
+    "openActionLabel": "फ़्लैट कार्रवाई खोलें: {{excerpt}}",
+    "tryAgain": "फिर से कोशिश करें",
+    "cancel": "रद्द करें"
   }
 }

@@ -10,7 +10,9 @@ import { Check, DoorOpen, LogOut, ShieldCheck, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SosAlerts } from "@/components/sos/SosAlerts";
+import { resetDashboardSummary } from "@/lib/dashboard-summary-store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "../shared/realtime";
 
 const FIELD =
   "h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
@@ -23,12 +25,29 @@ const STATUS = {
   },
   denied: { key: "visitor.statusDenied", cls: "bg-[#FCE9E6] text-[var(--color-danger)]" },
   cancelled: {
-    key: "visitor.statusDenied",
+    key: "visitor.statusCancelled",
+    cls: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-500)]",
+  },
+  expired: {
+    key: "visitor.statusExpired",
     cls: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-500)]",
   },
 };
 
-export function GuardClient({ guardName, societyName }) {
+// guard_create_visit error code → i18n key (contract-055 adds VISIT_RATE_LIMITED).
+function raiseErrorKey(code) {
+  const c = String(code ?? "");
+  if (c.includes("VISIT_RATE_LIMITED")) return "visitor.rateLimited";
+  if (c.includes("INVALID_VISITOR")) return "visitor.nameRequired";
+  if (c.includes("FLAT_NOT_IN_SOCIETY")) return "visitor.flatRequired";
+  return "visitor.raiseError";
+}
+
+/**
+ * @param {{ guardName: string, societyName: string, societyId?: string|null }} props
+ *   societyId (optional) filters the realtime channel to the guard's society.
+ */
+export function GuardClient({ guardName, societyName, societyId = null }) {
   const { t } = useTranslation("auth");
 
   const [wings, setWings] = useState([]);
@@ -42,11 +61,12 @@ export function GuardClient({ guardName, societyName }) {
 
   const loadRequests = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data } = await supabase
+    const { data, error: loadError } = await supabase
       .from("visitor_requests")
       .select("id, visitor_name, purpose, status, flat_id, created_at")
       .order("created_at", { ascending: false })
       .limit(20);
+    if (loadError) return; // keep what is on screen; the next event retries
     setRequests(Array.isArray(data) ? data : []);
   }, []);
 
@@ -58,16 +78,19 @@ export function GuardClient({ guardName, societyName }) {
       .catch(() => setWings([]));
     loadRequests();
 
+    const filter = societyId ? { filter: `society_id=eq.${societyId}` } : {};
     const channel = supabase
-      .channel("guard-visits")
-      .on("postgres_changes", { event: "*", schema: "public", table: "visitor_requests" }, () =>
-        loadRequests(),
+      .channel(uniqueChannelName(`guard-visits-${societyId ?? "mine"}`))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "visitor_requests", ...filter },
+        () => loadRequests(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadRequests]);
+  }, [loadRequests, societyId]);
 
   // flat_id -> "A-101" for display
   const flatLabel = (id) => {
@@ -93,24 +116,27 @@ export function GuardClient({ guardName, societyName }) {
         purpose: purpose.trim(),
       });
       if (res?.error) {
-        setError(t("visitor.raiseError"));
-        setBusy(false);
+        setError(t(raiseErrorKey(res.error)));
         return;
       }
       setName("");
       setPhone("");
       setPurpose("");
       await loadRequests();
-    } catch {
-      setError(t("visitor.raiseError"));
+    } catch (err) {
+      setError(t(raiseErrorKey(err?.message)));
     } finally {
       setBusy(false);
     }
   }
 
   async function signOut() {
-    await createSupabaseBrowserClient().auth.signOut();
-    window.location.href = "/login";
+    resetDashboardSummary();
+    try {
+      await createSupabaseBrowserClient().auth.signOut();
+    } finally {
+      window.location.href = "/login";
+    }
   }
 
   return (
@@ -135,7 +161,7 @@ export function GuardClient({ guardName, societyName }) {
           <button
             type="button"
             onClick={signOut}
-            aria-label={t("logout")}
+            aria-label={t("auth.logout")}
             className="rounded-lg p-2 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
           >
             <LogOut size={18} strokeWidth={2} aria-hidden="true" />

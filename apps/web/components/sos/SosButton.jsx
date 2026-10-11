@@ -1,14 +1,17 @@
 "use client";
 
-// SosButton — the Emergency SOS trigger at the top of home. Opens a modal to
-// describe the emergency and choose who to alert (everyone / residents /
-// secretary+watchman / watchman only), then raises it via raise_sos.
+// SosButton — the Emergency SOS trigger at the top of home. Opens a dialog
+// (shadcn Dialog: Escape closes, focus is trapped) to describe the emergency and
+// choose who to alert (everyone / residents / secretary+watchman / watchman
+// only), then raises it via raise_sos and shows a "sent" confirmation.
+// SOS_RATE_LIMITED (3 per 10 min, contract-055) gets its own message.
 
 import { raiseSos } from "@parisar/api-client";
-import { Siren, X } from "lucide-react";
+import { CheckCircle2, Siren } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const AUDIENCES = [
   ["all", "sos.audAll"],
@@ -17,8 +20,17 @@ const AUDIENCES = [
   ["watchman", "sos.audWatch"],
 ];
 
+const MAX_DESC = 280;
+
 const DEFAULT_TRIGGER =
   "flex w-full items-center justify-center gap-2 rounded-[16px] px-5 py-3.5 text-[15px] font-extrabold tracking-[0.01em] text-white transition-transform active:scale-[0.99]";
+
+function sosErrorKey(code) {
+  const c = String(code ?? "");
+  if (c.includes("SOS_RATE_LIMITED")) return "sos.rateLimited";
+  if (c.includes("INVALID_DESC")) return "sos.descRequired";
+  return "sos.error";
+}
 
 export function SosButton({ societyId, triggerClassName }) {
   const { t } = useTranslation("auth");
@@ -26,10 +38,21 @@ export function SosButton({ societyId, triggerClassName }) {
   const [desc, setDesc] = useState("");
   const [audience, setAudience] = useState("all");
   const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState(null);
+
+  function handleOpenChange(next) {
+    if (sending) return;
+    setOpen(next);
+    if (!next) {
+      setSent(false);
+      setError(null);
+    }
+  }
 
   async function send(e) {
     e.preventDefault();
+    if (sending) return;
     setError(null);
     if (!desc.trim()) return setError(t("sos.descRequired"));
     setSending(true);
@@ -37,15 +60,14 @@ export function SosButton({ societyId, triggerClassName }) {
       const supabase = createSupabaseBrowserClient();
       const res = await raiseSos(supabase, { societyId, description: desc.trim(), audience });
       if (res?.error) {
-        setError(t("sos.error"));
-        setSending(false);
+        setError(t(sosErrorKey(res.error)));
         return;
       }
       setDesc("");
       setAudience("all");
-      setOpen(false);
-    } catch {
-      setError(t("sos.error"));
+      setSent(true);
+    } catch (err) {
+      setError(t(sosErrorKey(err?.message)));
     } finally {
       setSending(false);
     }
@@ -66,61 +88,65 @@ export function SosButton({ societyId, triggerClassName }) {
         {t("sos.button")}
       </button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,38,28,0.5)] p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("sos.title")}
-          onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}
-        >
-          <div className="w-full max-w-md rounded-t-[22px] bg-[var(--color-neutral-0)] p-6 sm:rounded-[22px]">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: "#FCE9E6", color: "var(--color-danger)" }}
-                >
-                  <Siren size={20} strokeWidth={2.3} aria-hidden="true" />
-                </span>
-                <div>
-                  <h2 className="text-[19px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
-                    {t("sos.title")}
-                  </h2>
-                  <p className="text-[13px] text-[var(--color-neutral-500)]">{t("sos.lead")}</p>
-                </div>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-md rounded-[22px] bg-[var(--color-neutral-0)] p-6 sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <span
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: "#FCE9E6", color: "var(--color-danger)" }}
+              >
+                <Siren size={20} strokeWidth={2.3} aria-hidden="true" />
+              </span>
+              <div>
+                <DialogTitle className="text-[19px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+                  {t("sos.title")}
+                </DialogTitle>
+                <DialogDescription className="text-[13px] text-[var(--color-neutral-500)]">
+                  {t("sos.lead")}
+                </DialogDescription>
               </div>
+            </div>
+          </DialogHeader>
+
+          {sent ? (
+            <output
+              aria-live="polite"
+              className="flex flex-col items-center gap-3 py-4 text-center"
+            >
+              <CheckCircle2 size={36} color="#047857" aria-hidden="true" />
+              <span className="text-[15px] font-bold text-[var(--color-neutral-900)]">
+                {t("sos.sent")}
+              </span>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                aria-label={t("profile.cancel")}
-                className="rounded-lg p-1.5 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
+                onClick={() => handleOpenChange(false)}
+                className="mt-1 rounded-xl px-5 py-2.5 text-[14px] font-bold text-[var(--color-neutral-600)] hover:bg-[var(--color-neutral-100)]"
               >
-                <X size={18} strokeWidth={2.2} aria-hidden="true" />
+                {t("sos.close")}
               </button>
-            </div>
-
+            </output>
+          ) : (
             <form onSubmit={send} className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
                   {t("sos.desc")}
                 </span>
                 <textarea
-                  // biome-ignore lint/a11y/noAutofocus: first field of an explicitly-opened dialog
                   autoFocus
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   placeholder={t("sos.descPh")}
                   rows={3}
-                  maxLength={280}
+                  maxLength={MAX_DESC}
                   className="w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 py-3 text-[15px] outline-none focus:border-[var(--color-danger)] focus:shadow-[0_0_0_3px_#FCE9E6]"
                 />
               </label>
 
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="mb-1.5 text-[13px] font-bold text-[var(--color-neutral-900)]">
                   {t("sos.audience")}
-                </span>
+                </legend>
                 <div className="grid grid-cols-2 gap-2">
                   {AUDIENCES.map(([v, key]) => {
                     const on = audience === v;
@@ -128,6 +154,7 @@ export function SosButton({ societyId, triggerClassName }) {
                       <button
                         key={v}
                         type="button"
+                        aria-pressed={on}
                         onClick={() => setAudience(v)}
                         className="rounded-xl border px-3 py-2.5 text-[13px] font-bold transition-colors"
                         style={{
@@ -141,10 +168,12 @@ export function SosButton({ societyId, triggerClassName }) {
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
 
               {error ? (
-                <p className="text-[13px] font-semibold text-[var(--color-danger)]">{error}</p>
+                <p role="alert" className="text-[13px] font-semibold text-[var(--color-danger)]">
+                  {error}
+                </p>
               ) : null}
 
               <button
@@ -157,9 +186,9 @@ export function SosButton({ societyId, triggerClassName }) {
                 {sending ? t("sos.sending") : t("sos.send")}
               </button>
             </form>
-          </div>
-        </div>
-      ) : null}
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

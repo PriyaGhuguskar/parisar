@@ -1,4 +1,4 @@
-import { bootstrapSocietyStructure, finalizeSocietySetup } from "@parisar/api-client";
+import { bootstrapSocietyStructure } from "@parisar/api-client";
 import { X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,12 +8,12 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { FormError } from "../auth/FormError";
+import { Text } from "../ui/Text";
 import { WizardProgress } from "./WizardProgress";
 
 /**
@@ -76,7 +76,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
     const num = (flatInputs[wingName] ?? "").trim();
     if (!num) return;
     if ((flatsByWing[wingName] ?? []).includes(num)) {
-      setError(`Flat ${num} already added to Wing ${wingName}.`);
+      setError(t("setup.step3.flatDuplicate", { flat: num, wing: wingName }));
       return;
     }
     setError(null);
@@ -102,7 +102,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
     const to = parseInt(bulkTo[wingName], 10);
 
     if (isNaN(from) || isNaN(to) || from > to) {
-      setError(`Invalid range for Wing ${wingName}. From must be ≤ To.`);
+      setError(t("setup.step3.rangeInvalid", { wing: wingName }));
       return;
     }
     const count = to - from + 1;
@@ -137,7 +137,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
     // Validate: at least one flat in at least one wing
     const totalFlats = Object.values(flatsByWing).reduce((acc, arr) => acc + arr.length, 0);
     if (totalFlats === 0) {
-      setError("Please add at least one flat before continuing.");
+      setError(t("auth.structNeedFlats"));
       return;
     }
 
@@ -169,19 +169,19 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
       );
 
       if (!secretaryFlatRow) {
-        setError("Could not locate your flat. Please verify and try again.");
+        setError(t("setup.step3.flatNotFound"));
         setLoading(false);
         return;
       }
 
-      await finalizeSocietySetup(supabase, {
-        societyId,
-        flatId: secretaryFlatRow.id,
-      });
-
+      // finalize_society_setup was revoked by migration 054 — the Secretary's
+      // own flat is attached later through onboard_resident (resident flow).
       onNext({ flats: result.flats ?? [], secretaryFlatId: secretaryFlatRow.id });
     } catch (err) {
-      setError(err?.message ?? t("auth.networkError"));
+      const msg = String(err?.message ?? "");
+      setError(
+        t(msg.includes("NOT_SOCIETY_CREATOR") ? "setup.step4.errNotSecretary" : "auth.structErr"),
+      );
     } finally {
       setLoading(false);
     }
@@ -212,12 +212,14 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
           {wings.map((wingName) => (
             <View key={wingName} className="mb-6">
               {/* Wing sub-heading */}
-              <Text className="text-lg font-semibold text-neutral-900 mb-3">Wing {wingName}</Text>
+              <Text className="text-lg font-semibold text-neutral-900 mb-3">
+                {t("setup.step3.wingHeading", { wing: wingName })}
+              </Text>
 
               {/* Individual flat input */}
               <View className="flex-row gap-2 mb-3">
                 <TextInput
-                  className="flex-1 h-12 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
+                  className="flex-1 min-h-12 py-2 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
                   value={flatInputs[wingName] ?? ""}
                   onChangeText={(v) => setFlatInputs((prev) => ({ ...prev, [wingName]: v }))}
                   placeholder={t("setup.step3.flatPlaceholder")}
@@ -228,10 +230,10 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                 />
                 <TouchableOpacity
                   onPress={() => addFlat(wingName)}
-                  className="h-10 px-4 rounded-lg border border-brand-500 items-center justify-center self-center"
+                  className="min-h-10 py-2 px-4 rounded-lg border border-brand-500 items-center justify-center self-center"
                   accessibilityRole="button"
                 >
-                  <Text className="text-sm font-medium text-brand-500">Add</Text>
+                  <Text className="text-sm font-medium text-brand-500">{t("authority.add")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -248,7 +250,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                         onPress={() => removeFlat(wingName, num)}
                         className="p-1"
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove flat ${num}`}
+                        accessibilityLabel={t("setup.step4.removeMember", { name: num })}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <X size={14} color="#64748B" />
@@ -273,7 +275,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                 className="mb-2"
               >
                 <Text className="text-sm text-brand-500 underline">
-                  {bulkExpanded[wingName] ? "Hide range entry" : "Add a range"}
+                  {bulkExpanded[wingName] ? t("setup.step3.hideRange") : t("setup.step3.addRange")}
                 </Text>
               </TouchableOpacity>
 
@@ -281,29 +283,31 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
               {bulkExpanded[wingName] && (
                 <View className="flex-row gap-2 items-center mb-2">
                   <TextInput
-                    className="flex-1 h-10 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
+                    className="flex-1 min-h-10 py-2 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
                     value={bulkFrom[wingName] ?? ""}
                     onChangeText={(v) => setBulkFrom((prev) => ({ ...prev, [wingName]: v }))}
-                    placeholder="From"
+                    placeholder={t("profile.fromLabel")}
                     placeholderTextColor="#64748B"
                     keyboardType="number-pad"
                     maxLength={5}
                   />
                   <Text className="text-neutral-400">—</Text>
                   <TextInput
-                    className="flex-1 h-10 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
+                    className="flex-1 min-h-10 py-2 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
                     value={bulkTo[wingName] ?? ""}
                     onChangeText={(v) => setBulkTo((prev) => ({ ...prev, [wingName]: v }))}
-                    placeholder="To"
+                    placeholder={t("profile.toLabel")}
                     placeholderTextColor="#64748B"
                     keyboardType="number-pad"
                     maxLength={5}
                   />
                   <TouchableOpacity
                     onPress={() => addBulkRange(wingName)}
-                    className="h-10 px-3 rounded-lg bg-brand-500 items-center justify-center"
+                    className="min-h-10 py-2 px-3 rounded-lg bg-brand-500 items-center justify-center"
                   >
-                    <Text className="text-sm font-semibold text-white">Add All</Text>
+                    <Text className="text-sm font-semibold text-white">
+                      {t("setup.step3.addAll")}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -323,7 +327,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
             </Text>
 
             {/* Wing picker */}
-            <Text className="text-sm text-neutral-700 mb-1">Wing</Text>
+            <Text className="text-sm text-neutral-700 mb-1">{t("setup.step4.wingLabel")}</Text>
             <View className="flex-row flex-wrap gap-2 mb-3">
               {wings.map((w) => (
                 <TouchableOpacity
@@ -355,10 +359,10 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
             {/* Flat picker (chained on wing selection) */}
             {selectedWing ? (
               <>
-                <Text className="text-sm text-neutral-700 mb-1">Flat</Text>
+                <Text className="text-sm text-neutral-700 mb-1">{t("profile.flat")}</Text>
                 {(flatsByWing[selectedWing] ?? []).length === 0 ? (
                   <Text className="text-sm text-neutral-400">
-                    No flats added for Wing {selectedWing} yet.
+                    {t("setup.step3.noFlatsForWing", { wing: selectedWing })}
                   </Text>
                 ) : (
                   <View className="flex-row flex-wrap gap-2">
@@ -388,7 +392,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
                 )}
               </>
             ) : (
-              <Text className="text-sm text-neutral-400">Select a wing first.</Text>
+              <Text className="text-sm text-neutral-400">{t("join.wingFirst")}</Text>
             )}
           </View>
 
@@ -399,10 +403,10 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
           <View className="flex-row gap-3 mt-6">
             <TouchableOpacity
               onPress={onBack}
-              className="flex-1 h-14 rounded-xl border border-neutral-200 items-center justify-center"
+              className="flex-1 min-h-14 py-2 rounded-xl border border-neutral-200 items-center justify-center"
               accessibilityRole="button"
             >
-              <Text className="text-base font-medium text-neutral-900">Back</Text>
+              <Text className="text-base font-medium text-neutral-900">{t("auth.obBack")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -410,7 +414,7 @@ export function FlatsForm({ supabase, societyId, wings, onNext, onBack }) {
               disabled={loading}
               activeOpacity={0.8}
               className={[
-                "flex-1 h-14 rounded-xl items-center justify-center",
+                "flex-1 min-h-14 py-2 rounded-xl items-center justify-center",
                 loading ? "bg-neutral-200" : "bg-brand-500",
               ].join(" ")}
               accessibilityRole="button"

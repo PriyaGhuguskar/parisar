@@ -41,6 +41,9 @@ const MUTE_ROWS = [
 // `count(*) < cap_per_day`, so cap_per_day=0 would silently mute ALL push. Until
 // the helper treats 0 as unlimited, the web cap mirrors mobile (minimum 10/day).
 const CAP_OPTIONS = [10, 20, 30, 50];
+const DEBOUNCE_MS = 400;
+const SAVED_FLASH_MS = 1500;
+
 const DEFAULTS = {
   mute_complaints: false,
   mute_polls: false,
@@ -76,69 +79,75 @@ export function PreferencesClient({ societyId, initialPrefs }) {
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
+  // Per-key debounce timers, the "Saved" flash timer, and the last values the
+  // server confirmed (the rollback target — NOT the previous keystroke).
   const timers = useRef({});
+  const flashTimerRef = useRef(null);
+  const savedRef = useRef(null);
+  if (savedRef.current === null) savedRef.current = state;
 
-  // Debounced write (400ms per key, DD-7). Optimistic: state already updated;
-  // revert the patched keys on failure.
+  // Debounced write (400ms per key, DD-7). Optimistic: state is already updated;
+  // on failure revert that key to its last confirmed value — unless a newer edit
+  // for the same key is already queued (that edit will retry the save).
   const persist = useCallback(
-    (patch, prevSnapshot) => {
-      const key = Object.keys(patch).join(",");
-      if (timers.current[key]) clearTimeout(timers.current[key]);
+    (key, value) => {
+      clearTimeout(timers.current[key]);
       timers.current[key] = setTimeout(async () => {
+        delete timers.current[key];
         setSaveError(false);
-        const result = await updatePreferenceAction(societyId, patch);
-        if (result.ok) {
-          setSavedFlash(true);
-          setTimeout(() => setSavedFlash(false), 1500);
-        } else {
-          // Revert the optimistic change.
-          setState((s) => ({ ...s, ...prevSnapshot }));
-          setSaveError(true);
+        let ok = false;
+        try {
+          const result = await updatePreferenceAction(societyId, { [key]: value });
+          ok = !!result?.ok;
+        } catch {
+          ok = false;
         }
-      }, 400);
+        if (ok) {
+          savedRef.current = { ...savedRef.current, [key]: value };
+          setSavedFlash(true);
+          clearTimeout(flashTimerRef.current);
+          flashTimerRef.current = setTimeout(() => setSavedFlash(false), SAVED_FLASH_MS);
+          return;
+        }
+        if (!timers.current[key]) {
+          setState((s) => ({ ...s, [key]: savedRef.current[key] }));
+        }
+        setSaveError(true);
+      }, DEBOUNCE_MS);
     },
     [societyId],
   );
 
   // Clear timers on unmount.
   useEffect(() => {
-    const t = timers.current;
+    const pending = timers.current;
     return () => {
-      for (const id of Object.values(t)) clearTimeout(id);
+      for (const id of Object.values(pending)) clearTimeout(id);
+      clearTimeout(flashTimerRef.current);
     };
   }, []);
 
+  // State update and the side effect are separate — persist() never runs inside
+  // a setState updater (updaters must be pure; StrictMode calls them twice).
+  function setField(key, value) {
+    setState((s) => ({ ...s, [key]: value }));
+    persist(key, value);
+  }
+
   function toggleMute(col, receivingChecked) {
     // Inverted (DD-11): switch ON = receiving → mute = !checked.
-    const nextMuted = !receivingChecked;
-    setState((s) => {
-      const prevSnapshot = { [col]: s[col] };
-      const next = { ...s, [col]: nextMuted };
-      persist({ [col]: nextMuted }, prevSnapshot);
-      return next;
-    });
+    setField(col, !receivingChecked);
   }
 
   function updateQuiet(field, value) {
-    setState((s) => {
-      const prevSnapshot = { [field]: s[field] };
-      const next = { ...s, [field]: value };
-      persist({ [field]: value }, prevSnapshot);
-      return next;
-    });
+    setField(field, value);
   }
 
   function updateCap(value) {
     const num = Number.parseInt(value, 10);
-    setState((s) => {
-      const prevSnapshot = { cap_per_day: s.cap_per_day };
-      const next = { ...s, cap_per_day: num };
-      persist({ cap_per_day: num }, prevSnapshot);
-      return next;
-    });
+    if (Number.isNaN(num)) return;
+    setField("cap_per_day", num);
   }
-
-  const allMuted = MUTE_ROWS.every((r) => state[r.col]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -175,7 +184,7 @@ export function PreferencesClient({ societyId, initialPrefs }) {
               >
                 <Icon size={20} color="#525252" aria-hidden="true" />
                 <span id={`mute-label-${col}`} className="flex-1 text-base text-[#171717]">
-                  {t("prefs.cat")[labelKey]}
+                  {t(`prefs.cat.${labelKey}`)}
                 </span>
                 <Switch
                   checked={receiving}

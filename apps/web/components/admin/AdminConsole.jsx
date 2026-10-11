@@ -12,28 +12,9 @@
 // resident names, no resident phone numbers and no individual poll votes —
 // staff get the operational picture, not the residents.
 
-import {
-  Building2,
-  Check,
-  ChevronRight,
-  Clock,
-  Copy,
-  Inbox,
-  IndianRupee,
-  LayoutDashboard,
-  Loader2,
-  LogOut,
-  Pencil,
-  Phone,
-  Plus,
-  Tag,
-  TriangleAlert,
-  UserPlus,
-  Users,
-  X,
-  Zap,
-} from "lucide-react";
-import Image from "next/image";
+// Each section lives in ./console/*; this file owns the state and the handlers
+// so switching sections keeps exactly the behaviour it always had.
+
 import { useState } from "react";
 import {
   approveSalesApplication,
@@ -41,119 +22,17 @@ import {
   revokePlatformUser,
 } from "@/app/actions/platformUsers";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ActionRow } from "./console/ActionRow";
+import { CatalogueSection } from "./console/CatalogueSection";
+import { CreateSocietySection } from "./console/CreateSocietySection";
+import { EMPTY_FORM, PHONE_RE } from "./console/constants";
+import { OverviewSection } from "./console/OverviewSection";
+import { PeopleSection } from "./console/PeopleSection";
+import { SalesRequestsSection } from "./console/SalesRequestsSection";
+import { MobileSectionNav, Sidebar } from "./console/Sidebar";
+import { SocietiesSection } from "./console/SocietiesSection";
+import { SocietyRequestsSection } from "./console/SocietyRequestsSection";
 import { SocietyDetail } from "./SocietyDetail";
-
-// `group: true` renders a non-interactive header; `sub: true` indents beneath
-// it. Requests split in two because they are now two different queues from two
-// different tables — society enrollment leads, and salesperson applications.
-const NAV = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "societies", label: "Societies", icon: Building2 },
-  { id: "requests", label: "Requests", icon: Inbox, group: true },
-  { id: "requestsSociety", label: "Society requests", icon: Building2, sub: true },
-  { id: "requestsSales", label: "Sales requests", icon: UserPlus, sub: true },
-  { id: "peopleSales", label: "All salespersons", icon: UserPlus, adminOnly: true },
-  { id: "peopleStaff", label: "All staff", icon: Users, adminOnly: true },
-  { id: "catalogue", label: "Features & pricing", icon: Tag },
-];
-
-// States and union territories. A select, not a text field: "MH", "Maharastra"
-// and "maharashtra " would otherwise all land in the same column and make any
-// grouping by state useless.
-const STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman & Nicobar Islands",
-  "Chandigarh",
-  "Dadra & Nagar Haveli and Daman & Diu",
-  "Delhi",
-  "Jammu & Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry",
-];
-
-const input =
-  "a-field h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[14px] text-[var(--color-neutral-900)] outline-none placeholder:text-[var(--color-neutral-400)]";
-
-// Quieter than the primary "New society" CTA — these are occasional admin
-// chores, not the console's main action.
-const secondaryCta =
-  "flex items-center justify-center gap-2 rounded-xl border border-[var(--color-neutral-200)] bg-white px-3 py-2.5 text-[13px] font-semibold text-[var(--color-neutral-700)] transition-colors hover:border-[var(--color-brand-500)] hover:text-[var(--color-brand-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2";
-
-const EMPTY_FORM = {
-  name: "",
-  addressLine: "",
-  city: "",
-  landmark: "",
-  state: "",
-  pincode: "",
-  // Society Authorities: everyone who will manage the society (name + mobile).
-  authorities: [{ name: "", phone: "" }],
-};
-
-const PHONE_RE = /^[6-9]\d{9}$/;
-
-function fmtWhen(lead) {
-  if (lead.call_now) return "ASAP";
-  if (!lead.preferred_at) return lead.preferred_slot ?? "—";
-  return new Date(lead.preferred_at).toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function Stat({ icon: Icon, value, label, tone }) {
-  const tones = {
-    urgent: { bg: "#FDF0DF", fg: "#8A4708" },
-    danger: { bg: "#FCE9E6", fg: "#94291A" },
-  };
-  const t = tones[tone] ?? { bg: "var(--color-brand-50)", fg: "var(--color-brand-600)" };
-  return (
-    <div className="a-lift rounded-2xl border border-[var(--color-neutral-200)] bg-white p-5">
-      <span
-        aria-hidden="true"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-        style={{ backgroundColor: t.bg, color: t.fg }}
-      >
-        <Icon size={17} strokeWidth={2.2} />
-      </span>
-      <p className="mt-3 text-[26px] font-extrabold leading-none tabular-nums tracking-[-0.03em] text-[var(--color-neutral-900)]">
-        {value}
-      </p>
-      <p className="mt-1.5 text-[13px] font-semibold text-[var(--color-neutral-600)]">{label}</p>
-    </div>
-  );
-}
 
 export function AdminConsole({
   isAdmin = false,
@@ -328,6 +207,14 @@ export function AdminConsole({
     }
   }
 
+  function selectSection(id) {
+    setSection(id);
+    if (id === "requestsSales" && salesApps === null) loadSalesApps();
+    if ((id === "peopleSales" || id === "peopleStaff") && people === null) {
+      loadPeople();
+    }
+  }
+
   const open = societies.find((s) => s.id === openId);
 
   return (
@@ -336,223 +223,34 @@ export function AdminConsole({
       style={{ backgroundColor: "var(--color-neutral-50)" }}
     >
       {/* ---------------- sidebar ---------------- */}
-      <aside
-        className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-[var(--color-neutral-200)] lg:flex"
-        style={{ background: "linear-gradient(180deg, #fff, var(--color-neutral-50))" }}
-      >
-        <div className="flex h-[68px] items-center gap-2.5 px-5">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-[11px] shadow-[0_4px_10px_-3px_rgba(18,113,90,.5)]"
-            style={{
-              color: "#fff",
-            }}
-          >
-            <Image
-              src="/parisar-mark-96.png"
-              alt=""
-              aria-hidden="true"
-              width={34}
-              height={34}
-              className="h-full w-full object-contain"
-            />
-          </span>
-          <span className="text-[17px] font-extrabold tracking-[-0.03em] text-[var(--color-neutral-900)]">
-            Parisar
-          </span>
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-[0.06em]"
-            style={
-              isAdmin
-                ? { backgroundColor: "var(--color-brand-50)", color: "var(--color-brand-700)" }
-                : { backgroundColor: "#E7F0FB", color: "#1F5FA0" }
-            }
-          >
-            {isAdmin ? "ADMIN" : "SALES"}
-          </span>
-        </div>
-
-        <p className="px-5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.13em] text-[var(--color-neutral-400)]">
-          Manage
-        </p>
-        <nav className="a-stagger flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.filter((n) => isAdmin || !n.adminOnly).map(
-            ({ id, label, icon: Icon, group, sub }) => {
-              const on = section === id;
-
-              // A group header names the pair below it; it is not a destination,
-              // so it must not be a button — a control that looks focusable but
-              // does nothing is worse than plain text for keyboard and SR users.
-              if (group) {
-                const expanded = requestsOpen || inRequests;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setRequestsOpen((v) => !v)}
-                    aria-expanded={expanded}
-                    className="mt-3 flex items-center gap-3 rounded-xl py-2 pr-3 pl-2 text-left font-semibold text-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
-                    style={{ color: "var(--color-neutral-600)" }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                      style={{
-                        backgroundColor: "var(--color-neutral-100)",
-                        color: "var(--color-neutral-600)",
-                      }}
-                    >
-                      <Icon size={16} strokeWidth={2.2} />
-                    </span>
-                    {label}
-                    {leads.length > 0 ? (
-                      <span
-                        className="ml-auto rounded-full px-1.5 py-0.5 font-bold text-[11px] tabular-nums"
-                        style={{ backgroundColor: "#FDF0DF", color: "#8A4708" }}
-                      >
-                        {leads.length}
-                      </span>
-                    ) : null}
-                    <ChevronRight
-                      size={15}
-                      strokeWidth={2.4}
-                      aria-hidden="true"
-                      className={`${leads.length > 0 ? "" : "ml-auto"} transition-transform duration-200`}
-                      style={{ transform: expanded ? "rotate(90deg)" : "none" }}
-                    />
-                  </button>
-                );
-              }
-
-              // Collapsed: the two queues are not rendered at all, so they are out
-              // of the tab order too — hiding them visually alone would leave a
-              // keyboard user tabbing into links they cannot see.
-              if (sub && !(requestsOpen || inRequests)) return null;
-
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setSection(id);
-                    if (id === "requestsSales" && salesApps === null) loadSalesApps();
-                    if ((id === "peopleSales" || id === "peopleStaff") && people === null) {
-                      loadPeople();
-                    }
-                  }}
-                  aria-current={on ? "page" : undefined}
-                  className={`a-nav group/nav relative flex items-center gap-3 rounded-xl py-2 pr-3 text-left font-semibold text-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] ${sub ? "ml-5 pl-2" : "pl-2"}`}
-                  style={{
-                    backgroundColor: on ? "var(--color-brand-50)" : "transparent",
-                    color: on ? "var(--color-brand-700)" : "var(--color-neutral-600)",
-                  }}
-                >
-                  {/* Accent bar — grows in when active. */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200"
-                    style={{
-                      height: on ? "20px" : "0px",
-                      backgroundColor: "var(--color-brand-500)",
-                    }}
-                  />
-                  {/* Icon in a well that fills when active. */}
-                  <span
-                    aria-hidden="true"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
-                    style={{
-                      backgroundColor: on ? "var(--color-brand-500)" : "var(--color-neutral-100)",
-                      color: on ? "#fff" : "var(--color-neutral-600)",
-                    }}
-                  >
-                    <Icon size={16} strokeWidth={2.2} />
-                  </span>
-                  {label}
-                </button>
-              );
-            },
-          )}
-        </nav>
-
-        <a
-          href="/dashboard"
-          className="group/leave m-3 flex items-center gap-2.5 rounded-xl border border-[var(--color-neutral-200)] bg-white px-3 py-2.5 text-[13px] font-semibold text-[var(--color-neutral-600)] transition-colors hover:border-[var(--color-brand-500)] hover:text-[var(--color-brand-700)]"
-        >
-          <LogOut
-            size={15}
-            strokeWidth={2.2}
-            aria-hidden="true"
-            className="transition-transform group-hover/leave:-translate-x-0.5"
-          />
-          Leave staff view
-        </a>
-      </aside>
+      <Sidebar
+        isAdmin={isAdmin}
+        section={section}
+        inRequests={inRequests}
+        requestsOpen={requestsOpen}
+        setRequestsOpen={setRequestsOpen}
+        leads={leads}
+        onSelect={selectSection}
+      />
 
       {/* ---------------- main ---------------- */}
       <main className="min-w-0 flex-1">
         {/* mobile section switcher — the sidebar is desktop-only */}
-        <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-neutral-200)] bg-white p-2 lg:hidden">
-          {/* Skip the Requests group header: on desktop it is a disclosure that
-              reveals two queues, but here every chip IS a section, and there is
-              no "requests" section to render — tapping it would blank the page.
-              Its two children appear as their own chips instead. */}
-          {NAV.filter((n) => !n.group && (isAdmin || !n.adminOnly)).map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                setSection(id);
-                if (id === "requestsSales" && salesApps === null) loadSalesApps();
-                if ((id === "peopleSales" || id === "peopleStaff") && people === null) {
-                  loadPeople();
-                }
-              }}
-              className="shrink-0 rounded-full px-3.5 py-2 font-bold text-[13px]"
-              style={{
-                backgroundColor: section === id ? "var(--color-brand-500)" : "transparent",
-                color: section === id ? "#fff" : "var(--color-neutral-600)",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <MobileSectionNav isAdmin={isAdmin} section={section} onSelect={selectSection} />
 
         {/* Action row — the console's three "make something" actions, together
             at the top right of the content rather than stacked in the sidebar.
             They are page-level actions, not navigation, so they do not belong
             in the nav list. Wraps to its own line on narrow viewports. */}
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-end gap-2 px-5 pt-5 lg:px-8 lg:pt-8">
-          <button
-            type="button"
-            onClick={() => {
-              setActive(null);
-              setCreated(null);
-              setForm(EMPTY_FORM);
-              setSection("create");
-            }}
-            className="a-btn a-shine flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 font-bold text-[14px] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-          >
-            <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
-            New society
-          </button>
-
-          {/* Appointing platform users is admin-only — admin_create_platform_user
-              is gated on is_platform_admin(), so a sales user seeing these would
-              only ever get NOT_PLATFORM_ADMIN back. Forms land here next; the
-              RPCs (create / revoke / list) already exist. */}
-          {isAdmin ? (
-            <>
-              <button type="button" className={secondaryCta}>
-                <UserPlus size={15} strokeWidth={2.4} aria-hidden="true" />
-                Create staff
-              </button>
-              <button type="button" className={secondaryCta}>
-                <UserPlus size={15} strokeWidth={2.4} aria-hidden="true" />
-                Create sales
-              </button>
-            </>
-          ) : null}
-        </div>
+        <ActionRow
+          isAdmin={isAdmin}
+          onNewSociety={() => {
+            setActive(null);
+            setCreated(null);
+            setForm(EMPTY_FORM);
+            setSection("create");
+          }}
+        />
 
         <div
           key={section}
@@ -560,762 +258,66 @@ export function AdminConsole({
         >
           {/* ---------------- overview ---------------- */}
           {section === "overview" ? (
-            <>
-              <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Overview
-              </h1>
-              <div className="a-stagger mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Stat icon={Building2} value={stats.societies ?? 0} label="Societies" />
-                <Stat icon={Users} value={stats.residents ?? 0} label="Residents" />
-                <Stat
-                  icon={IndianRupee}
-                  value={`₹${Number(stats.mrr ?? 0).toLocaleString("en-IN")}`}
-                  label="Monthly recurring"
-                />
-                <Stat icon={Inbox} value={stats.open_requests ?? 0} label="Open requests" />
-                <Stat
-                  icon={Zap}
-                  value={stats.urgent_requests ?? 0}
-                  label="Waiting for a call now"
-                  tone="urgent"
-                />
-                <Stat
-                  icon={TriangleAlert}
-                  value={stats.past_due ?? 0}
-                  label="Past due"
-                  tone="danger"
-                />
-              </div>
-
-              {leads.length > 0 ? (
-                <>
-                  <h2 className="mt-10 text-[16px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
-                    Next calls
-                  </h2>
-                  <div className="mt-3 flex flex-col gap-2">
-                    {leads.slice(0, 3).map((lead) => (
-                      <button
-                        key={lead.id}
-                        type="button"
-                        onClick={() => startFromLead(lead)}
-                        className="pk-press flex items-center justify-between gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white p-3.5 text-left"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-[14px] font-bold text-[var(--color-neutral-900)]">
-                            {lead.society_name}
-                          </span>
-                          <span className="block text-[12.5px] text-[var(--color-neutral-600)]">
-                            {lead.contact_name} · {lead.phone}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-[12px] font-bold text-[var(--color-neutral-400)]">
-                          {fmtWhen(lead)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-            </>
+            <OverviewSection stats={stats} leads={leads} startFromLead={startFromLead} />
           ) : null}
 
           {/* ---------------- societies ---------------- */}
           {section === "societies" ? (
-            <>
-              <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Societies
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                Select a society to manage its features, billing and follow-up notes.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-2">
-                {societies.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-neutral-200)] bg-white px-6 py-14 text-center">
-                    <p className="text-[15px] font-bold text-[var(--color-neutral-900)]">
-                      No societies yet
-                    </p>
-                  </div>
-                ) : (
-                  societies.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setOpenId(s.id)}
-                      className="pk-press a-lift flex items-center gap-4 rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 truncate text-[15px] font-bold text-[var(--color-neutral-900)]">
-                          <span className="truncate">{s.name}</span>
-                          {s.service_status && s.service_status !== "active" ? (
-                            <span
-                              className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase"
-                              style={
-                                s.service_status === "blocked"
-                                  ? { backgroundColor: "#FCE9E6", color: "#94291A" }
-                                  : { backgroundColor: "#FDF0DF", color: "#8A4708" }
-                              }
-                            >
-                              {s.service_status === "blocked" ? "Blocked" : "Service stopped"}
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="mt-0.5 text-[12.5px] text-[var(--color-neutral-600)]">
-                          {[s.city, s.state].filter(Boolean).join(", ") || "—"}
-                          {s.pincode ? ` · ${s.pincode}` : ""}
-                        </p>
-                      </div>
-                      <div className="hidden shrink-0 text-right sm:block">
-                        <p className="font-mono text-[13px] font-bold tracking-[0.08em] text-[var(--color-brand-700)]">
-                          {s.code ?? "—"}
-                        </p>
-                        <p className="mt-0.5 text-[12px] tabular-nums text-[var(--color-neutral-400)]">
-                          {s.member_count} residents
-                          {Number(s.pending_count) > 0 ? ` · ${s.pending_count} pending` : ""}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        size={16}
-                        className="shrink-0 text-[var(--color-neutral-400)]"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  ))
-                )}
-              </div>
-            </>
+            <SocietiesSection societies={societies} setOpenId={setOpenId} />
           ) : null}
 
           {/* ---------------- appointed platform users ---------------- */}
           {section === "peopleSales" || section === "peopleStaff" ? (
-            <>
-              <h1 className="font-extrabold text-[24px] text-[var(--color-neutral-900)] tracking-[-0.025em]">
-                {section === "peopleSales" ? "All salespersons" : "All staff"}
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                {section === "peopleSales"
-                  ? "Everyone appointed to sell Parisar."
-                  : "Everyone appointed as staff."}
-              </p>
-
-              {peopleErr ? (
-                <p role="alert" className="mt-4 font-medium text-[13px] text-[#b42318]">
-                  {peopleErr}
-                </p>
-              ) : null}
-
-              <div className="mt-6 flex flex-col gap-2.5">
-                {people === null ? (
-                  <p className="text-[14px] text-[var(--color-neutral-500)]">Loading…</p>
-                ) : (
-                  (() => {
-                    const want = section === "peopleSales" ? "sales" : "staff";
-                    const rows = people.filter((u) => u.role === want);
-                    if (rows.length === 0) {
-                      return (
-                        <p className="text-[14px] text-[var(--color-neutral-500)]">
-                          Nobody appointed yet.
-                        </p>
-                      );
-                    }
-                    return rows.map((u) => (
-                      <div
-                        key={u.user_id}
-                        className="flex items-center gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white px-4 py-3"
-                      >
-                        <span className="font-semibold text-[14px] text-[var(--color-neutral-900)]">
-                          {u.full_name || u.note || "—"}
-                        </span>
-                        <a
-                          href={`tel:${u.phone}`}
-                          className="text-[13px] text-[var(--color-neutral-600)] underline underline-offset-2"
-                        >
-                          {u.phone}
-                        </a>
-                        <span className="ml-auto text-[12px] text-[var(--color-neutral-500)] tabular-nums">
-                          {new Date(u.created_at).toLocaleDateString("en-IN")}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={pending === u.user_id}
-                          onClick={() => onRevoke(u.user_id)}
-                          className="shrink-0 rounded-lg border border-[var(--color-neutral-300)] px-2.5 py-1.5 font-bold text-[12px] text-[var(--color-neutral-700)] disabled:opacity-50 hover:border-[#b42318] hover:text-[#b42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
-                        >
-                          {pending === u.user_id ? "Removing…" : "Remove"}
-                        </button>
-                      </div>
-                    ));
-                  })()
-                )}
-              </div>
-            </>
+            <PeopleSection
+              section={section}
+              people={people}
+              peopleErr={peopleErr}
+              pending={pending}
+              onRevoke={onRevoke}
+            />
           ) : null}
 
           {/* ---------------- sales requests ---------------- */}
           {section === "requestsSales" ? (
-            <>
-              <h1 className="font-extrabold text-[24px] text-[var(--color-neutral-900)] tracking-[-0.025em]">
-                Sales requests
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                People who applied to sell Parisar, newest first.
-              </p>
-              <div className="mt-6 flex flex-col gap-2.5">
-                {salesApps === null ? (
-                  <p className="text-[14px] text-[var(--color-neutral-500)]">Loading…</p>
-                ) : salesApps.length === 0 ? (
-                  <p className="text-[14px] text-[var(--color-neutral-500)]">
-                    No applications yet.
-                  </p>
-                ) : (
-                  salesApps.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-center gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white px-4 py-3"
-                    >
-                      <span className="font-semibold text-[14px] text-[var(--color-neutral-900)]">
-                        {a.full_name}
-                      </span>
-                      <a
-                        href={`tel:${a.phone}`}
-                        className="text-[13px] text-[var(--color-neutral-600)] underline underline-offset-2"
-                      >
-                        {a.phone}
-                      </a>
-                      <span className="ml-auto text-[12px] text-[var(--color-neutral-500)] tabular-nums">
-                        {new Date(a.created_at).toLocaleDateString("en-IN")}
-                      </span>
-                      <span className="rounded-full bg-[var(--color-neutral-100)] px-2 py-0.5 font-semibold text-[11px] text-[var(--color-neutral-700)]">
-                        {a.status}
-                      </span>
-                      {/* Only an admin can appoint — admin_create_platform_user
-                          is gated on is_platform_admin(), so this would fail for
-                          a sales user reading the same queue. */}
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          disabled={pending === a.id}
-                          onClick={() => onApprove(a)}
-                          className="shrink-0 rounded-lg border border-[var(--color-brand-500)] px-2.5 py-1.5 font-bold text-[12px] text-[var(--color-brand-700)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
-                        >
-                          {pending === a.id ? "Adding…" : "Add as salesperson"}
-                        </button>
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+            <SalesRequestsSection
+              isAdmin={isAdmin}
+              salesApps={salesApps}
+              pending={pending}
+              onApprove={onApprove}
+            />
           ) : null}
 
           {/* ---------------- requests ---------------- */}
           {section === "requestsSociety" ? (
-            <>
-              <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Society requests
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                Ring the top one first — "call me now" comes before scheduled slots.
-              </p>
-              <div className="mt-6 flex flex-col gap-2.5">
-                {leads.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-neutral-200)] bg-white px-6 py-14 text-center">
-                    <p className="text-[15px] font-bold text-[var(--color-neutral-900)]">
-                      No open requests
-                    </p>
-                    <p className="mt-1.5 text-[13px] text-[var(--color-neutral-600)]">
-                      Submissions from the public form land here.
-                    </p>
-                  </div>
-                ) : (
-                  leads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold text-[var(--color-neutral-900)]">
-                          {lead.society_name}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-[var(--color-neutral-600)]">
-                          <Phone size={12} strokeWidth={2.4} aria-hidden="true" />
-                          {lead.contact_name} ·{" "}
-                          <a
-                            href={`tel:${lead.phone}`}
-                            className="font-semibold text-[var(--color-brand-600)] hover:underline"
-                          >
-                            {lead.phone}
-                          </a>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                          style={
-                            lead.call_now
-                              ? { backgroundColor: "#FDF0DF", color: "#8A4708" }
-                              : {
-                                  backgroundColor: "var(--color-neutral-100)",
-                                  color: "var(--color-neutral-600)",
-                                }
-                          }
-                        >
-                          {lead.call_now ? (
-                            <Zap size={11} strokeWidth={2.6} aria-hidden="true" />
-                          ) : (
-                            <Clock size={11} strokeWidth={2.4} aria-hidden="true" />
-                          )}
-                          {fmtWhen(lead)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => startFromLead(lead)}
-                          className="pk-press rounded-full px-4 py-2 text-[13px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                          style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
-                        >
-                          Create society
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+            <SocietyRequestsSection leads={leads} startFromLead={startFromLead} />
           ) : null}
 
           {/* ---------------- catalogue ---------------- */}
           {section === "catalogue" ? (
-            <>
-              <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Features &amp; pricing
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                Everything Parisar sells. Grant or remove these per society from its detail panel.
-              </p>
-              <div className="mt-6 flex flex-col gap-2">
-                {features.map((f) => (
-                  <div
-                    key={f.key}
-                    className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--color-neutral-200)] bg-white p-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-[15px] font-bold text-[var(--color-neutral-900)]">
-                        {f.name}
-                        {f.is_core ? (
-                          <span className="rounded-full bg-[var(--color-brand-50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--color-brand-700)]">
-                            Core
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-neutral-600)]">
-                        {f.description}
-                      </p>
-                    </div>
-                    <div className="shrink-0">
-                      {f.is_core ? (
-                        <span className="text-[15px] font-extrabold text-[var(--color-neutral-900)]">
-                          Included
-                        </span>
-                      ) : priceEdit?.key === f.key ? (
-                        <span className="flex items-center gap-1">
-                          <span className="text-[15px] font-extrabold text-[var(--color-neutral-400)]">
-                            ₹
-                          </span>
-                          <input
-                            // biome-ignore lint/a11y/noAutofocus: opened on click
-                            autoFocus
-                            inputMode="numeric"
-                            value={priceEdit.val}
-                            onChange={(e) =>
-                              setPriceEdit({
-                                key: f.key,
-                                val: e.target.value.replace(/\D/g, "").slice(0, 6),
-                              })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter")
-                                saveListPrice(f.key, Number(priceEdit.val) || 0);
-                              if (e.key === "Escape") setPriceEdit(null);
-                            }}
-                            className="h-9 w-20 rounded-lg border border-[var(--color-brand-500)] px-2 text-right text-[15px] font-extrabold tabular-nums outline-none"
-                          />
-                          <button
-                            type="button"
-                            aria-label="Save price"
-                            onClick={() => saveListPrice(f.key, Number(priceEdit.val) || 0)}
-                            className="pk-press rounded-md p-1.5 text-[var(--color-brand-600)] hover:bg-[var(--color-brand-50)]"
-                          >
-                            <Check size={16} strokeWidth={3} />
-                          </button>
-                        </span>
-                      ) : isAdmin ? (
-                        <button
-                          type="button"
-                          onClick={() => setPriceEdit({ key: f.key, val: String(f.price_monthly) })}
-                          className="pk-press group/p flex items-center gap-1.5 rounded-lg px-2 py-1 text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-100)]"
-                          title="Edit list price"
-                        >
-                          ₹{f.price_monthly}/mo
-                          <Pencil
-                            size={13}
-                            strokeWidth={2.2}
-                            aria-hidden="true"
-                            className="text-[var(--color-neutral-400)] opacity-0 transition-opacity group-hover/p:opacity-100"
-                          />
-                        </button>
-                      ) : (
-                        <span className="text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
-                          from ₹{f.price_monthly}/mo
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
-                {isAdmin
-                  ? "Tap a price to set the floor — the minimum any society can be charged for that feature. Core features are always on and never billed."
-                  : "These are floor prices set by admin. When you enable a feature for a society you can charge this or more, never less."}
-              </p>
-            </>
+            <CatalogueSection
+              isAdmin={isAdmin}
+              features={features}
+              priceEdit={priceEdit}
+              setPriceEdit={setPriceEdit}
+              saveListPrice={saveListPrice}
+            />
           ) : null}
 
           {/* ---------------- create ---------------- */}
           {section === "create" ? (
-            <div>
-              <h1 className="text-[24px] font-extrabold tracking-[-0.025em] text-[var(--color-neutral-900)]">
-                Create society
-              </h1>
-              <p className="mt-1.5 text-[14px] text-[var(--color-neutral-600)]">
-                Add everyone who will manage this society as a Society Authority. Each signs in with
-                their own mobile: the first one sets up wings and flats, and every authority then
-                joins as a resident and gets the Society Dashboard.
-              </p>
-
-              <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr] lg:items-start">
-                <div className="rounded-2xl border border-[var(--color-neutral-200)] bg-white p-6 shadow-[0_1px_2px_rgba(18,38,28,.04)]">
-                  {active ? (
-                    <p className="mb-4 rounded-xl bg-[var(--color-brand-50)] px-3.5 py-2.5 text-[13px] font-semibold text-[var(--color-brand-700)]">
-                      From request: {active.society_name} · {active.contact_name}
-                    </p>
-                  ) : null}
-
-                  {created ? (
-                    <div>
-                      <p className="text-[13px] font-semibold text-[var(--color-neutral-600)]">
-                        {created.society} is live. Read this out on the call:
-                      </p>
-                      <div
-                        className="a-rise mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 px-5 py-5"
-                        style={{
-                          borderColor: "var(--color-brand-500)",
-                          backgroundColor: "var(--color-brand-50)",
-                        }}
-                      >
-                        <span className="font-mono text-[28px] font-extrabold tracking-[0.16em] text-[var(--color-neutral-900)]">
-                          {created.code}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(created.code);
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
-                            } catch {
-                              /* clipboard blocked — the code is on screen anyway */
-                            }
-                          }}
-                          className="pk-press inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold"
-                          style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
-                        >
-                          <Copy size={14} strokeWidth={2.4} />
-                          {copied ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                      <p className="mt-3 text-[13px] leading-relaxed text-[var(--color-neutral-600)]">
-                        Authorities ({created.authorities}) get the Society Dashboard when they sign
-                        in with their own mobile. Share this code with residents.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCreated(null);
-                          setActive(null);
-                          setForm(EMPTY_FORM);
-                        }}
-                        className="mt-5 text-[13px] font-bold text-[var(--color-brand-600)] hover:underline"
-                      >
-                        Create another
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={createSociety} className="flex flex-col gap-4">
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                          Society name
-                        </span>
-                        <input
-                          className={input}
-                          value={form.name}
-                          onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          placeholder="Green Meadows CHS"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                          Street address
-                        </span>
-                        <input
-                          className={input}
-                          value={form.addressLine}
-                          onChange={(e) => setForm({ ...form, addressLine: e.target.value })}
-                          placeholder="12 MG Road, Shivajinagar"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                          Landmark <span className="font-normal opacity-60">(optional)</span>
-                        </span>
-                        <input
-                          className={input}
-                          value={form.landmark}
-                          onChange={(e) => setForm({ ...form, landmark: e.target.value })}
-                          placeholder="Opposite Cafe Goodluck"
-                        />
-                      </label>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <label className="flex flex-col gap-1.5">
-                          <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                            City
-                          </span>
-                          <input
-                            className={input}
-                            value={form.city}
-                            onChange={(e) => setForm({ ...form, city: e.target.value })}
-                            placeholder="Pune"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1.5">
-                          <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                            State
-                          </span>
-                          <select
-                            className={input}
-                            value={form.state}
-                            onChange={(e) => setForm({ ...form, state: e.target.value })}
-                          >
-                            <option value="">Select…</option>
-                            {STATES.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-1.5">
-                          <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                            PIN code
-                          </span>
-                          <input
-                            className={input}
-                            inputMode="numeric"
-                            maxLength={6}
-                            value={form.pincode}
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                              })
-                            }
-                            placeholder="411005"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="mt-1 border-t border-[var(--color-neutral-200)] pt-4">
-                        <p className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-brand-600)]">
-                          <Phone size={12} strokeWidth={2.6} aria-hidden="true" />
-                          Society Authorities
-                        </p>
-                        <div className="flex flex-col gap-3">
-                          {form.authorities.map((a, i) => (
-                            <div
-                              // biome-ignore lint/suspicious/noArrayIndexKey: editable rows with no id until saved
-                              key={i}
-                              className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
-                              data-testid="authority-row"
-                            >
-                              <label className="flex flex-col gap-1.5">
-                                <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                                  Name
-                                </span>
-                                <input
-                                  className={input}
-                                  value={a.name}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      authorities: form.authorities.map((row, j) =>
-                                        j === i ? { ...row, name: e.target.value } : row,
-                                      ),
-                                    })
-                                  }
-                                  placeholder="Ramesh Patil"
-                                />
-                              </label>
-                              <label className="flex flex-col gap-1.5">
-                                <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                                  Mobile (10 digits)
-                                </span>
-                                <input
-                                  className={input}
-                                  inputMode="numeric"
-                                  maxLength={10}
-                                  value={a.phone}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      authorities: form.authorities.map((row, j) =>
-                                        j === i
-                                          ? {
-                                              ...row,
-                                              phone: e.target.value.replace(/\D/g, "").slice(0, 10),
-                                            }
-                                          : row,
-                                      ),
-                                    })
-                                  }
-                                  placeholder="9812345678"
-                                />
-                              </label>
-                              {form.authorities.length > 1 ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setForm({
-                                      ...form,
-                                      authorities: form.authorities.filter((_, j) => j !== i),
-                                    })
-                                  }
-                                  aria-label={`Remove authority ${i + 1}`}
-                                  className="mb-1 rounded-lg p-2 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-                                >
-                                  <X size={16} strokeWidth={2.4} aria-hidden="true" />
-                                </button>
-                              ) : (
-                                <span />
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setForm({
-                                ...form,
-                                authorities: [...form.authorities, { name: "", phone: "" }],
-                              })
-                            }
-                            className="pk-press inline-flex items-center justify-center gap-1.5 self-start rounded-xl border border-dashed border-[var(--color-neutral-300)] px-3.5 py-2 text-[13px] font-bold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
-                          >
-                            <Plus size={14} strokeWidth={2.6} aria-hidden="true" />
-                            Add authority
-                          </button>
-                        </div>
-                      </div>
-
-                      {err ? (
-                        <p
-                          role="alert"
-                          className="rounded-xl px-3.5 py-2.5 text-[13px] font-medium"
-                          style={{ backgroundColor: "#FCE9E6", color: "#94291A" }}
-                        >
-                          {err}
-                        </p>
-                      ) : null}
-
-                      <button
-                        type="submit"
-                        disabled={busy}
-                        className="pk-press mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-xl text-[15px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                        style={{
-                          backgroundColor: busy
-                            ? "var(--color-neutral-200)"
-                            : "var(--color-brand-500)",
-                          color: busy ? "var(--color-neutral-400)" : "#fff",
-                        }}
-                      >
-                        {busy ? (
-                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                        ) : null}
-                        {busy ? "Creating…" : "Create society & generate code"}
-                      </button>
-                    </form>
-                  )}
-                </div>
-
-                {/* Live preview — fills in as staff type, so the artifact they are
-                  about to create is visible before they commit. */}
-                <aside className="lg:sticky lg:top-8">
-                  <div className="overflow-hidden rounded-2xl border border-[var(--color-neutral-200)] bg-white">
-                    <div
-                      className="flex items-center gap-2.5 px-5 py-4"
-                      style={{ background: "linear-gradient(135deg, var(--color-brand-50), #fff)" }}
-                    >
-                      <span
-                        className="flex h-10 w-10 items-center justify-center rounded-xl"
-                        style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
-                      >
-                        <Building2 size={18} strokeWidth={2.2} aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-[var(--color-neutral-900)]">
-                          {form.name.trim() || "New society"}
-                        </p>
-                        <p className="text-[12px] text-[var(--color-neutral-600)]">
-                          {[form.city.trim(), form.state].filter(Boolean).join(", ") ||
-                            "Location pending"}
-                        </p>
-                      </div>
-                    </div>
-                    <dl className="divide-y divide-[var(--color-neutral-200)] px-5 text-[13px]">
-                      {[
-                        [
-                          "Address",
-                          [form.addressLine, form.landmark].filter((x) => x.trim()).join(" · "),
-                        ],
-                        ["PIN", form.pincode],
-                        [
-                          "Authorities",
-                          form.authorities
-                            .map((a) => a.name.trim())
-                            .filter(Boolean)
-                            .join(", "),
-                        ],
-                      ].map(([label, val]) => (
-                        <div
-                          key={label}
-                          className="flex items-baseline justify-between gap-3 py-2.5"
-                        >
-                          <dt className="shrink-0 text-[var(--color-neutral-400)]">{label}</dt>
-                          <dd
-                            className="truncate text-right font-semibold"
-                            style={{
-                              color: val ? "var(--color-neutral-900)" : "var(--color-neutral-300)",
-                            }}
-                          >
-                            {val || "—"}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <p className="border-t border-[var(--color-neutral-200)] px-5 py-3.5 text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
-                      A join code is generated on create — you read it out on the call.
-                    </p>
-                  </div>
-                </aside>
-              </div>
-            </div>
+            <CreateSocietySection
+              active={active}
+              setActive={setActive}
+              created={created}
+              setCreated={setCreated}
+              copied={copied}
+              setCopied={setCopied}
+              form={form}
+              setForm={setForm}
+              err={err}
+              busy={busy}
+              createSociety={createSociety}
+            />
           ) : null}
         </div>
       </main>

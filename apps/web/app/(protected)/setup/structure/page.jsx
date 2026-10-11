@@ -7,6 +7,7 @@
 
 import { redirect } from "next/navigation";
 import { StructureSetup } from "@/components/setup/StructureSetup";
+import { isManagerRole, resolveActiveSociety } from "@/lib/auth/activeSociety";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -19,18 +20,14 @@ export default async function StructurePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // The caller's active authority membership, if any. RLS scopes this to them.
-  // Must accept co-secretaries too: /dashboard sends every flat-less authority
-  // here, so a narrower check bounced them back and forth forever.
-  const { data: mem } = await supabase
-    .from("society_memberships")
-    .select("society_id, role")
-    .eq("user_id", user.id)
-    .in("role", ["secretary", "co_secretary"])
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
-  if (!mem) redirect("/dashboard");
+  // The caller's ACTIVE society + live role (single resolver). Must accept
+  // co-secretaries too: /dashboard sends every flat-less authority here, so a
+  // narrower check bounced them back and forth forever. Scoped to the active
+  // society — an unordered "any authority membership" pick could set up a
+  // different society than the one the rest of the app is showing.
+  const { societyId, role } = await resolveActiveSociety(supabase, user);
+  if (!societyId || !isManagerRole(role)) redirect("/dashboard");
+  const mem = { society_id: societyId };
 
   // Already has flats? Setup is done.
   const { count } = await supabase

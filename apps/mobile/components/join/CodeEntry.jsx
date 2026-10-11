@@ -8,9 +8,10 @@ import {
 import { Key } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
 import { PrimaryButton } from "../auth/PrimaryButton";
+import { Text } from "../ui/Text";
 
 /**
  * Step 0 — Society Code Entry.
@@ -78,8 +79,12 @@ export function CodeEntry({ initialCode = "", onValid }) {
       }
 
       onValid({ preview, structure, code: formatSocietyCode(rawCode) });
-    } catch {
-      setError(t("auth.networkError"));
+    } catch (err) {
+      // onboard_flats_for_code raises TOO_MANY_CODE_ATTEMPTS after 5 bad codes.
+      const msg = String(err?.message ?? "");
+      setError(
+        t(msg.includes("TOO_MANY_CODE_ATTEMPTS") ? "join.rateLimited" : "auth.networkError"),
+      );
     } finally {
       setLoading(false);
     }

@@ -39,11 +39,19 @@ describe("isOverdue", () => {
   });
 
   it("Test 8: bare YYYY-MM-DD same-day midday is NOT yet overdue (end-of-day rule)", () => {
-    // Due 2026-06-03 (interpreted end-of-day local). NOW = 2026-06-03 12:00 local.
-    // The deadline (23:59:59.999 local) is in the FUTURE → not overdue.
-    expect(isOverdue("outstanding", "2026-06-03", new Date("2026-06-03T12:00").getTime())).toBe(
-      false,
-    );
+    // Due 2026-06-03 (end of day IST). NOW = 2026-06-03 12:00 IST → not overdue.
+    expect(
+      isOverdue("outstanding", "2026-06-03", new Date("2026-06-03T12:00:00+05:30").getTime()),
+    ).toBe(false);
+  });
+
+  it("Test 8b: the deadline is 23:59:59.999 Asia/Kolkata regardless of device time zone", () => {
+    const deadline = new Date("2026-06-03T23:59:59.999+05:30").getTime();
+    expect(isOverdue("outstanding", "2026-06-03", deadline)).toBe(false);
+    expect(isOverdue("outstanding", "2026-06-03", deadline + 1)).toBe(true);
+    // 2026-06-03 20:00 UTC is already 2026-06-04 01:30 IST → overdue, even though a
+    // UTC (or US) device would still consider it "June 3rd".
+    expect(isOverdue("outstanding", "2026-06-03", Date.parse("2026-06-03T20:00:00Z"))).toBe(true);
   });
 
   it("Test 9: outstanding + unknown/invalid status returns false", () => {
@@ -65,7 +73,7 @@ describe("overdueDays", () => {
     // Resolution: assert the actual ceil result (overdue → at least 1 day) and document
     // the deadline-vs-now math explicitly so the contract is unambiguous.
     const due = "2026-06-01";
-    const now = new Date("2026-06-03T01:00:00").getTime();
+    const now = new Date("2026-06-03T01:00:00+05:30").getTime();
     const result = overdueDays("outstanding", due, now);
     expect(result).toBeGreaterThanOrEqual(1); // strictly overdue (ceil ≥ 1)
     expect(result).toBeLessThanOrEqual(2); // not more than 2 whole days past

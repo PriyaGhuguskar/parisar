@@ -52,6 +52,21 @@
     "emptyHeadingBoard": "No flat actions yet",
     "emptyBodyBoard": "Issued warnings, fines, and notices will appear here.",
     "loadError": "Couldn't load flat actions",
-    "push": { "body": "Your flat has a new notice" }
+    "push": { "body": "Your flat has a new notice" },
+    "back": "Back",
+    "pdfAttachedName": "Bylaw / AGM resolution (PDF)",
+    "removePdf": "Remove PDF",
+    "allFlats": "All flats",
+    "notFoundTitle": "Action not found",
+    "notFoundBody": "This action may have been removed, or you may not have permission to view it.",
+    "backToList": "Back to flat actions",
+    "amountInvalid": "Enter a whole rupee amount between 1 and 10,00,000 (no paise).",
+    "backToDashboard": "Back to dashboard",
+    "dashboardLink": "Dashboard",
+    "boardTitle": "Flat Actions — Society",
+    "tabAll": "All",
+    "openActionLabel": "Open flat action: {{excerpt}}",
+    "tryAgain": "Try again",
+    "cancel": "Cancel"
   }
 }

@@ -35,7 +35,9 @@
   },
   "switcher": {
     "title": "Switch society",
-    "empty": "You're only a member of one society."
+    "empty": "You're only a member of one society.",
+    "error": "Couldn't switch society. Please try again.",
+    "societyFallback": "Society"
   },
   "profile": {
     "roleTransfer": "Transfer Secretary role",

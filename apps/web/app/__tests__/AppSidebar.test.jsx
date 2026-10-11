@@ -20,6 +20,16 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+// The society switcher calls set_active_society + refreshSession through the
+// browser client; nothing here triggers a switch, so a bare stub is enough.
+vi.mock("../../lib/supabase/client", () => ({
+  createSupabaseBrowserClient: () => ({
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    auth: { refreshSession: vi.fn().mockResolvedValue({ error: null }) },
+  }),
 }));
 
 // Provide minimal mocks for shadcn primitives so the test does not depend on

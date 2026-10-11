@@ -80,17 +80,22 @@ export function MyProfileCard({ userId, role, me }) {
       if (pErr) throw pErr;
 
       if (me.membershipId) {
-        const { error: mErr } = await supabase
-          .from("society_memberships")
-          .update({ emergency_contact: emergency.trim() || null })
-          .eq("id", me.membershipId);
+        // society_memberships is not client-writable (contract-054) — the RPC
+        // checks the membership is the caller's own.
+        const { error: mErr } = await supabase.rpc("update_my_emergency_contact", {
+          p_membership_id: me.membershipId,
+          p_emergency_contact: emergency.trim() || null,
+        });
         if (mErr) throw mErr;
       }
 
       setEditing(false);
       router.refresh();
-    } catch {
-      setError(t("profile.saveError"));
+    } catch (err) {
+      const code = String(err?.message ?? "");
+      setError(
+        code.includes("INVALID_CONTACT") ? t("profile.invalidContact") : t("profile.saveError"),
+      );
     } finally {
       setSaving(false);
     }

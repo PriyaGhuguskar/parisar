@@ -9,9 +9,10 @@
 import { Ban, PauseCircle } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
 import { LogoutButton } from "../../components/LogoutButton";
+import { Text } from "../../components/ui/Text";
 import { getSupabase } from "../../lib/supabase";
 
 export default function ServiceStatusScreen() {

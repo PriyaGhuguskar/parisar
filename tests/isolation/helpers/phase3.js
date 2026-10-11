@@ -33,6 +33,39 @@ export function adminClient() {
   });
 }
 
+const LIST_USERS_PAGE_SIZE = 1000;
+const LIST_USERS_MAX_PAGES = 50;
+
+/**
+ * Find an auth user by E.164 phone, paging through auth.admin.listUsers (a single
+ * page silently misses users once the local stack holds more than 1000).
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} admin
+ * @param {string} e164
+ * @returns {Promise<object|null>}
+ */
+export async function findAuthUserByPhone(admin, e164) {
+  for (let page = 1; page <= LIST_USERS_MAX_PAGES; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: LIST_USERS_PAGE_SIZE,
+    });
+    if (error) {
+      console.warn(`[phase3] listUsers page ${page} failed: ${error.message}`);
+      return null;
+    }
+    const users = data?.users ?? [];
+    const hit = users.find((u) => {
+      const uPhone = u.phone?.startsWith("+") ? u.phone : `+${u.phone ?? ""}`;
+      return uPhone === e164;
+    });
+    if (hit) return hit;
+    if (users.length < LIST_USERS_PAGE_SIZE) return null;
+  }
+  console.warn(`[phase3] listUsers: gave up after ${LIST_USERS_MAX_PAGES} pages`);
+  return null;
+}
+
 /**
  * Sign in with a test phone number using the [auth.sms.test_otp] shortcut (OTP = 123456).
  * Deletes and recreates the auth user before signing in so that each test gets a clean user
@@ -53,23 +86,18 @@ export async function signInTestPhone(phone, intent = "secretary") {
   // This ensures OTP rate-limit errors and profiles_phone_key unique-constraint conflicts
   // don't fire between tests. Cross-tenant-isolation.test.js creates email-based users that
   // get profiles with the same test phone numbers — those must be cleared here too.
-  try {
-    // Remove stale profile rows with this phone first (covers email-based users from other test files)
-    await admin.from("profiles").delete().eq("phone", e164);
-
-    // Then delete any auth user that has this phone
-    const {
-      data: { users },
-    } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    for (const u of users) {
-      const uPhone = u.phone?.startsWith("+") ? u.phone : `+${u.phone ?? ""}`;
-      if (uPhone === e164) {
-        await admin.auth.admin.deleteUser(u.id);
-        break;
-      }
+  // Best-effort cleanup: a failure is logged (so a broken fixture is visible in the
+  // test output) but does not abort — the sign-in below fails loudly if it matters.
+  const { error: profileDelError } = await admin.from("profiles").delete().eq("phone", e164);
+  if (profileDelError) {
+    console.warn(`[phase3] stale profile cleanup failed (${e164}): ${profileDelError.message}`);
+  }
+  const existing = await findAuthUserByPhone(admin, e164);
+  if (existing) {
+    const { error: delError } = await admin.auth.admin.deleteUser(existing.id);
+    if (delError) {
+      console.warn(`[phase3] stale auth user cleanup failed (${e164}): ${delError.message}`);
     }
-  } catch (_) {
-    // Best-effort; proceed to sign in anyway
   }
 
   const anon = anonClient();
@@ -129,18 +157,72 @@ export async function refreshSession(refreshToken) {
   return { accessToken: data.session.access_token, client: authed, session: data.session };
 }
 
+const CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function randomSocietyCode() {
+  const pick = () => CODE_CHARSET[Math.floor(Math.random() * CODE_CHARSET.length)];
+  const half = () => Array.from({ length: 4 }, pick).join("");
+  return `${half()}-${half()}`;
+}
+
+/**
+ * Create a society with `userId` as its (flat-less) secretary — the state staff
+ * onboarding leaves a society in. Replaces the client RPC create_society_with_secretary,
+ * which migration 054 revoked (society creation is staff-only now). Uses the
+ * service role, so it bypasses the client write revokes.
+ *
+ * @param {string} userId - auth user who becomes secretary
+ * @param {{ name?: string, address?: string }} [opts]
+ * @returns {Promise<{ societyId: string, code: string, membershipId: string }>}
+ */
+export async function createSocietyAsSecretary(
+  userId,
+  { name = "Test Society", address = null } = {},
+) {
+  const admin = adminClient();
+  const { data: society, error: sErr } = await admin
+    .from("societies")
+    .insert({ name, address })
+    .select("id")
+    .single();
+  if (sErr) throw new Error(`createSocietyAsSecretary society: ${sErr.message}`);
+
+  const code = randomSocietyCode();
+  const { error: cErr } = await admin
+    .from("society_codes")
+    .insert({ code, society_id: society.id });
+  if (cErr) throw new Error(`createSocietyAsSecretary code: ${cErr.message}`);
+
+  const { data: membership, error: mErr } = await admin
+    .from("society_memberships")
+    .insert({
+      society_id: society.id,
+      user_id: userId,
+      flat_id: null,
+      role: "secretary",
+      residency: "owner",
+      household: "family",
+      status: "active",
+    })
+    .select("id")
+    .single();
+  if (mErr) throw new Error(`createSocietyAsSecretary membership: ${mErr.message}`);
+
+  return { societyId: society.id, code, membershipId: membership.id };
+}
+
 // Seeded Phase 1 UUIDs — must never be deleted by resetTestState.
 // cross-tenant-isolation.test.js relies on these rows existing.
 const SEEDED_SOCIETY_A = "00000000-0000-0000-0000-00000000000a";
 const SEEDED_SOCIETY_B = "00000000-0000-0000-0000-00000000000b";
-const SEEDED_WING_A    = "00000000-0000-0000-0000-00000000a001";
-const SEEDED_WING_B    = "00000000-0000-0000-0000-00000000b001";
+const SEEDED_WING_A = "00000000-0000-0000-0000-00000000a001";
+const SEEDED_WING_B = "00000000-0000-0000-0000-00000000b001";
 const SEEDED_FLAT_A101 = "00000000-0000-0000-0000-00000000a101";
 const SEEDED_FLAT_A102 = "00000000-0000-0000-0000-00000000a102";
 const SEEDED_FLAT_B101 = "00000000-0000-0000-0000-00000000b101";
 const SEEDED_FLAT_B102 = "00000000-0000-0000-0000-00000000b102";
-const SEEDED_CODE_A    = "TEST-A001";
-const SEEDED_CODE_B    = "TEST-B001";
+const SEEDED_CODE_A = "TEST-A001";
+const SEEDED_CODE_B = "TEST-B001";
 
 /**
  * Delete all Phase 3 test state between test cases.
@@ -171,10 +253,7 @@ export async function resetTestState() {
       `("${SEEDED_FLAT_A101}","${SEEDED_FLAT_A102}","${SEEDED_FLAT_B101}","${SEEDED_FLAT_B102}")`,
     );
   // Delete wings NOT in seeded set
-  await admin
-    .from("wings")
-    .delete()
-    .not("id", "in", `("${SEEDED_WING_A}","${SEEDED_WING_B}")`);
+  await admin.from("wings").delete().not("id", "in", `("${SEEDED_WING_A}","${SEEDED_WING_B}")`);
   // Delete society_codes NOT in seeded set
   await admin
     .from("society_codes")
@@ -193,23 +272,11 @@ export async function resetTestState() {
  */
 export async function cleanupTestUsers() {
   const admin = adminClient();
-  const testPhones = [
-    "+919000000001",
-    "+919000000002",
-    "+919000000003",
-    "+919000000004",
-  ];
-  try {
-    const {
-      data: { users },
-    } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    for (const u of users) {
-      const phone = u.phone?.startsWith("+") ? u.phone : `+${u.phone}`;
-      if (testPhones.includes(phone)) {
-        await admin.auth.admin.deleteUser(u.id);
-      }
-    }
-  } catch (err) {
-    console.warn("[phase3] cleanupTestUsers warning:", err.message);
+  const testPhones = ["+919000000001", "+919000000002", "+919000000003", "+919000000004"];
+  for (const phone of testPhones) {
+    const user = await findAuthUserByPhone(admin, phone);
+    if (!user) continue;
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    if (error) console.warn(`[phase3] cleanupTestUsers (${phone}): ${error.message}`);
   }
 }

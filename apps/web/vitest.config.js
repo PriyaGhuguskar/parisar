@@ -23,6 +23,14 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname),
+      // `import "server-only"` marks modules that must never reach a browser
+      // bundle. Next resolves it itself (empty on the server, a build error in a
+      // client bundle); under vitest there is no React-server condition, so the
+      // package's default entry would throw — point it at Next's empty stub.
+      "server-only": path.resolve(
+        __dirname,
+        "../../node_modules/next/dist/compiled/server-only/empty.js",
+      ),
     },
   },
 });

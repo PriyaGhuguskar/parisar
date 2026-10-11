@@ -9,6 +9,7 @@ function sb(results) {
         select: () => q,
         eq: () => q,
         order: () => q,
+        // biome-ignore lint/suspicious/noThenProperty: mimics the supabase-js thenable builder
         then: (res, rej) => Promise.resolve(r).then(res, rej),
       };
       return q;

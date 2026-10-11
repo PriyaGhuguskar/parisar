@@ -1,7 +1,7 @@
 // /notices/[id] — SSR notice detail (+ embedded poll).
 //
 // Server component:
-//   1. Validates session + reads JWT app_metadata (role + user id).
+//   1. Validates session + resolves the live role (resolveActiveSociety).
 //   2. Fetches the notice + attachments + poll + options + the caller's own vote
 //      via getNoticeDetail.
 //   3. Signs the first attachment (1h) server-side and detects its mime so the
@@ -16,7 +16,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, PageShell } from "@/components/kit";
 import { NoticeDetailClient } from "../../../../components/notices/NoticeDetailClient";
+import { resolveActiveSociety } from "../../../../lib/auth/activeSociety";
+import { getServerT } from "../../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { logLoadError } from "../../_components/DetailNotFound";
 
 export const dynamic = "force-dynamic";
 
@@ -28,37 +31,41 @@ export default async function NoticeDetailPage({ params }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const jwtMeta = user.app_metadata ?? user.user_metadata ?? {};
-  const role = jwtMeta.role ?? "member";
+  // Live role in the active society — NOT user.app_metadata (absent on getUser()).
+  const { role } = await resolveActiveSociety(supabase, user);
 
   const { id } = await params;
 
   let detail = null;
-  let loadError = null;
+  let loadFailed = false;
   try {
     detail = await getNoticeDetail(supabase, id);
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    loadFailed = true;
+    logLoadError("notice-detail", err);
   }
 
   if (!detail?.notice) {
+    const { t } = await getServerT(["notifications", "auth"]);
     return (
       <div className="min-h-screen bg-[var(--color-neutral-50)]">
         <PageShell width="narrow">
           <EmptyState
             icon={FileQuestion}
-            title="Notice not found"
-            description="This notice may have been removed, or you may not have permission to view it."
+            title={t("notice.notFoundTitle")}
+            description={t("notice.notFoundBody")}
             action={
               <div className="flex flex-col items-center gap-3">
-                {loadError ? (
-                  <p className="text-xs text-[var(--color-neutral-400)]">{loadError}</p>
+                {loadFailed ? (
+                  <p className="text-xs text-[var(--color-neutral-400)]">
+                    {t("auth:common.loadFailed")}
+                  </p>
                 ) : null}
                 <Link
                   href="/notices"
                   className="pk-press inline-flex h-11 items-center justify-center rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-5 text-sm font-bold text-[var(--color-neutral-900)] transition-colors hover:bg-[var(--color-neutral-100)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
                 >
-                  Back to notices
+                  {t("notice.backToList")}
                 </Link>
               </div>
             }

@@ -38,7 +38,9 @@ export default async function ModerationPage() {
   try {
     initialQueue = await listModerationQueue(supabase);
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[community-moderation] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
   try {
     initialAudit = await listAuditLog(supabase, { limit: 50 });

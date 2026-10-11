@@ -1,12 +1,16 @@
 // Shared society helpers used by BOTH the web and mobile Phase 3 flows.
 // Centralised so all Phase 3 UI plans import from one place with zero inline redefinitions.
 
+import { applyNewestFirstCursor } from "./pagination.js";
+
 // Society codes use a 31-character charset excluding ambiguous characters: 0, O, I, 1, L.
 export const SOCIETY_CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 // Canonical pattern: 4 chars + hyphen + 4 chars, no ambiguous chars (0, O, I, 1, L excluded).
 // Charset breakdown: A-H, J-K, M-N, P-Z, 2-9  (excludes I=9th letter, L=12th, O=15th; digits exclude 0 and 1)
 export const SOCIETY_CODE_RE = /^[A-HJ-KM-NP-Z2-9]{4}-[A-HJ-KM-NP-Z2-9]{4}$/;
+
+export const AUDIT_LOG_MAX_LIMIT = 200;
 
 /**
  * Normalize a raw user-typed Society Code to canonical XXXX-XXXX form.
@@ -37,6 +41,7 @@ const RPC_ERROR_TO_I18N = {
   INVALID_CODE: "join.codeNotFound",
   CODE_PAUSED: "join.codePaused",
   CODE_PAUSED_RATE_LIMIT: "join.rateLimited",
+  TOO_MANY_CODE_ATTEMPTS: "join.rateLimited",
   FLAT_NOT_IN_SOCIETY: "join.codeNotFound",
 };
 
@@ -52,8 +57,8 @@ export function mapSocietyCodeError(rpcResult) {
 }
 
 /**
- * Strip a +91 country-code prefix from a raw co-secretary phone string and return
- * a bare 10-digit number. Used by createSociety before calling the RPC.
+ * Strip a +91 country-code prefix from a raw phone string and return a bare
+ * 10-digit number.
  *
  * - "+919876543210" → "9876543210"
  * - "9876543210"   → "9876543210"
@@ -70,60 +75,66 @@ export function normalizePhoneForCoSec(raw) {
 // RPC Wrappers
 // ---------------------------------------------------------------------------
 // Every wrapper accepts a Supabase client as its first argument.
-// Wrappers that mutate the caller's membership/role call refreshSession()
-// before returning so the JWT carries the updated claims.
 //
-// Helpers that do NOT call refreshSession: createSociety, bootstrapSocietyStructure,
-// listSocietyStructure, rotateSocietyCode, resumeSocietyCode, revealPhone, removeMember.
-// Helpers that DO call refreshSession: finalizeSocietySetup, joinBySocietyCode,
-// transferSecretaryRole.
+// Error contract (this module): RPC exceptions THROW the raw supabase error (its
+// message carries the SQL exception code). Known validation outcomes that the UI
+// renders inline are RETURNED as `{ error: CODE }` where documented per function.
+//
+// Wrappers that change the caller's membership/role call refreshSession() so the
+// JWT carries the updated claims, and report the outcome as `refreshed: boolean`
+// instead of swallowing a failure — when `refreshed === false` the caller should
+// retry refreshSessionAfterClaimsChange() or route the user through sign-in again.
 // ---------------------------------------------------------------------------
 
 /**
- * Create a new society and generate its first Society Code.
- * Calls: create_society_with_secretary(p_name, p_address, p_co_secretary_phone)
- * Returns: { societyId, code, coSecretaryFound }
- * Does NOT call refreshSession — the Secretary's membership doesn't exist yet
- * (flat_id NOT NULL prevents it; membership is created at finalizeSocietySetup).
+ * Refresh the session after a claims-changing RPC.
+ *
+ * @param {object} supabase
+ * @returns {Promise<boolean>} true when the refresh succeeded
  */
-export async function createSociety(supabase, { name, address, coSecretaryPhone }) {
-  const { data, error } = await supabase.rpc("create_society_with_secretary", {
-    p_name: name,
-    p_address: address,
-    p_co_secretary_phone: normalizePhoneForCoSec(coSecretaryPhone),
-  });
-  if (error) throw error;
-  return {
-    societyId: data.society_id,
-    code: data.code,
-    coSecretaryFound: data.co_secretary_found,
-  };
-}
-
-/**
- * Finalize the Secretary's membership by selecting their flat (wizard Step 3).
- * Calls: finalize_society_setup(p_society_id, p_flat_id)
- * Returns: { membershipId }
- * Calls refreshSession() — JWT must carry society_id + role='secretary' after this.
- * If refreshSession fails, logs a warning and still returns the membershipId (don't throw).
- */
-export async function finalizeSocietySetup(supabase, { societyId, flatId }) {
-  const { data, error } = await supabase.rpc("finalize_society_setup", {
-    p_society_id: societyId,
-    p_flat_id: flatId,
-  });
-  if (error) throw error;
-  const { error: refreshError } = await supabase.auth.refreshSession();
-  if (refreshError) {
-    console.warn("[society] refreshSession failed after finalize:", refreshError.message);
+export async function refreshSessionAfterClaimsChange(supabase) {
+  try {
+    const { error } = await supabase.auth.refreshSession();
+    return !error;
+  } catch {
+    return false;
   }
-  return { membershipId: data.membership_id };
 }
 
 /**
- * Batch-insert wings and flats before the Secretary's membership exists (wizard Step 3).
- * Consumed by Plans 03-04 and 03-05 (wizard Step 3) — do NOT redefine inline.
+ * @deprecated Migration 054 revoked create_society_with_secretary — society
+ * creation is staff-only (`admin_create_society`). Kept only so stale imports fail
+ * with a clear code instead of a permission error; delete once no UI imports it.
+ * @throws {Error} always: SOCIETY_SETUP_RETIRED
+ */
+export async function createSociety() {
+  throw new Error("SOCIETY_SETUP_RETIRED");
+}
+
+/**
+ * @deprecated Migration 054 revoked finalize_society_setup — a flat is attached via
+ * `onboard_resident` (onboardResident in membership.js) and structure via
+ * bootstrapSocietyStructure. Delete once no UI imports it.
+ * @throws {Error} always: SOCIETY_SETUP_RETIRED
+ */
+export async function finalizeSocietySetup() {
+  throw new Error("SOCIETY_SETUP_RETIRED");
+}
+
+/**
+ * @deprecated Migration 054 revoked redeem_society_code. Use onboardResident
+ * (membership.js) — one call does join + name + family. Delete once no UI imports it.
+ * @throws {Error} always: SOCIETY_JOIN_RETIRED
+ */
+export async function joinBySocietyCode() {
+  throw new Error("SOCIETY_JOIN_RETIRED");
+}
+
+/**
+ * Batch-insert wings and flats (structure setup).
  * Calls: bootstrap_society_structure(p_society_id, p_wings, p_flats)
+ * Since 054 only a live secretary/co_secretary of that society may call it
+ * (NOT_SOCIETY_CREATOR otherwise).
  *
  * wings: Array<{ name: string }>
  * flats: Array<{ wing_name: string, number: string }>
@@ -172,77 +183,57 @@ export async function addWing(supabase, { societyId, wingName, flatNumbers = [] 
 }
 
 /**
- * Return the wings and flats for a society identified by its code (pre-membership lookup).
- * Consumed by Plan 03-06 (Member profile form) — do NOT redefine inline.
- * Calls: list_society_structure(p_code)
+ * Look up a society's wings + flats by its code (pre-membership).
+ * Calls: onboard_flats_for_code(p_code). Throttled server-side: failed codes count
+ * towards TOO_MANY_CODE_ATTEMPTS (5 per 15 min, shared with onboard_resident).
  *
- * Formats the code via formatSocietyCode before calling the RPC.
- *
- * Returns: { society_id, wings: [{id, name}], flats: [{id, wing_id, number}] }
- *       OR { error: 'INVALID_CODE'|'CODE_PAUSED' } (does NOT throw — UI needs to render the message).
- * Throws only on unexpected RPC (network/server) errors.
- * Does NOT call refreshSession (read-only).
+ * Returns: { society_id, society_name, wings: [{ id, name, flats: [{ id, number, taken }] }] }
+ *       OR { error: 'INVALID_CODE'|'CODE_PAUSED'|'SOCIETY_BLOCKED' } (UI renders it;
+ *          a malformed code returns INVALID_CODE without a network call).
+ * Throws on RPC exceptions (AUTH_REQUIRED, TOO_MANY_CODE_ATTEMPTS, network).
  */
-export async function listSocietyStructure(supabase, rawCode) {
-  const formatted = formatSocietyCode(rawCode);
-  const { data, error } = await supabase.rpc("list_society_structure", { p_code: formatted });
-  if (error) throw error;
-  return data; // may be { error: 'INVALID_CODE'|'CODE_PAUSED' } or { society_id, wings, flats }
-}
-
-/**
- * Validate a Society Code before showing the join preview to the member.
- * Calls: validate_society_code(p_code)
- * Returns: { society_id, name, address, member_count } OR { error: 'INVALID_CODE' } if
- *          formatSocietyCode produces an invalid string before the RPC is called.
- */
-export async function validateSocietyCode(supabase, rawCode) {
+export async function onboardFlatsForCode(supabase, rawCode) {
   const formatted = formatSocietyCode(rawCode);
   if (!isValidSocietyCode(formatted)) return { error: "INVALID_CODE" };
-  const { data, error } = await supabase.rpc("validate_society_code", { p_code: formatted });
+  const { data, error } = await supabase.rpc("onboard_flats_for_code", { p_code: formatted });
   if (error) throw error;
-  return data;
+  return data ?? { error: "INVALID_CODE" };
 }
 
 /**
- * Redeem a Society Code and create the member's membership row.
- * Calls: redeem_society_code(p_code, p_flat_id, p_residency, p_household, p_emergency)
+ * Return the wings and flats for a society identified by its code (legacy shape).
+ * Re-pointed at onboard_flats_for_code (list_society_structure was revoked in 054).
  *
- * If the RPC payload contains an `.error` field → return { error: payload.error }
- * (caller maps via mapSocietyCodeError). Does NOT call refreshSession in this case.
- *
- * On success → calls refreshSession (JWT must carry society_id + role).
- * Returns: { membershipId, societyId, status, duplicate, role, autoElevatedToCoSecretary }
- *
- * The `autoElevatedToCoSecretary` flag is propagated from the server-side co-secretary
- * auto-elevation logic so the UI can route co-sec joiners to the Secretary dashboard.
+ * Returns: { society_id, society_name, wings: [{id, name}], flats: [{id, wing_id, number, taken}] }
+ *       OR { error: 'INVALID_CODE'|'CODE_PAUSED'|'SOCIETY_BLOCKED' } (does NOT throw).
+ * Throws only on RPC exceptions.
  */
-export async function joinBySocietyCode(
-  supabase,
-  { code, flatId, residency, household, emergencyContact },
-) {
-  const formatted = formatSocietyCode(code);
-  const { data, error } = await supabase.rpc("redeem_society_code", {
-    p_code: formatted,
-    p_flat_id: flatId,
-    p_residency: residency,
-    p_household: household,
-    p_emergency: emergencyContact || null,
-  });
-  if (error) throw error;
-  if (data && data.error) return { error: data.error };
-  const { error: refreshError } = await supabase.auth.refreshSession();
-  if (refreshError) {
-    console.warn("[society] refreshSession failed after join:", refreshError.message);
-  }
+export async function listSocietyStructure(supabase, rawCode) {
+  const data = await onboardFlatsForCode(supabase, rawCode);
+  if (data.error) return { error: data.error };
+  const wings = data.wings ?? [];
   return {
-    membershipId: data.membership_id,
-    societyId: data.society_id,
-    status: data.status,
-    duplicate: data.duplicate,
-    role: data.role,
-    autoElevatedToCoSecretary: data.auto_elevated_to_co_secretary === true,
+    society_id: data.society_id,
+    society_name: data.society_name,
+    wings: wings.map((w) => ({ id: w.id, name: w.name })),
+    flats: wings.flatMap((w) =>
+      (w.flats ?? []).map((f) => ({ id: f.id, wing_id: w.id, number: f.number, taken: f.taken })),
+    ),
   };
+}
+
+/**
+ * Validate a Society Code before showing the join preview.
+ * Re-pointed at onboard_flats_for_code (validate_society_code was revoked in 054).
+ *
+ * Returns: { society_id, name } OR { error: 'INVALID_CODE'|'CODE_PAUSED'|'SOCIETY_BLOCKED' }.
+ * (address / member_count are no longer exposed pre-membership.)
+ * Throws only on RPC exceptions.
+ */
+export async function validateSocietyCode(supabase, rawCode) {
+  const data = await onboardFlatsForCode(supabase, rawCode);
+  if (data.error) return { error: data.error };
+  return { society_id: data.society_id, name: data.society_name };
 }
 
 /**
@@ -273,7 +264,7 @@ export async function resumeSocietyCode(supabase, { societyId }) {
  * Reveal a member's phone number. Creates an audit_log entry.
  * Calls: reveal_phone(p_target_user_id)
  * Returns: the phone string.
- * Throws on RPC error (NOT_FOUND_OR_CROSS_TENANT, etc.).
+ * Throws on RPC error (NOT_FOUND_OR_CROSS_TENANT, NOT_ACTIVE_MEMBER, etc.).
  * Does NOT call refreshSession.
  */
 export async function revealPhone(supabase, targetUserId) {
@@ -288,6 +279,9 @@ export async function revealPhone(supabase, targetUserId) {
  * Returns: void.
  * Throws on RPC error.
  * Does NOT call refreshSession (caller's membership is unchanged).
+ *
+ * NOTE (054): to turn down a pending claimant use rejectPendingMembership
+ * (membership.js) — removeMember redacts the profile and blocks self-rejoin.
  */
 export async function removeMember(supabase, membershipId) {
   const { error } = await supabase.rpc("remove_member", { p_membership_id: membershipId });
@@ -297,18 +291,16 @@ export async function removeMember(supabase, membershipId) {
 /**
  * Transfer the Secretary role to another eligible member (co_secretary or board_member).
  * Calls: transfer_secretary_role(p_new_secretary_user_id)
- * Returns: void.
- * Calls refreshSession() — the caller is demoted to member after this call.
+ * Returns: { refreshed } — false when the follow-up refreshSession failed (the
+ * caller's JWT still says 'secretary' until a refresh succeeds).
+ * Throws on RPC error.
  */
 export async function transferSecretaryRole(supabase, newSecretaryUserId) {
   const { error } = await supabase.rpc("transfer_secretary_role", {
     p_new_secretary_user_id: newSecretaryUserId,
   });
   if (error) throw error;
-  const { error: refreshError } = await supabase.auth.refreshSession();
-  if (refreshError) {
-    console.warn("[society] refreshSession failed after role transfer:", refreshError.message);
-  }
+  return { refreshed: await refreshSessionAfterClaimsChange(supabase) };
 }
 
 // ---------------------------------------------------------------------------
@@ -316,27 +308,35 @@ export async function transferSecretaryRole(supabase, newSecretaryUserId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Return the percentage (0–100) of society flats with active memberships.
- * Runs two parallel COUNT queries (flats + active memberships).
- * Returns an integer.
+ * Return the percentage (0–100) of society flats that have at least one active
+ * membership. Two parallel COUNT queries: all flats, and DISTINCT flats with an
+ * active membership (an inner-joined embed counts each flat once, however many
+ * memberships it has).
+ *
+ * @returns {Promise<number>} integer clamped to 0..100
+ * @throws on query errors (never reports a misleading 0%)
  */
 export async function fetchJoinPercent(supabase, societyId) {
-  const [flatsRes, memRes] = await Promise.all([
+  const [flatsRes, joinedRes] = await Promise.all([
     supabase.from("flats").select("id", { count: "exact", head: true }).eq("society_id", societyId),
     supabase
-      .from("society_memberships")
-      .select("flat_id", { count: "exact", head: true })
+      .from("flats")
+      .select("id, society_memberships!inner(id)", { count: "exact", head: true })
       .eq("society_id", societyId)
-      .eq("status", "active"),
+      .eq("society_memberships.status", "active"),
   ]);
+  if (flatsRes.error) throw flatsRes.error;
+  if (joinedRes.error) throw joinedRes.error;
   const total = flatsRes.count ?? 0;
-  const joined = memRes.count ?? 0;
-  return total === 0 ? 0 : Math.round((joined / total) * 100);
+  const joined = joinedRes.count ?? 0;
+  if (total === 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((joined / total) * 100)));
 }
 
 /**
  * Return memberships with status='pending_review' (duplicate flat conflicts).
  * Joins profiles + flats + wings for display in the Secretary review queue.
+ * Throws on query errors.
  */
 export async function fetchPendingReviews(supabase, societyId) {
   const { data, error } = await supabase
@@ -356,6 +356,7 @@ export async function fetchPendingReviews(supabase, societyId) {
 /**
  * Return the N most recently joined active members (default 5).
  * Joins profiles + flats + wings for the Secretary dashboard recent-joiners card.
+ * Throws on query errors.
  */
 export async function fetchRecentJoiners(supabase, societyId, limit = 5) {
   const { data, error } = await supabase
@@ -379,19 +380,26 @@ export async function fetchRecentJoiners(supabase, societyId, limit = 5) {
  *
  * options.action    — exact action string to filter on (e.g., 'member.removed')
  * options.sinceDays — look-back window in days (default 7)
+ * options.limit     — page size (default 50, capped at AUDIT_LOG_MAX_LIMIT)
+ * options.cursor    — { createdAt, id } of the previous page's last row
+ *                     (see nextCursorFrom) to fetch the next page
+ *
+ * @returns {Promise<Array>} newest first
+ * @throws on query errors
  */
-export async function fetchAuditLog(supabase, societyId, { action, sinceDays = 7 } = {}) {
-  let q = supabase
-    .from("audit_log")
-    .select("*")
-    .eq("society_id", societyId)
-    .order("created_at", { ascending: false });
+export async function fetchAuditLog(
+  supabase,
+  societyId,
+  { action, sinceDays = 7, limit = 50, cursor = null } = {},
+) {
+  let q = supabase.from("audit_log").select("*").eq("society_id", societyId);
   if (action) q = q.eq("action", action);
   if (sinceDays) {
     const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
     q = q.gte("created_at", since);
   }
-  const { data, error } = await q;
+  const pageSize = Math.min(Math.max(1, limit), AUDIT_LOG_MAX_LIMIT);
+  const { data, error } = await applyNewestFirstCursor(q, cursor).limit(pageSize);
   if (error) throw error;
   return data ?? [];
 }

@@ -7,27 +7,29 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { addStaff, deleteStaff } from "@parisar/api-client";
-import { Phone, Plus, Trash2, UserRound, X } from "lucide-react-native";
+import { Phone, Plus, Trash2, UserRound, WifiOff, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   Pressable,
   ScrollView,
-  Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FormError } from "../../../components/auth/FormError";
 import { EmptyState, PageHeader, SmallButton, SurfaceCard } from "../../../components/kit";
 import { Field, TextField } from "../../../components/onboarding/Form";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
+import { openExternalUrl } from "../../../lib/safe-link";
 import { getSupabase } from "../../../lib/supabase";
 import { useMyContext } from "../../../lib/use-my-context";
+import { useSocietyRealtime } from "../../../lib/use-society-realtime";
 
 const CATS = ["maid", "driver", "cook", "electrician", "plumber", "gardener", "other"];
 
@@ -151,30 +153,40 @@ export default function StaffDirectoryScreen() {
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
   const load = useCallback(async () => {
-    if (!societyId) return;
-    const { data } = await getSupabase()
+    if (!societyId) {
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await getSupabase()
       .from("society_staff")
       .select("id, name, phone, category, added_by, added_by_name, added_by_flat")
       .eq("society_id", societyId)
       .order("created_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      console.warn("[staff-directory] load failed:", error.message ?? error);
+      setLoadError(true);
+      return;
+    }
+    setLoadError(false);
     setStaff(Array.isArray(data) ? data : []);
   }, [societyId]);
 
   useEffect(() => {
-    if (!societyId) return undefined;
     load();
-    const supabase = getSupabase();
-    const channel = supabase
-      .channel(`staff-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "society_staff" }, () =>
-        load(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [societyId, load]);
+  }, [load]);
+
+  // Live while focused, this society only.
+  useSocietyRealtime("society_staff", societyId, load);
+
+  function retry() {
+    setLoading(true);
+    load();
+  }
 
   function remove(id) {
     Alert.alert(t("staff.remove"), "", [
@@ -220,7 +232,15 @@ export default function StaffDirectoryScreen() {
           ))}
         </ScrollView>
 
-        {shown.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator color="#12715A" style={{ marginTop: 24 }} />
+        ) : loadError ? (
+          <EmptyState
+            icon={WifiOff}
+            title={t("common.loadError")}
+            action={<SmallButton label={t("common.retry")} onPress={retry} />}
+          />
+        ) : shown.length === 0 ? (
           <EmptyState
             icon={UserRound}
             title={t("staff.empty")}
@@ -245,7 +265,7 @@ export default function StaffDirectoryScreen() {
                   <Text className="text-base font-semibold text-neutral-900">{s.name}</Text>
                   {s.phone ? (
                     <Pressable
-                      onPress={() => Linking.openURL(`tel:+91${s.phone}`)}
+                      onPress={() => openExternalUrl(`tel:+91${s.phone}`).catch(() => {})}
                       accessibilityRole="link"
                       className="flex-row items-center gap-1.5 self-start"
                     >

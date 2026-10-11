@@ -4,6 +4,7 @@
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
+import { redirect } from "next/navigation";
 import { ProfileClient } from "../../../components/profile/ProfileClient";
 import { resolveActiveSociety } from "../../../lib/auth/activeSociety";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
@@ -15,7 +16,7 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) redirect("/login");
 
   const { societyId, role } = await resolveActiveSociety(supabase, user);
 

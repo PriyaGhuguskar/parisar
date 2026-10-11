@@ -5,8 +5,8 @@
 // warm marigold one so the app matches the public site — a visitor should not
 // hit a colour cliff between the landing page and the login screen.
 //
-// WCAG 2.2 AA verified against the warm surfaces (white, neutral-50 #FFFCF9,
-// neutral-100 #EEF6F0, brand-50 #DCEFE6). Ratios recorded per token so future
+// WCAG 2.2 AA verified against the app surfaces (white, neutral-50 #F8FAFC,
+// neutral-100 #F1F5F9, brand-50 #DCEFE6). Ratios recorded per token so future
 // edits can be checked rather than guessed.
 export const colors = {
   brand: {
@@ -26,8 +26,13 @@ export const colors = {
     100: "#F1F5F9",
     200: "#E2E8F0", // borders/dividers only — never text
     300: "#CBD5E1", // decorative only — never text
-    400: "#64748B", // secondary text — 4.76:1 on white
-    500: "#64748B",
+    // 400 and 500 are intentionally the SAME value. neutral-400 is used as
+    // secondary TEXT in ~100 places (text-neutral-400, placeholders) and on the web
+    // (--color-neutral-400), so it must stay ≥4.5:1; a lighter slate such as
+    // #94A3B8 is only 2.56:1 on white and would fail WCAG AA. 500 is kept as an
+    // alias for existing usages.
+    400: "#64748B", // secondary text — 4.76:1 on white, 4.55:1 on neutral-50
+    500: "#64748B", // alias of 400 (see above)
     600: "#475569", // body text — 7.58:1 on white
     700: "#334155",
     900: "#1E293B", // headings — 14.6:1 on white

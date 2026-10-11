@@ -24,7 +24,7 @@ import { uploadFinePdfWeb } from "@parisar/api-client";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle2, FileText, Info, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { issueFlatActionAction } from "../../app/(protected)/flat-actions/actions";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
@@ -37,6 +37,9 @@ const MAX_REASON = 1000;
 const MAX_MESSAGE = 2000;
 const MAX_AMOUNT = 1000000;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const REDIRECT_DELAY_MS = 600;
+// Whole rupees only — "1500.50" must be rejected, not silently truncated.
+const AMOUNT_RE = /^\d+$/;
 
 // PAR-001: KINDS is built inside the component (labels call t()).
 
@@ -86,6 +89,11 @@ export function IssueActionForm({ societyId, flats }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  // Stays true through the redirect delay so the form can't be re-submitted.
+  const [submitted, setSubmitted] = useState(false);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(redirectTimerRef.current), []);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -95,10 +103,15 @@ export function IssueActionForm({ societyId, flats }) {
 
   const reasonLen = reason.length;
   const messageLen = message.length;
-  const amountNum = Number.parseInt(amount, 10);
-  const amountValid = !Number.isNaN(amountNum) && amountNum > 0 && amountNum <= MAX_AMOUNT;
-  const reasonValid = reasonLen >= MIN_REASON && reasonLen <= MAX_REASON;
-  const messageValid = messageLen >= 1 && messageLen <= MAX_MESSAGE;
+  const amountTrimmed = amount.trim();
+  const amountFormatOk = AMOUNT_RE.test(amountTrimmed);
+  const amountNum = amountFormatOk ? Number.parseInt(amountTrimmed, 10) : Number.NaN;
+  const amountValid = amountFormatOk && amountNum > 0 && amountNum <= MAX_AMOUNT;
+  const amountError = amountTrimmed.length > 0 && !amountValid;
+  // Whitespace-only text never counts toward the minimum.
+  const reasonTrimmedLen = reason.trim().length;
+  const reasonValid = reasonTrimmedLen >= MIN_REASON && reasonLen <= MAX_REASON;
+  const messageValid = message.trim().length >= 1 && messageLen <= MAX_MESSAGE;
 
   let kindValid = false;
   if (kind === "warning") kindValid = reasonValid;
@@ -106,7 +119,8 @@ export function IssueActionForm({ societyId, flats }) {
   else if (kind === "fine") kindValid = amountValid && reasonValid && !!dueDate;
 
   const hasFlats = flats.length > 0;
-  const canSubmit = !!flatId && kindValid && !submitting && !pdfUploading && !!actionId && hasFlats;
+  const canSubmit =
+    !!flatId && kindValid && !submitting && !submitted && !pdfUploading && !!actionId && hasFlats;
 
   async function handlePdfChange(e) {
     const file = e.target.files?.[0];
@@ -163,11 +177,12 @@ export function IssueActionForm({ societyId, flats }) {
         );
         return;
       }
+      setSubmitted(true);
       setSuccessOpen(true);
-      setTimeout(() => {
+      redirectTimerRef.current = setTimeout(() => {
         router.push("/flat-actions");
         router.refresh();
-      }, 600);
+      }, REDIRECT_DELAY_MS);
     } catch {
       setSubmitError(t("flatAction.issueError"));
     } finally {
@@ -231,8 +246,16 @@ export function IssueActionForm({ societyId, flats }) {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={t("flatAction.amountPlaceholder")}
+            step={1}
+            aria-invalid={amountError}
+            aria-describedby={amountError ? "fine-amount-error" : undefined}
             className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-base text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#12715A]"
           />
+          {amountError ? (
+            <p id="fine-amount-error" role="alert" className="text-sm text-[#c81e1e]">
+              {t("flatAction.amountInvalid")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -340,7 +363,7 @@ export function IssueActionForm({ societyId, flats }) {
               <button
                 type="button"
                 onClick={removePdf}
-                aria-label="Remove PDF"
+                aria-label={t("flatAction.removePdf")}
                 className="inline-flex items-center justify-center rounded-full w-7 h-7 bg-neutral-200 text-[#525252] hover:bg-neutral-300"
               >
                 <X size={16} aria-hidden="true" />

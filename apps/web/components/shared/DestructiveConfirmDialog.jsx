@@ -27,6 +27,8 @@ import {
  *   mismatchError      {string}    inline error when text doesn't match
  *   onConfirm          {Function}  called when name matches and user confirms
  *   isLoading          {boolean}   shows loading state on confirm button
+ *   loadingLabel       {string}    confirm-button label while loading (default "Loading…")
+ *   error              {string}    optional error shown above the buttons (e.g. a failed delete)
  */
 export function DestructiveConfirmDialog({
   open,
@@ -40,6 +42,8 @@ export function DestructiveConfirmDialog({
   mismatchError = "Name does not match.",
   onConfirm,
   isLoading = false,
+  loadingLabel = "Loading…",
+  error = null,
 }) {
   const [typed, setTyped] = useState("");
   const inputRef = useRef(null);
@@ -94,6 +98,12 @@ export function DestructiveConfirmDialog({
           )}
         </div>
 
+        {error ? (
+          <p role="alert" className="text-sm font-semibold text-[var(--color-danger)]">
+            {error}
+          </p>
+        ) : null}
+
         <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
             variant="destructive"
@@ -101,7 +111,7 @@ export function DestructiveConfirmDialog({
             onClick={() => matches && !isLoading && onConfirm()}
             className="w-full sm:w-auto"
           >
-            {isLoading ? "Loading…" : confirmButtonLabel}
+            {isLoading ? loadingLabel : confirmButtonLabel}
           </Button>
           <Button
             variant="outline"

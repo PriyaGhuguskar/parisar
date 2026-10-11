@@ -36,7 +36,9 @@
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
-import { AccessibilityInfo, Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { AccessibilityInfo, Pressable, View } from "react-native";
+import { Text } from "../ui/Text";
 
 // Locked design tokens — these are the only places these hex literals appear
 // in this file. UI-SPEC §Tile Color Contract is the source of truth.
@@ -84,10 +86,12 @@ export function DashboardTile({
   badgeText,
   placeholder = false,
   placeholderPhase = null,
-  placeholderPill = "Coming soon",
+  placeholderPill: placeholderPillProp,
   announceUnavailable = null,
   previewNode = null,
 }) {
+  const { t } = useTranslation("dashboard");
+  const placeholderPill = placeholderPillProp ?? t("placeholder.comingSoon");
   function handlePress() {
     if (placeholder) {
       if (announceUnavailable) {

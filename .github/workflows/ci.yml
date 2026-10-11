@@ -35,23 +35,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec biome check .
 
-  typecheck:
-    name: Typecheck (workspace-wide)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      # JavaScript project: no TS type generation. Typecheck runs tsc --noEmit via jsconfig
-      # for basic JS type checking where configured (apps/web jsconfig.json).
-      - run: pnpm exec turbo run typecheck
+  # No typecheck job: the project is plain JavaScript (CLAUDE.md) — there is no
+  # TypeScript to check and no `typecheck` turbo task. Static checks are Biome (lint).
 
   unit-tests:
     name: Unit Tests (Vitest + Jest)
@@ -68,6 +53,9 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run test
+        env:
+          # Missing i18n keys fail the web (Vitest) and mobile (Jest) suites in CI.
+          I18N_STRICT: "1"
 
   isolation-test:
     name: Cross-tenant Isolation Test
@@ -108,6 +96,20 @@ jobs:
       - name: Stop Supabase
         if: always()
         run: supabase stop --no-backup
+
+  no-dev-otp:
+    # C3: fail if dev-only OTP settings (test_otp, dev_send_sms hook) could be
+    # pushed to a deployed project via a [remotes.*] section or a workflow that
+    # runs `supabase config push`. See supabase/DEPLOY.md.
+    name: No dev OTP in deploy config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/check-no-dev-otp.mjs
 
   devanagari-bundle:
     name: Devanagari Bundle Integrity
@@ -151,3 +153,17 @@ jobs:
         run: node scripts/check-devanagari-bundle.mjs
       - name: No direct locale imports in app screens (Wave 3 promotion — BLOCKING)
         run: node scripts/check-no-direct-locale-import.mjs --dir apps
+
+  i18n-keys-used:
+    # Every literal t("ns:key") / t("key") used in apps/ must exist in
+    # packages/i18n/locales/en. Separate job so a missing key does not mask the
+    # other i18n gates. NOTE: expected to fail until the wave-2 locale merge lands.
+    name: i18n keys used exist
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/check-i18n-keys-used.mjs

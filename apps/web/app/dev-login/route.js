@@ -8,8 +8,9 @@
 // real SMS and accept the fixed code. You get a genuine session and real data.
 //
 // SAFETY:
-//   - Returns 404 unless NODE_ENV === "development". It cannot run in a
-//     production build, and there is no env flag to turn it on there.
+//   - Returns 404 unless NODE_ENV === "development" AND ENABLE_DEV_ROUTES === "1"
+//     (lib/devRoutes.js). A production build never has NODE_ENV=development, and
+//     even a dev server stays closed unless the developer opted in.
 //   - It only ever signs in as the seeded local test numbers, which exist purely
 //     because supabase/config.toml maps them to a fixed OTP. That whole block is
 //     removed before any deploy, so these accounts do not exist in production.
@@ -29,6 +30,7 @@
 //   /dev-login?next=/community → land somewhere other than the dashboard
 
 import { NextResponse } from "next/server";
+import { devRoutesEnabled } from "@/lib/devRoutes";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const DEV_OTP = "123456";
@@ -37,7 +39,7 @@ const DEV_OTP = "123456";
 const DEFAULT_TEST_PHONE = "9000000005";
 
 export async function GET(request) {
-  if (process.env.NODE_ENV !== "development") {
+  if (!devRoutesEnabled()) {
     return new NextResponse("Not found", { status: 404 });
   }
 
@@ -53,7 +55,8 @@ export async function GET(request) {
   const phone = `+91${digits}`;
   // Keep the redirect internal — never bounce to an external origin.
   const nextParam = url.searchParams.get("next") ?? "/dashboard";
-  const next = nextParam.startsWith("/") ? nextParam : "/dashboard";
+  // "/x" only — "//evil.com" and "/\evil.com" are protocol-relative to browsers.
+  const next = /^\/(?![/\\])/.test(nextParam) ? nextParam : "/dashboard";
 
   const supabase = await createSupabaseServerClient();
 
@@ -75,7 +78,6 @@ export async function GET(request) {
       return NextResponse.json(
         {
           step: "signInWithOtp",
-          phone,
           error: sendError.message,
           hint: "Supabase throttles OTP requests per phone (10s). Wait a moment and reload.",
         },
@@ -93,7 +95,6 @@ export async function GET(request) {
     return NextResponse.json(
       {
         step: "verifyOtp",
-        phone,
         error: verifyError.message,
         hint: "Run `supabase stop && supabase start` — config.toml test_otp numbers are only read at startup.",
       },
@@ -101,5 +102,8 @@ export async function GET(request) {
     );
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  const target = new URL(next, url.origin);
+  return NextResponse.redirect(
+    target.origin === url.origin ? target : new URL("/dashboard", url.origin),
+  );
 }

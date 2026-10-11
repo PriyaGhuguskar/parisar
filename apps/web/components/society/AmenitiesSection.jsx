@@ -1,30 +1,45 @@
 "use client";
 
 // AmenitiesSection — secretary manages the society's amenities and each one's
-// status: Working, or Closed (with an optional "closed till <date>"). Residents
-// see the same statuses elsewhere; here they're editable. Rendered on the
-// Society profile page.
+// status: Working, or Closed (with an optional "closed till <date>", today or
+// later). Residents see the same statuses elsewhere; here they're editable.
+// Rendered on the Society profile page. Removing an amenity needs a typed-name
+// confirmation.
 
 import { deleteAmenity, upsertAmenity } from "@parisar/api-client";
-import { Dumbbell, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Dumbbell, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SurfaceCard } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ConfirmRemoveDialog } from "../shared/ConfirmRemoveDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const FIELD =
   "h-11 w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
 
-function fmtDate(d) {
+const LOCALE_TAG = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" };
+
+function localeTag(lang) {
+  return LOCALE_TAG[String(lang ?? "en").slice(0, 2)] ?? "en-IN";
+}
+
+function fmtDate(d, lang) {
   try {
-    return new Date(d).toLocaleDateString(undefined, {
+    return new Date(d).toLocaleDateString(localeTag(lang), {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "Asia/Kolkata",
     });
   } catch {
     return d;
   }
+}
+
+// Today as yyyy-MM-dd in IST — the earliest valid "closed till" date.
+function todayIst() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 }
 
 function AmenityDialog({ societyId, editing, onClose, onSaved }) {
@@ -34,11 +49,16 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
   const [closedUntil, setClosedUntil] = useState(editing?.closed_until ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const minDate = todayIst();
+  const title = editing?.id ? t("profile.editAmenity") : t("profile.addAmenity");
 
   async function submit(e) {
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError(t("profile.amenityNameRequired"));
+    if (status === "closed" && closedUntil && closedUntil < minDate) {
+      return setError(t("profile.closedTillPast"));
+    }
     setSaving(true);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -63,34 +83,19 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,38,28,0.45)] p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("profile.addAmenity")}
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-md rounded-t-[22px] bg-[var(--color-neutral-0)] p-6 sm:rounded-[22px]">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
-            {t("profile.addAmenity")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("profile.cancel")}
-            className="rounded-lg p-1.5 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-          >
-            <X size={18} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="max-w-md rounded-[22px] bg-[var(--color-neutral-0)] p-6 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+            {title}
+          </DialogTitle>
+        </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
               {t("profile.amenityName")}
             </span>
             <input
-              // biome-ignore lint/a11y/noAutofocus: first field of an explicitly-opened dialog
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -113,6 +118,7 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
                   <button
                     key={v}
                     type="button"
+                    aria-pressed={on}
                     onClick={() => setStatus(v)}
                     className="rounded-xl border px-4 py-2.5 text-[14px] font-bold transition-colors"
                     style={{
@@ -134,6 +140,7 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
               </span>
               <input
                 type="date"
+                min={minDate}
                 value={closedUntil ?? ""}
                 onChange={(e) => setClosedUntil(e.target.value)}
                 className={FIELD}
@@ -141,7 +148,9 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
             </label>
           ) : null}
           {error ? (
-            <p className="text-[13px] font-semibold text-[var(--color-danger)]">{error}</p>
+            <p role="alert" className="text-[13px] font-semibold text-[var(--color-danger)]">
+              {error}
+            </p>
           ) : null}
           <div className="flex items-center justify-end gap-2.5">
             <button
@@ -161,34 +170,47 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function AmenitiesSection({ societyId }) {
-  const { t } = useTranslation("auth");
+  const { t, i18n } = useTranslation("auth");
   const [amenities, setAmenities] = useState([]);
+  const [loadError, setLoadError] = useState(false);
   const [dialog, setDialog] = useState(null); // null | { editing?: amenity }
+  const [removeTarget, setRemoveTarget] = useState(null); // amenity | null
 
   const load = useCallback(async () => {
-    const supabase = createSupabaseBrowserClient();
-    const { data } = await supabase
-      .from("amenities")
-      .select("id, name, status, closed_until")
-      .eq("society_id", societyId)
-      .order("name", { ascending: true });
-    setAmenities(Array.isArray(data) ? data : []);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("amenities")
+        .select("id, name, status, closed_until")
+        .eq("society_id", societyId)
+        .order("name", { ascending: true });
+      if (error) {
+        setLoadError(true);
+        return;
+      }
+      setLoadError(false);
+      setAmenities(Array.isArray(data) ? data : []);
+    } catch {
+      setLoadError(true);
+    }
   }, [societyId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function remove(id) {
+  async function remove(target) {
     const supabase = createSupabaseBrowserClient();
-    await deleteAmenity(supabase, id);
+    const res = await deleteAmenity(supabase, target.id);
+    if (res?.error) return res;
     await load();
+    return { ok: true };
   }
 
   return (
@@ -212,7 +234,18 @@ export function AmenitiesSection({ societyId }) {
         </button>
       </div>
 
-      {amenities.length === 0 ? (
+      {loadError ? (
+        <SurfaceCard className="flex flex-col items-center gap-2 px-5 py-6 text-center text-[14px] text-[var(--color-danger)]">
+          <p role="alert">{t("profile.amenitiesLoadError")}</p>
+          <button
+            type="button"
+            onClick={load}
+            className="rounded-lg px-3 py-1.5 text-[13px] font-bold text-[var(--color-brand-600)] hover:bg-[var(--color-neutral-100)]"
+          >
+            {t("auth.retry")}
+          </button>
+        </SurfaceCard>
+      ) : amenities.length === 0 ? (
         <SurfaceCard className="px-5 py-6 text-center text-[14px] text-[var(--color-neutral-400)]">
           {t("profile.noAmenities")}
         </SurfaceCard>
@@ -220,6 +253,9 @@ export function AmenitiesSection({ societyId }) {
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {amenities.map((a) => {
             const closed = a.status === "closed";
+            const closedLabel = a.closed_until
+              ? `${t("profile.statusClosed")} · ${t("profile.closedTillShort", { date: fmtDate(a.closed_until, i18n?.language) })}`
+              : t("profile.statusClosed");
             return (
               <li key={a.id}>
                 <SurfaceCard className="flex items-center gap-3 px-4 py-3">
@@ -241,11 +277,7 @@ export function AmenitiesSection({ societyId }) {
                         closed ? "text-[var(--color-danger)]" : "text-[var(--color-brand-600)]"
                       }`}
                     >
-                      {closed
-                        ? a.closed_until
-                          ? `${t("profile.statusClosed")} · ${t("profile.closedTillShort", { date: fmtDate(a.closed_until) })}`
-                          : t("profile.statusClosed")
-                        : t("profile.statusWorking")}
+                      {closed ? closedLabel : t("profile.statusWorking")}
                     </span>
                   </div>
                   <button
@@ -258,7 +290,7 @@ export function AmenitiesSection({ societyId }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => remove(a.id)}
+                    onClick={() => setRemoveTarget(a)}
                     aria-label={t("profile.amenityRemove")}
                     className="shrink-0 rounded-lg p-2 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)] hover:text-[var(--color-danger)]"
                   >
@@ -279,6 +311,12 @@ export function AmenitiesSection({ societyId }) {
           onSaved={load}
         />
       ) : null}
+
+      <ConfirmRemoveDialog
+        target={removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={remove}
+      />
     </section>
   );
 }

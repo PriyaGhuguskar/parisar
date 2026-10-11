@@ -79,7 +79,7 @@ export function PhonePrivacyChip({ targetUserId }) {
         type="button"
         onClick={tapHidden}
         className={`pk-press inline-flex items-center gap-1.5 rounded-full border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3 py-1.5 text-[13px] font-semibold text-[var(--color-neutral-400)] transition-colors hover:border-[var(--color-brand-500)] hover:bg-[var(--color-brand-50)] hover:text-[var(--color-brand-600)] ${FOCUS}`}
-        aria-label={`${t("directory.phoneHidden")}. Press to reveal.`}
+        aria-label={t("directory.phoneRevealLabel")}
       >
         <EyeOff size={15} strokeWidth={2.1} aria-hidden="true" />
         <span>{t("directory.phoneHidden")}</span>
@@ -149,7 +149,7 @@ export function PhonePrivacyChip({ targetUserId }) {
       style={{ borderColor: "var(--color-danger)", backgroundColor: "#FCE9E6" }}
       role="alert"
     >
-      Reveal failed
+      {t("directory.phoneRevealFailed")}
     </span>
   );
 }

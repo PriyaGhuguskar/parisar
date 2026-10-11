@@ -13,17 +13,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   adminClient,
-  signInAsMember,
-  signInAsSecretary,
-  seedTestSociety,
-  teardownPhase6,
-  seedPost,
-  seedComment,
   clearGrievanceOfficer,
   MEMBER_A_PHONE,
+  MEMBER_A2_PHONE,
   MEMBER_B_PHONE,
   SECRETARY_A_PHONE,
-  MEMBER_A2_PHONE,
+  seedComment,
+  seedPost,
+  seedTestSociety,
+  signInAsMember,
+  signInAsSecretary,
+  teardownPhase6,
 } from "./helpers/phase6.js";
 
 const societyA = seedTestSociety("A"); // flatId = A-101, flat2Id = A-102
@@ -149,8 +149,23 @@ describe("auto-hide direct query", () => {
     expect(data).toHaveLength(1);
   });
 
-  it("first report hides it; a DIFFERENT non-board member's direct query returns 0 rows", async () => {
+  it("055: a single MEMBER report does not hide it (hides at 3 reporters or a board report)", async () => {
     const { data: rep, error: repErr } = await memberA.client.rpc("report_content", {
+      p_target_kind: "post",
+      p_target_id: postId,
+      p_reason: "inappropriate",
+    });
+    expect(repErr).toBeNull();
+    expect(rep.hidden).toBe(false);
+    expect(rep.already_reported).toBe(false);
+
+    const { data, error } = await memberA2.client.from("posts").select("id").eq("id", postId);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1);
+  });
+
+  it("a board (secretary) report hides it; a DIFFERENT non-board member's direct query returns 0 rows", async () => {
+    const { data: rep, error: repErr } = await secretaryA.client.rpc("report_content", {
       p_target_kind: "post",
       p_target_id: postId,
       p_reason: "inappropriate",
@@ -165,7 +180,10 @@ describe("auto-hide direct query", () => {
   });
 
   it("a board/secretary still sees the hidden post (moderation queue)", async () => {
-    const { data, error } = await secretaryA.client.from("posts").select("id, hidden_at").eq("id", postId);
+    const { data, error } = await secretaryA.client
+      .from("posts")
+      .select("id, hidden_at")
+      .eq("id", postId);
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
     expect(data[0].hidden_at).not.toBeNull();
@@ -176,7 +194,7 @@ describe("auto-hide direct query", () => {
 // COMM-04: second report is idempotent (no error, hidden_at unchanged).
 // ---------------------------------------------------------------------------
 describe("report idempotent", () => {
-  it("a second report does not error and leaves hidden_at unchanged", async () => {
+  it("055: two member reports → 2 rows, still visible (hidden_at null); same reporter twice is idempotent", async () => {
     const postId = await seedPost({
       societyId: societyA.societyId,
       authorId: memberA.userId,
@@ -193,20 +211,34 @@ describe("report idempotent", () => {
 
     const admin = adminClient();
     const { data: first } = await admin.from("posts").select("hidden_at").eq("id", postId).single();
-    expect(first.hidden_at).not.toBeNull();
+    expect(first.hidden_at).toBeNull();
 
-    // Second report by a different member.
-    const { error: e2 } = await memberA2.client.rpc("report_content", {
+    // Same reporter again → already_reported, no new row.
+    const { data: dup, error: eDup } = await memberA.client.rpc("report_content", {
+      p_target_kind: "post",
+      p_target_id: postId,
+      p_reason: "spam",
+    });
+    expect(eDup).toBeNull();
+    expect(dup.already_reported).toBe(true);
+
+    // Second report by a different member — 2 distinct reporters, below the threshold of 3.
+    const { data: rep2, error: e2 } = await memberA2.client.rpc("report_content", {
       p_target_kind: "post",
       p_target_id: postId,
       p_reason: "harassment",
     });
     expect(e2).toBeNull();
+    expect(rep2.hidden).toBe(false);
 
-    const { data: second } = await admin.from("posts").select("hidden_at").eq("id", postId).single();
-    expect(second.hidden_at).toBe(first.hidden_at); // FIRST report wins (idempotent)
+    const { data: second } = await admin
+      .from("posts")
+      .select("hidden_at")
+      .eq("id", postId)
+      .single();
+    expect(second.hidden_at).toBeNull();
 
-    // Two report rows recorded (many-per-target allowed).
+    // Two report rows recorded (one per distinct reporter).
     const { data: reports } = await admin
       .from("reports")
       .select("id")
@@ -390,7 +422,8 @@ describe("comment report", () => {
       body: "Offensive comment",
     });
 
-    const { data, error } = await memberA.client.rpc("report_content", {
+    // 055: a member report alone no longer hides — a board (secretary) report does.
+    const { data, error } = await secretaryA.client.rpc("report_content", {
       p_target_kind: "comment",
       p_target_id: commentId,
       p_reason: "harassment",

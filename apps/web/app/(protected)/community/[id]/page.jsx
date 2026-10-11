@@ -8,10 +8,11 @@
 //   4. Hands off to PostDetailClient (Realtime comments + report flow).
 
 import { COMMUNITY_BUCKET, getPost, listComments } from "@parisar/api-client";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PostDetailClient } from "../../../../components/community/PostDetailClient";
+import { getServerT } from "../../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { DetailNotFound, logLoadError } from "../../_components/DetailNotFound";
 
 export const dynamic = "force-dynamic";
 
@@ -27,29 +28,25 @@ export default async function PostDetailPage({ params }) {
 
   let detail = null;
   let comments = [];
-  let loadError = null;
+  let loadFailed = false;
   try {
     detail = await getPost(supabase, id);
     comments = await listComments(supabase, id);
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    loadFailed = true;
+    logLoadError("post-detail", err);
   }
 
   if (!detail?.post) {
+    const { t } = await getServerT(["community", "auth"]);
     return (
-      <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col items-center justify-center gap-3 px-8 text-center">
-        <h2 className="text-xl font-semibold text-[#171717]">Post not found</h2>
-        <p className="text-base text-[#525252]">
-          This post may have been removed, or you may not have permission to view it.
-        </p>
-        {loadError ? <p className="text-sm text-[#6e6e6e]">{loadError}</p> : null}
-        <Link
-          href="/community"
-          className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
-        >
-          Back to Community
-        </Link>
-      </div>
+      <DetailNotFound
+        title={t("community.notFoundTitle")}
+        body={t("community.notFoundBody")}
+        errorText={loadFailed ? t("auth:common.loadFailed") : null}
+        backHref="/community"
+        backLabel={t("community.backToList")}
+      />
     );
   }
 

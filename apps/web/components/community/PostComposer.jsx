@@ -18,6 +18,12 @@
 //     fail-closed; never publish an unverified image — T-06-25)
 // A text-only post (0 photos) skips the gate and posts immediately.
 //
+// Retries are idempotent: the postId is minted ONCE per draft (ref), so a retry
+// can never create a second post. Photo ids are re-minted per retry so the
+// quarantine upload (upsert:false) never collides with a previous attempt's bytes.
+// Photos are validated on pick (image/*, non-empty, <=10 MB) and large images are
+// downscaled through a canvas before upload.
+//
 // createPost runs CLIENT-SIDE (browser Storage upload + functions.invoke) — it can't
 // be a server action because the moderation gate consumes the browser bytes.
 
@@ -30,6 +36,13 @@ import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 
 const MAX_TEXT = 2000;
 const MAX_PHOTOS = 4;
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+const REDIRECT_DELAY_MS = 600;
+// Downscale anything larger than this (longest side, px) or heavier than
+// DOWNSCALE_BYTES before upload — mirrors the mobile 1600px rule.
+const MAX_DIMENSION = 1600;
+const DOWNSCALE_BYTES = 1.5 * 1024 * 1024;
+const JPEG_QUALITY = 0.8;
 
 // Per-photo image-safety states (the D-02 state machine).
 const STATE_IDLE = "idle";
@@ -47,6 +60,51 @@ function cryptoRandomUUIDClient() {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function isAcceptablePhoto(file) {
+  return (
+    !!file &&
+    file.size > 0 &&
+    file.size <= MAX_PHOTO_BYTES &&
+    String(file.type ?? "").startsWith("image/")
+  );
+}
+
+/**
+ * Downscale a large image via canvas. Falls back to the original bytes when the
+ * browser lacks createImageBitmap / canvas.toBlob or decoding fails.
+ *
+ * @param {File} file
+ * @returns {Promise<{ bytes: Uint8Array, mimeType: string }>}
+ */
+async function preparePhotoBytes(file) {
+  const original = async () => ({
+    bytes: new Uint8Array(await file.arrayBuffer()),
+    mimeType: file.type || "image/jpeg",
+  });
+  if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
+    return original();
+  }
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    if (longest <= MAX_DIMENSION && file.size <= DOWNSCALE_BYTES) {
+      bitmap.close?.();
+      return original();
+    }
+    const scale = Math.min(1, MAX_DIMENSION / longest);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    if (!blob) return original();
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), mimeType: "image/jpeg" };
+  } catch {
+    return original();
+  }
 }
 
 /**
@@ -71,6 +129,16 @@ export function PostComposer({ societyId }) {
   const [error, setError] = useState(null);
   const [imgCheckError, setImgCheckError] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [photoSkipped, setPhotoSkipped] = useState(false);
+  // Stays true through the redirect delay so the form can't be re-submitted.
+  const [submitted, setSubmitted] = useState(false);
+  // One post id per draft -> retries can never publish twice.
+  const postIdRef = useRef(null);
+  if (postIdRef.current === null) postIdRef.current = cryptoRandomUUIDClient();
+  const attemptRef = useRef(0);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(redirectTimerRef.current), []);
 
   // Revoke object URLs on unmount. The latest photos are read through a ref so the
   // cleanup never goes stale without re-subscribing the effect.
@@ -85,20 +153,22 @@ export function PostComposer({ societyId }) {
   }, []);
 
   const textLen = text.length;
-  const textValid = textLen >= 1 && textLen <= MAX_TEXT;
+  const textValid = text.trim().length >= 1 && textLen <= MAX_TEXT;
 
   // Submit gating: text valid AND no photo is checking AND no photo is reject (D-02).
   const anyChecking = photos.some((p) => p.state === STATE_CHECKING);
   const anyReject = photos.some((p) => p.state === STATE_REJECT);
-  const canSubmit = textValid && !anyChecking && !anyReject && !submitting;
+  const canSubmit = textValid && !anyChecking && !anyReject && !submitting && !submitted;
 
   function handleAddPhotos(e) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+    const files = picked.filter(isAcceptablePhoto);
+    setPhotoSkipped(files.length !== picked.length);
     setImgCheckError(false);
     setPhotos((prev) => {
       const room = MAX_PHOTOS - prev.length;
-      const next = files.slice(0, room).map((file) => ({
+      const next = files.slice(0, Math.max(0, room)).map((file) => ({
         photoId: cryptoRandomUUIDClient(),
         file,
         previewUrl: URL.createObjectURL(file),
@@ -132,11 +202,6 @@ export function PostComposer({ societyId }) {
     );
   }
 
-  async function fileToBytes(file) {
-    const buf = await file.arrayBuffer();
-    return new Uint8Array(buf);
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
@@ -148,27 +213,40 @@ export function PostComposer({ societyId }) {
       // Flip all photos to `checking` (the sync-block visual).
       if (photos.length > 0) setAllPhotoStates(STATE_CHECKING);
 
-      // Pre-process the photo bytes for the api-client createPost handoff.
+      // A retry re-keys the photos (fresh quarantine objects) but keeps the
+      // draft's postId, so create_post can only ever succeed once.
+      attemptRef.current += 1;
+      const current =
+        attemptRef.current > 1
+          ? photos.map((p) => ({ ...p, photoId: cryptoRandomUUIDClient() }))
+          : photos;
+      if (current !== photos) {
+        setPhotos(current.map((p) => ({ ...p, state: STATE_CHECKING })));
+      }
+
+      // Pre-process (downscale) the photo bytes for the createPost handoff.
       const photoPayload = [];
-      for (const p of photos) {
-        const bytes = await fileToBytes(p.file);
-        photoPayload.push({ photoId: p.photoId, bytes, mimeType: p.file.type || "image/jpeg" });
+      for (const p of current) {
+        const { bytes, mimeType } = await preparePhotoBytes(p.file);
+        photoPayload.push({ photoId: p.photoId, bytes, mimeType });
       }
 
       const result = await createPost(supabase, {
         societyId,
         kind,
         body: text.trim(),
+        postId: postIdRef.current,
         photos: photoPayload,
       });
 
       if (result.ok) {
         if (photos.length > 0) setAllPhotoStates(STATE_PASS);
+        setSubmitted(true);
         setSuccessOpen(true);
-        setTimeout(() => {
+        redirectTimerRef.current = setTimeout(() => {
           router.push("/community");
           router.refresh();
-        }, 600);
+        }, REDIRECT_DELAY_MS);
         return;
       }
 
@@ -267,7 +345,7 @@ export function PostComposer({ societyId }) {
                 <button
                   type="button"
                   onClick={() => removePhoto(p.photoId)}
-                  aria-label="Remove photo"
+                  aria-label={t("community.removePhoto")}
                   className="absolute top-1 right-1 inline-flex items-center justify-center rounded-full"
                   style={{
                     width: 28,
@@ -304,7 +382,7 @@ export function PostComposer({ societyId }) {
                 <button
                   type="button"
                   onClick={() => removePhoto(p.photoId)}
-                  aria-label="Remove rejected photo"
+                  aria-label={t("community.removeRejectedPhoto")}
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ backgroundColor: "rgba(239,68,68,0.35)" }}
                 >
@@ -327,13 +405,20 @@ export function PostComposer({ societyId }) {
                 accept="image/*"
                 multiple
                 onChange={handleAddPhotos}
-                disabled={submitting}
+                disabled={submitting || submitted}
                 className="sr-only"
+                aria-label={t("community.photosLabel")}
               />
               <ImagePlus size={24} aria-hidden="true" />
             </label>
           ) : null}
         </div>
+
+        {photoSkipped ? (
+          <p role="alert" className="text-sm text-[#c81e1e]">
+            {t("community.imgInvalid")}
+          </p>
+        ) : null}
 
         {/* reject inline error (role=alert) */}
         {anyReject ? (

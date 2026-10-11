@@ -40,6 +40,21 @@
     "emptyHeading": "No bookings yet",
     "emptyBody": "Request an amenity to get started.",
     "emptyBodyBoard": "No booking requests yet.",
-    "loadError": "Couldn't load bookings"
+    "loadError": "Couldn't load bookings",
+    "back": "Back",
+    "dismiss": "Dismiss",
+    "tooFarError": "Bookings can be made at most 30 days ahead.",
+    "startTimeLabel": "Start time",
+    "endTimeLabel": "End time",
+    "backToList": "Back to bookings",
+    "tooManyPendingError": "You already have 5 pending requests for this amenity. Wait for a decision before requesting more.",
+    "backToDashboard": "Back to dashboard",
+    "dashboardLink": "Dashboard",
+    "tabPending": "Pending",
+    "tabAll": "All",
+    "cancel": "Cancel",
+    "statusTitle": "Status: {{status}}",
+    "aBoardMember": "A board member",
+    "tryAgain": "Try again"
   }
 }

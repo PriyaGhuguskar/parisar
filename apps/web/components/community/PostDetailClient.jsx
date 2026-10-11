@@ -25,12 +25,26 @@ import {
 } from "../../app/(protected)/community/actions";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import { OwnerChip } from "../complaints/OwnerChip";
+import { fetchRowById, upsertById } from "../shared/realtime";
 import { HiddenPendingBanner } from "./HiddenPendingBanner";
 import { PhotoGrid } from "./PhotoGrid";
 import { PostTypeChip } from "./PostTypeChip";
 import { ReportReasonSheet } from "./ReportReasonSheet";
 
 const MAX_COMMENT = 1000;
+const ANIMATION_MS = 300;
+
+// Same embeds as listComments (packages/api-client/src/community.js).
+const COMMENT_SELECT = `
+  id,
+  post_id,
+  author_id,
+  author_flat_id,
+  body,
+  created_at,
+  author:author_id ( user_id, full_name ),
+  author_flat:author_flat_id ( number, wing:wing_id ( name ) )
+`;
 
 function flatLabel(flatJoin) {
   if (!flatJoin) return "—";
@@ -75,37 +89,44 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
   const [reportTarget, setReportTarget] = useState(null); // { targetKind, targetId }
   const [reportedIds, setReportedIds] = useState(new Set()); // reporter-only optimistic
   const [postDeleted, setPostDeleted] = useState(false);
-  const cleanupRef = useRef(null);
+  const [reportNotice, setReportNotice] = useState(false);
+  const animTimersRef = useRef(new Set());
+  const postId = post?.id;
 
   useEffect(() => {
-    const postId = post?.id;
     if (!postId) return undefined;
     const supabase = createSupabaseBrowserClient();
-    cleanupRef.current = subscribeToPostComments(supabase, postId, {
-      onInsert: (row) => {
-        setComments((prev) => {
-          if (prev.some((cm) => cm.id === row.id)) return prev;
-          return [...prev, row];
-        });
+    const timers = animTimersRef.current;
+    let active = true;
+    const unsubscribe = subscribeToPostComments(supabase, postId, {
+      onInsert: async (raw) => {
+        // Re-read with author joins; null = hidden / not visible (RLS).
+        const row = await fetchRowById(supabase, "post_comments", COMMENT_SELECT, raw?.id);
+        if (!active || !row) return;
+        setComments((prev) => upsertById(prev, row, { append: true }));
         setAnimatedIds((prev) => new Set(prev).add(row.id));
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          timers.delete(timer);
           setAnimatedIds((prev) => {
             if (!prev.has(row.id)) return prev;
             const next = new Set(prev);
             next.delete(row.id);
             return next;
           });
-        }, 300);
+        }, ANIMATION_MS);
+        timers.add(timer);
       },
       onUpdate: (row) => {
         setComments((prev) => prev.map((cm) => (cm.id === row.id ? { ...cm, ...row } : cm)));
       },
     });
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      active = false;
+      unsubscribe?.();
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
     };
-  }, [post?.id]);
+  }, [postId]);
 
   const authorName = post?.author?.full_name ?? "—";
   const authorFlat = flatLabel(post?.author_flat);
@@ -136,10 +157,15 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
     }
   }
 
-  function handleReported() {
-    if (reportTarget?.targetId) {
+  // Swap to the HiddenPendingBanner only when the server actually hid the item
+  // (contract-055); otherwise just thank the reporter.
+  function handleReported(outcome) {
+    if (!reportTarget?.targetId) return;
+    if (outcome?.hidden) {
       setReportedIds((prev) => new Set(prev).add(reportTarget.targetId));
+      return;
     }
+    setReportNotice(true);
   }
 
   // PAR-103: both deletes were fire-and-forget — a failure left the post/comment
@@ -178,12 +204,12 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
   if (postDeleted) {
     return (
       <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col items-center justify-center gap-3 px-8 text-center">
-        <p className="text-base text-[#525252]">This post has been deleted.</p>
+        <p className="text-base text-[#525252]">{t("community.postDeleted")}</p>
         <Link
           href="/community"
           className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors"
         >
-          Back to Community
+          {t("community.backToCommunity")}
         </Link>
       </div>
     );
@@ -195,9 +221,9 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
         <Link
           href="/community"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to community"
+          aria-label={t("community.backToCommunity")}
         >
-          ← Back
+          ← {t("community.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("community.detailTitle")}
@@ -205,6 +231,15 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-4">
+        {reportNotice ? (
+          <output
+            aria-live="polite"
+            className="block rounded-xl border border-[#12715A] bg-[#f5f7ff] px-4 py-3 text-sm text-[#171717]"
+          >
+            {t("community.reportedThanks")}
+          </output>
+        ) : null}
+
         {/* Section 1 — full post */}
         <section className="bg-white rounded-xl p-6 flex flex-col gap-3">
           <div className="flex items-start gap-2 flex-wrap">
@@ -215,7 +250,7 @@ export function PostDetailClient({ post, initialComments, photoUrls = [], userId
             {isPostAuthor ? (
               <button
                 type="button"
-                aria-label="Delete post"
+                aria-label={t("community.deletePostLabel")}
                 onClick={handleDeletePost}
                 className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[#6e6e6e] hover:text-[#c81e1e] hover:bg-neutral-100"
               >
@@ -337,7 +372,7 @@ function CommentItem({ comment, isAuthor, onReport, onDelete }) {
         {isAuthor ? (
           <button
             type="button"
-            aria-label="Delete comment"
+            aria-label={t("community.deleteCommentLabel")}
             onClick={onDelete}
             className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-[#6e6e6e] hover:text-[#c81e1e] hover:bg-neutral-100"
           >

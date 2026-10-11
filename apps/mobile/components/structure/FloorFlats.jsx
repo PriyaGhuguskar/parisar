@@ -8,9 +8,10 @@
 
 import { X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { buildFlats, nextFloor } from "../../lib/flats/floors";
 import { DashedButton, TextField } from "../onboarding/Form";
+import { Text } from "../ui/Text";
 
 function previewOf(pf, tp) {
   if (pf?.invalid) return tp("rangeInvalid");

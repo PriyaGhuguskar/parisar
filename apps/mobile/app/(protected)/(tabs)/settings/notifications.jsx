@@ -33,11 +33,13 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { BackArrow } from "../../../../components/kit";
 import { PreferenceToggleRow } from "../../../../components/settings/PreferenceToggleRow";
 import { QuietHoursRow } from "../../../../components/settings/QuietHoursRow";
+import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const DEBOUNCE_MS = 400;
@@ -152,10 +154,10 @@ export default function NotificationSettingsScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("prefs.back")}
         >
           <BackArrow />
         </Pressable>

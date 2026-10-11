@@ -3,12 +3,16 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { AlertOctagon } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { authorityOnly } from "../../../components/AuthorityOnly";
 import { BackArrow } from "../../../components/kit";
 import { DestructiveConfirmDialog } from "../../../components/shared/DestructiveConfirmDialog";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
+import { goBack } from "../../../lib/navigation";
+import { localizedRpcError } from "../../../lib/rpc-error";
 import { getSupabase } from "../../../lib/supabase";
+import { refreshMyContext } from "../../../lib/use-my-context";
 
 // ---------------------------------------------------------------------------
 // Avatar helpers
@@ -112,7 +116,10 @@ function RoleTransferScreen() {
       let active = true;
 
       async function load() {
-        if (!societyId || !currentUserId) return;
+        if (!societyId || !currentUserId) {
+          setLoading(false);
+          return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -136,17 +143,19 @@ function RoleTransferScreen() {
             supabase
               .from("profiles")
               .select("full_name")
-              .eq("id", currentUserId)
-              .single(),
+              .eq("user_id", currentUserId)
+              .maybeSingle(),
           ]);
 
           if (eligibleRes.error) throw eligibleRes.error;
+          if (selfRes.error) throw selfRes.error;
           if (!active) return;
 
           setEligible(eligibleRes.data ?? []);
-          setSecretaryName(selfRes.data?.full_name ?? "");
+          setSecretaryName((selfRes.data?.full_name ?? "").trim());
         } catch (err) {
-          if (active) setError(err.message ?? "Failed to load eligible members.");
+          console.warn("[role-transfer] load failed:", err?.message ?? err);
+          if (active) setError(t("roleTransfer.loadError"));
         } finally {
           if (active) setLoading(false);
         }
@@ -156,23 +165,45 @@ function RoleTransferScreen() {
       return () => {
         active = false;
       };
-    }, [societyId, currentUserId]),
+    }, [societyId, currentUserId, t]),
   );
 
   // ---------------------------------------------------------------------------
   // Handle transfer confirmation
-  // transferSecretaryRole calls refreshSession() internally (api-client Plan 02)
+  // transferSecretaryRole refreshes the session itself and reports
+  // { refreshed: false } when that refresh failed — the JWT would still say
+  // 'secretary', so retry once here, then reload the cached role context.
+  // (The server already enforces the new role either way.)
   // ---------------------------------------------------------------------------
   async function handleTransferConfirm() {
-    if (!selected) return;
+    if (!selected || !canConfirmTransfer) return;
     setTransferring(true);
     try {
-      await transferSecretaryRole(getSupabase(), selected.user_id);
+      const supabase = getSupabase();
+      const result = await transferSecretaryRole(supabase, selected.user_id);
+      if (result?.refreshed === false) {
+        try {
+          await supabase.auth.refreshSession();
+        } catch (refreshErr) {
+          console.warn("[role-transfer] refreshSession failed:", refreshErr?.message ?? refreshErr);
+        }
+      }
+      await refreshMyContext();
       setDialogOpen(false);
       // Route to dashboard with banner param — dashboard can show it if desired
       router.replace("/(protected)/(tabs)?transferSuccess=1");
     } catch (err) {
-      setError(err.message ?? "Transfer failed.");
+      console.warn("[role-transfer] transfer failed:", err?.message ?? err);
+      setError(
+        localizedRpcError(
+          err,
+          {
+            ONLY_SECRETARY_CAN_TRANSFER: t("roleTransfer.errNotAllowed"),
+            INSUFFICIENT_PRIVILEGES: t("roleTransfer.errNotAllowed"),
+          },
+          t("auth.obErr"),
+        ),
+      );
       setDialogOpen(false);
     } finally {
       setTransferring(false);
@@ -183,6 +214,9 @@ function RoleTransferScreen() {
   // Render
   // ---------------------------------------------------------------------------
   const selectedName = selected?.profiles?.full_name ?? "";
+  // The typed-name gate only works with a non-empty name to match (an empty
+  // name would "match" an empty input) — never open the dialog without it.
+  const canConfirmTransfer = Boolean(selected) && secretaryName.length > 0 && !loading;
   const confirmTitle = t("roleTransfer.confirmTitle", { name: selectedName });
   const confirmBody = t("roleTransfer.confirmBody", { name: selectedName });
 
@@ -191,10 +225,10 @@ function RoleTransferScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-neutral-100">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
         >
           <BackArrow />
         </Pressable>
@@ -230,8 +264,7 @@ function RoleTransferScreen() {
           ) : eligible.length === 0 ? (
             <View className="py-6 items-center">
               <Text className="text-sm text-neutral-600 text-center">
-                No eligible members found. A co-secretary or board member must exist to transfer the
-                role.
+                {t("roleTransfer.noEligible")}
               </Text>
             </View>
           ) : (
@@ -248,17 +281,17 @@ function RoleTransferScreen() {
 
         {/* Transfer Role button */}
         <Pressable
-          onPress={() => selected && setDialogOpen(true)}
-          disabled={!selected || transferring}
+          onPress={() => canConfirmTransfer && setDialogOpen(true)}
+          disabled={!canConfirmTransfer || transferring}
           className={`h-14 rounded-xl items-center justify-center ${
-            selected && !transferring ? "bg-danger-500" : "bg-neutral-200"
+            canConfirmTransfer && !transferring ? "bg-danger-500" : "bg-neutral-200"
           }`}
           accessibilityRole="button"
-          accessibilityState={{ disabled: !selected }}
+          accessibilityState={{ disabled: !canConfirmTransfer || transferring }}
         >
           <Text
             className={`text-base font-semibold ${
-              selected && !transferring ? "text-white" : "text-neutral-400"
+              canConfirmTransfer && !transferring ? "text-white" : "text-neutral-400"
             }`}
           >
             {t("roleTransfer.confirmCta")}
@@ -268,7 +301,7 @@ function RoleTransferScreen() {
 
       {/* Destructive confirm dialog — Secretary types their OWN name */}
       <DestructiveConfirmDialog
-        open={dialogOpen}
+        open={dialogOpen && canConfirmTransfer}
         onClose={() => !transferring && setDialogOpen(false)}
         title={confirmTitle}
         body={confirmBody}
@@ -276,7 +309,7 @@ function RoleTransferScreen() {
         confirmMatchLabel={t("roleTransfer.typedSelfLabel")}
         confirmButtonLabel={t("roleTransfer.confirmCta")}
         cancelLabel={t("roleTransfer.cancel")}
-        mismatchError="Name does not match. Type your own name exactly."
+        mismatchError={t("removal.nameMismatch", { name: secretaryName })}
         onConfirm={handleTransferConfirm}
         isLoading={transferring}
       />

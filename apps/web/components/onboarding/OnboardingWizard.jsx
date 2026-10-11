@@ -6,7 +6,8 @@
 // The resident is already OTP-verified (they arrived here in `code` mode), so
 // they have a session but no membership yet. onboard_flats_for_code lets them
 // see the chairman's flats despite not being a member; onboard_resident joins
-// them, names them and pre-registers their family in one call; then setPin.
+// them, names them and pre-registers their family in one call; then setMyPin
+// (server-side; the session decides whose PIN it is).
 //
 // Family phones entered here become a login path — those people later sign in
 // with OTP + a PIN, no code, no re-onboarding (claim_family_membership).
@@ -16,7 +17,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setPin as setPinAction } from "@/app/actions/codeLogin";
+import { setMyPin } from "@/app/actions/codeLogin";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const field =
@@ -28,7 +29,6 @@ function weakPin(p) {
 
 export function OnboardingWizard({
   phone,
-  userId,
   initialName = "",
   // Society authorities arrive with their society's code pre-filled, and skip the
   // PIN step if they already set one during wings/flats setup.
@@ -52,6 +52,9 @@ export function OnboardingWizard({
   const [family, setFamily] = useState([]);
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
+  // onboard_resident is not idempotent: once it has succeeded, a retry after a
+  // failed PIN save must ONLY retry the PIN, never re-run onboarding.
+  const [onboarded, setOnboarded] = useState(false);
 
   // --- step 1: code ------------------------------------------------------
   async function lookupCode(raw) {
@@ -127,32 +130,25 @@ export function OnboardingWizard({
 
   async function commit() {
     setBusy(true);
+    setErr(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.rpc("onboard_resident", {
-        p_code: society.code,
-        p_flat_id: form.flatId,
-        p_full_name: form.name.trim(),
-        p_residency: form.residency,
-        p_alt_phone: form.alt.trim() || null,
-        p_family: family
-          .filter((m) => m.name.trim())
-          .map((m) => ({
-            name: m.name.trim(),
-            relation: m.relation.trim(),
-            phone: m.phone.trim() || null,
-            is_resident: true,
-          })),
-      });
-      if (error || data?.error) {
-        setErr(data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obErr"));
-        setBusy(false);
-        return;
+      if (!onboarded) {
+        const ok = await runOnboarding();
+        if (!ok) return;
+        setOnboarded(true);
       }
       if (!pinAlreadySet) {
-        const res = await setPinAction(userId, phone, pin);
+        const res = await setMyPin(pin);
         if (res?.error) {
-          setErr(t("auth.obErr"));
+          setErr(
+            res.error === "WEAK_PIN"
+              ? t("auth.setPinWeak")
+              : res.error === "REAUTH_REQUIRED" || res.error === "AUTH_REQUIRED"
+                ? t("auth.reauthRequired", {
+                    defaultValue: "For your security, please verify your number again.",
+                  })
+                : t("auth.obErr"),
+          );
           setBusy(false);
           return;
         }
@@ -168,6 +164,32 @@ export function OnboardingWizard({
       setErr(t("auth.obErr"));
       setBusy(false);
     }
+  }
+
+  /** onboard_resident once. Returns true on success; shows the error otherwise. */
+  async function runOnboarding() {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.rpc("onboard_resident", {
+      p_code: society.code,
+      p_flat_id: form.flatId,
+      p_full_name: form.name.trim(),
+      p_residency: form.residency,
+      p_alt_phone: form.alt.trim() || null,
+      p_family: family
+        .filter((m) => m.name.trim())
+        .map((m) => ({
+          name: m.name.trim(),
+          relation: m.relation.trim(),
+          phone: m.phone.trim() || null,
+          is_resident: true,
+        })),
+    });
+    if (error || data?.error) {
+      setErr(data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obErr"));
+      setBusy(false);
+      return false;
+    }
+    return true;
   }
 
   const flats = (society?.wings ?? []).flatMap((w) => w.flats.map((f) => ({ ...f, wing: w.name })));

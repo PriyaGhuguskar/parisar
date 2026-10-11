@@ -28,7 +28,15 @@
     "emptyBodyBoard": "Post the first notice for your society.",
     "postedBy": "Posted by {{name}} ({{flat}})",
     "postedByAt": "Posted by {{name}} ({{flat}}) at {{time}}",
-    "openAttachment": "Tap to open"
+    "openAttachment": "Tap to open",
+    "back": "Back",
+    "tryAgain": "Try again",
+    "attachPdfOption": "Attach a PDF",
+    "attachPhotoOption": "Attach a photo",
+    "removeAttachment": "Remove attachment",
+    "notFoundTitle": "Notice not found",
+    "notFoundBody": "This notice may have been removed, or you may not have permission to view it.",
+    "backToList": "Back to notices"
   },
   "push": {
     "body": {

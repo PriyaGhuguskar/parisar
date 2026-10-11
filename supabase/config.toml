@@ -1,3 +1,16 @@
+# ############################################################################
+# #  LOCAL DEVELOPMENT CONFIG — DO NOT `supabase config push` THIS FILE AS-IS  #
+# ############################################################################
+# This file contains DEV-ONLY auth settings that would let anyone sign in to a
+# deployed project:
+#   * [auth.sms.test_otp]   — fixed code 123456 for ~30 phone numbers
+#   * [auth.hook.send_sms]  — points at public.dev_send_sms (captures OTPs)
+#   * [edge_runtime.secrets] FANOUT_WEBHOOK_SECRET — a public local value
+# Before any deploy follow supabase/DEPLOY.md. CI runs
+# `node scripts/check-no-dev-otp.mjs`, which fails if a [remotes.*] section or
+# a deploy workflow would push these settings.
+# ############################################################################
+
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
@@ -109,7 +122,9 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+# Matches the parisar-attachments bucket limit set by migration 057 (20 MiB;
+# images + PDFs only). The bucket limit cannot exceed this global one.
+file_size_limit = "20MiB"
 
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
@@ -149,6 +164,9 @@ max_indexes = 5
 
 [auth]
 enabled = true
+# PRODUCTION: these [auth] values are LOCAL. The hosted project is configured in
+# the dashboard (Authentication → Settings / Providers / Rate limits / Hooks) —
+# supabase/DEPLOY.md "Dashboard settings" lists every value to set there.
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 site_url = "http://localhost:3000"
@@ -277,6 +295,7 @@ template = "Your Parisar code is {{ .Code }}"
 # 60s gap prevents rapid re-request abuse (AUTH-06 supplemental layer).
 max_frequency = "60s"
 
+# !!! DEV ONLY — REMOVE BEFORE ANY DEPLOY (supabase/DEPLOY.md step 1) !!!
 [auth.sms.test_otp]
 # DEV STUB ONLY. Any phone listed here SKIPS real SMS delivery and the send_sms hook;
 # Supabase Auth accepts ONLY the mapped code for that number.
@@ -352,6 +371,9 @@ uri = "pg-functions://postgres/public/inject_society_claims"
 # Fires ONLY for phone numbers NOT covered by [auth.sms.test_otp]. The Edge
 # Function at supabase/functions/send-sms routes to a provider adapter chosen
 # by the OTP_PROVIDER env var (stub today; MSG91/Twilio in Phase 8).
+# !!! DEV ONLY — PRODUCTION MUST USE THE send-sms EDGE FUNCTION (supabase/DEPLOY.md step 2) !!!
+# public.dev_send_sms is inert outside local dev (migration 055 §1: it refuses
+# unless app_private.dev_flags has dev_otp=true, which only seed.sql sets).
 [auth.hook.send_sms]
 # DEV: a Postgres hook that captures the OTP so the login screen can show it —
 # lets ANY number log in without whitelisting. Point back at the provider Edge
@@ -455,6 +477,11 @@ deno_version = 2
 # plug in later with no client or migration change.
 [edge_runtime.secrets]
 MODERATION_PROVIDER = "stub"
+# Push fan-out shared secret (migration 055 §2). LOCAL VALUE ONLY — it must
+# match app_private.runtime_config 'fanout_webhook_secret', which seed.sql sets
+# to the same string. Production: `supabase secrets set FANOUT_WEBHOOK_SECRET=…`
+# with the random value from the deployed DB (supabase/DEPLOY.md step 3).
+FANOUT_WEBHOOK_SECRET = "local-dev-fanout-secret-not-for-production"
 
 [analytics]
 enabled = true

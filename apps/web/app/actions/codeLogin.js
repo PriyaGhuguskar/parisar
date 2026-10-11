@@ -1,359 +1,179 @@
 "use server";
 
-// Sign-in: phone + society code (first claim, one OTP) OR phone + PIN (after).
+// Sign-in actions that need the server: PIN check, PIN write, and the
+// post-OTP claim steps.
 //
 // SHAPE OF THE FLOW
-//   first time   phone + society code -> ONE OTP -> onboarding -> set 4-digit PIN
-//   after that   phone + PIN                                    (no SMS at all)
-//   forgot PIN   chairman resets (audited) -> one OTP -> new PIN
+//   every login   phone -> OTP (always) -> my_login_state() decides the next step
+//                 (lib/auth/loginMode.js, computed AFTER the OTP as the user)
+//   returning     OTP -> PIN (pinLogin, server-side, locked after 5 failures)
+//   first time    OTP -> society code -> onboarding -> set PIN (setMyPin)
+//   forgot PIN    OTP -> set a new PIN (needs an OTP from the last 10 minutes)
 //
-// WHY THE CODE IS NOT THE PASSWORD.
-// An earlier draft set the society code AS the user's password so that phone +
-// code could sign someone in without an OTP. That is unsafe in a way that is
-// easy to miss: the code is shared with every resident, so a neighbour entering
-// your phone number plus the code would have the server RESET your password back
-// to the code — silently breaking the PIN you had set and locking you out.
+// SECURITY PROPERTIES (CODE-REVIEW C2, HIGH 2/3/4/5/7):
+//   · Nothing here trusts a user id, phone or token sent by the browser. Every
+//     action reads the caller from the cookie-bound session (getUser()).
+//   · The PIN credential is HMAC(PIN_PEPPER, phone:pin) and is computed only on
+//     the server (lib/auth/pinCore.js). Browsers cannot compute it, so PINs can
+//     only be tried through pinLogin, which counts failures per phone and IP.
+//   · The society code is never a credential — it only says which society a
+//     person who has ALREADY passed OTP is joining (onboard_resident).
+//   · No pre-OTP lookup: the old lookupPhone told anonymous callers whether a
+//     number was staff / guard / authority, and startCodeClaim was an
+//     unthrottled code-validity oracle. Both are gone.
 //
-// With one OTP at first claim, the code never touches the password. It only
-// answers "which society is this person joining". The PIN is the only credential
-// that is ever written. That removes the failure mode instead of guarding it.
-//
-// Supabase Auth still issues every session: signInWithOtp/verifyOtp for the
-// claim, signInWithPassword for the PIN. Nothing here signs its own JWTs —
-// CLAUDE.md rules that out, and it would be reimplementing auth badly.
-//
-// The service-role key never reaches the browser: this file is "use server" and
-// only returns a small status object. Sessions are minted client-side so the
-// auth cookies land in the browser (RESEARCH.md Pitfall 2).
+// JavaScript only — no TypeScript per CLAUDE.md.
 
-import { createClient } from "@supabase/supabase-js";
-import { derivePinSecret } from "../../lib/auth/pinSecret";
+import { headers } from "next/headers";
+import { clientIpFrom, runPinLogin, runSetPin } from "../../lib/auth/pinCore";
+import { pinServerDeps } from "../../lib/auth/pinSecret";
+import { createSupabaseServerClient } from "../../lib/supabase/server";
 
-const PHONE_RE = /^[6-9]\d{9}$/;
-const CODE_RE = /^[A-Z0-9]{4}-?[A-Z0-9]{4}$/i;
-
-function admin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("SERVER_MISCONFIGURED");
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+async function callerIp() {
+  try {
+    const h = await headers();
+    return clientIpFrom(h.get("x-forwarded-for"), h.get("x-real-ip"));
+  } catch {
+    return null;
+  }
 }
 
-async function findUserByPhone(sb, phoneE164) {
-  const bare = phoneE164.replace("+", "");
-  const { data, error } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 });
+/** The cookie-bound client and its verified user, or null. */
+async function signedIn() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ? { supabase, user } : null;
+}
+
+function serverDeps(ip) {
+  try {
+    return pinServerDeps({ forwardedFor: ip });
+  } catch (e) {
+    // Fail closed: no pepper (or no service key) in a production build.
+    console.error(`[codeLogin] PIN service unavailable: ${e?.message ?? "misconfigured"}`);
+    return null;
+  }
+}
+
+/**
+ * Check the signed-in user's PIN (the second step after OTP). The phone is the
+ * session's own; on success the session cookies are replaced with the PIN
+ * session.
+ *
+ * @param {string} pin 4 digits
+ * @returns {Promise<{ok: true} | {error: "AUTH_REQUIRED"|"INVALID_INPUT"|"PIN_INVALID"|"LOCKED"|"RATE_LIMITED"|"SERVER_ERROR", retryAfterSeconds?: number, remaining?: number}>}
+ */
+export async function pinLogin(pin) {
+  if (typeof pin !== "string" || !/^\d{4}$/.test(pin)) return { error: "INVALID_INPUT" };
+  const ctx = await signedIn();
+  if (!ctx) return { error: "AUTH_REQUIRED" };
+
+  const ip = await callerIp();
+  const deps = serverDeps(ip);
+  if (!deps) return { error: "SERVER_ERROR" };
+
+  const result = await runPinLogin(
+    { phone: ctx.user.phone, pin, ip },
+    { ...deps, log: (m) => console.warn(`[codeLogin] ${m}`) },
+  );
+  if (!result.ok) {
+    const out = { error: result.error };
+    if (result.retryAfterSeconds) out.retryAfterSeconds = result.retryAfterSeconds;
+    if (typeof result.remaining === "number") out.remaining = result.remaining;
+    return out;
+  }
+
+  const s = result.session ?? {};
+  if (s.user?.id && s.user.id !== ctx.user.id) return { error: "SERVER_ERROR" };
+  const { error } = await ctx.supabase.auth.setSession({
+    access_token: s.access_token,
+    refresh_token: s.refresh_token,
+  });
   if (error) return { error: "SERVER_ERROR" };
-  return { user: (data?.users ?? []).find((u) => u.phone === bare) ?? null };
-}
-
-/**
- * Step 1 of sign-in: which credential should we ask this number for?
- *
- * Deliberately does NOT reveal whether the number is registered — both answers
- * are a normal next step, so this cannot be used to enumerate which phone
- * numbers belong to a society.
- *
- * @returns {Promise<{mode:"staff"|"pin"|"setpin"|"code"|"family"|"authority"} | {error:string}>}
- */
-export async function lookupPhone(rawPhone) {
-  const phone = String(rawPhone ?? "").replace(/\D/g, "");
-  if (!PHONE_RE.test(phone)) return { error: "INVALID_PHONE" };
-
-  let sb;
-  try {
-    sb = admin();
-  } catch {
-    return { error: "SERVER_ERROR" };
-  }
-
-  const { user, error } = await findUserByPhone(sb, `+91${phone}`);
-  if (error) return { error };
-
-  // Staff sign in with OTP only.
-  if (user) {
-    const { data: isStaff } = await sb
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (isStaff) return { mode: "staff" };
-  }
-
-  // Does this number own a membership already?
-  let membership = null;
-  if (user) {
-    const { data } = await sb
-      .from("society_memberships")
-      .select("id, society_id, role, flat_id")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-    membership = data;
-  }
-
-  // SOCIETY AUTHORITY: their number is on a society's authority list (entered by
-  // staff at creation, or added later by another authority) and not yet linked
-  // to a different account. Runs whether or not an orphaned auth user exists
-  // from an earlier, unfinished login. claim_society_authority() then links them.
-  if (!membership) {
-    const { data: rows } = await sb
-      .from("society_authorities")
-      .select("id, user_id")
-      .eq("phone", phone)
-      .limit(5);
-    if ((rows ?? []).some((a) => !a.user_id || a.user_id === user?.id)) {
-      return { mode: "authority" };
-    }
-  }
-
-  // GUARD: this number is registered as a gate guard. Detected before the generic
-  // PIN/code routing so a guard is always sent to the guard app, never the resident
-  // dashboard. First login -> claim + set PIN; returning with a PIN -> enter it.
-  {
-    const { data: guard } = await sb
-      .from("society_guards")
-      .select("id, user_id")
-      .eq("phone", phone)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    if (guard) {
-      if (user && guard.user_id) {
-        const { data: profile } = await sb
-          .from("profiles")
-          .select("pin_set")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (profile?.pin_set) return { mode: "guardpin" };
-      }
-      return { mode: "guardclaim" };
-    }
-  }
-
-  // AUTHORITY WHO HASN'T FINISHED: they claimed (flat-less authority membership)
-  // but the society still has no wings/flats, or they never picked their own
-  // flat and have no PIN yet. Resume through `authority` mode —
-  // claim_society_authority() is idempotent and routes them to /setup/structure
-  // or /onboarding. Detected before the PIN routing.
-  if (
-    membership &&
-    (membership.role === "secretary" || membership.role === "co_secretary") &&
-    membership.society_id
-  ) {
-    const { count } = await sb
-      .from("flats")
-      .select("id", { count: "exact", head: true })
-      .eq("society_id", membership.society_id);
-    if ((count ?? 0) === 0) return { mode: "authority" };
-    if (!membership.flat_id) {
-      const { data: prof } = await sb
-        .from("profiles")
-        .select("pin_set")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!prof?.pin_set) return { mode: "authority" };
-    }
-  }
-
-  // Returning resident with a PIN -> enter it after OTP.
-  if (user) {
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("pin_set")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (profile?.pin_set) return { mode: "pin" };
-    // Onboarded (has a membership) but no PIN -> just set one.
-    if (membership) return { mode: "setpin" };
-    // Auth user exists but never finished joining -> resume via the code.
-    return { mode: "code" };
-  }
-
-  // No auth user: a pre-entered family member skips the code; otherwise brand new.
-  const { data: fam } = await sb
-    .from("family_members")
-    .select("id")
-    .is("claimed_user_id", null)
-    .filter("phone", "ilike", `%${phone}`)
-    .maybeSingle();
-  return { mode: fam ? "family" : "code" };
-}
-
-/**
- * Step 2a — first claim. Validates the society code, then sends the single OTP
- * that proves this person holds the phone.
- *
- * The OTP is what stops a neighbour claiming your flat: the code says which
- * building, the OTP says which person.
- *
- * @returns {Promise<{ok:true, phoneE164:string} | {error:string}>}
- */
-export async function startCodeClaim(rawPhone, rawCode) {
-  const phone = String(rawPhone ?? "").replace(/\D/g, "");
-  const code = String(rawCode ?? "")
-    .toUpperCase()
-    .replace(/\s/g, "");
-
-  if (!PHONE_RE.test(phone)) return { error: "INVALID_PHONE" };
-  if (!CODE_RE.test(code)) return { error: "INVALID_CODE" };
-
-  const normalised = code.includes("-") ? code : `${code.slice(0, 4)}-${code.slice(4)}`;
-  const phoneE164 = `+91${phone}`;
-
-  let sb;
-  try {
-    sb = admin();
-  } catch {
-    return { error: "SERVER_ERROR" };
-  }
-
-  // Live code only — society_codes carries revoked_at so a leaked code can be
-  // rotated by the chairman without re-issuing anything else.
-  const { data: codeRow, error: codeErr } = await sb
-    .from("society_codes")
-    .select("code, society_id, revoked_at")
-    .eq("code", normalised)
-    .maybeSingle();
-  if (codeErr) return { error: "SERVER_ERROR" };
-  if (!codeRow || codeRow.revoked_at) return { error: "INVALID_CODE" };
-
-  // Already has their own PIN -> the code is not their way in any more.
-  const { user, error: findErr } = await findUserByPhone(sb, phoneE164);
-  if (findErr) return { error: findErr };
-  if (user) {
-    const { data: profile } = await sb
-      .from("profiles")
-      .select("pin_set")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (profile?.pin_set) return { error: "PIN_ALREADY_SET" };
-  }
-
-  return { ok: true, phoneE164, societyId: codeRow.society_id };
-}
-
-/**
- * Step 3 — the resident chooses their PIN after onboarding. From here on the
- * PIN is their only credential and the society code stops working for them.
- */
-export async function setPin(userId, phoneE164, pin) {
-  if (!userId) return { error: "AUTH_REQUIRED" };
-  if (!/^\d{4}$/.test(String(pin ?? ""))) return { error: "INVALID_PIN" };
-
-  let sb;
-  try {
-    sb = admin();
-  } catch {
-    return { error: "SERVER_ERROR" };
-  }
-
-  // GoTrue refuses passwords under 6 chars, so the PIN is expanded into a
-  // deterministic secret. See lib/auth/pinSecret.js — this is a format adapter,
-  // NOT added entropy; rate limiting is what protects a 4-digit PIN.
-  let secret;
-  try {
-    secret = derivePinSecret(phoneE164, pin);
-  } catch {
-    return { error: "INVALID_PIN" };
-  }
-
-  const { error } = await sb.auth.admin.updateUserById(userId, { password: secret });
-  if (error) return { error: "SERVER_ERROR" };
-
-  // Flag lives in profiles so RLS and the chairman's reset path can both see it.
-  const { error: flagErr } = await sb
-    .from("profiles")
-    .update({ pin_set: true, pin_set_at: new Date().toISOString() })
-    .eq("user_id", userId);
-  if (flagErr) return { error: "SERVER_ERROR" };
-
   return { ok: true };
 }
 
 /**
- * Step for a family member's FIRST login: after they pass OTP, turn the entry a
- * resident pre-made for them into their own membership in that flat. No society
- * code — the OTP is the proof they hold the number.
+ * Set (or reset) the signed-in user's PIN. Requires that this session came
+ * from an OTP verified recently — see pinCore.js runSetPin.
  *
- * Runs the RPC as the signed-in family member (their access token), so
- * claim_family_membership sees the right auth.uid(). Returns the society_id so
- * the caller can go on to set a PIN.
- *
- * @param {string} accessToken the family member's session access token
- * @returns {Promise<{ok:true, societyId:string} | {error:string}>}
+ * @param {string} pin 4 digits, not 1234 / four identical
+ * @returns {Promise<{ok: true} | {error: "AUTH_REQUIRED"|"REAUTH_REQUIRED"|"INVALID_PIN"|"WEAK_PIN"|"SERVER_ERROR"}>}
  */
-export async function claimFamilyMember(accessToken) {
-  if (!accessToken) return { error: "AUTH_REQUIRED" };
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return { error: "SERVER_ERROR" };
+export async function setMyPin(pin) {
+  const ctx = await signedIn();
+  if (!ctx) return { error: "AUTH_REQUIRED" };
+  const {
+    data: { session },
+  } = await ctx.supabase.auth.getSession();
+  if (!session?.access_token) return { error: "AUTH_REQUIRED" };
 
-  // A client bound to THE USER'S token, not the service role — the RPC keys off
-  // auth.uid(), which must be the family member, never the server identity.
-  const asUser = createClient(url, anon, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const deps = serverDeps(await callerIp());
+  if (!deps) return { error: "SERVER_ERROR" };
 
-  const { data, error } = await asUser.rpc("claim_family_membership");
-  if (error) {
-    return {
-      error: error.message.includes("NOT_A_FAMILY_MEMBER") ? "NOT_A_FAMILY_MEMBER" : "SERVER_ERROR",
-    };
-  }
-  return { ok: true, societyId: data?.society_id ?? null };
+  // runSetPin re-validates the token with GoTrue and checks sub === user.id,
+  // so the cookie session (not any argument) decides whose PIN this is.
+  return runSetPin({ accessToken: session.access_token, pin: String(pin ?? "") }, deps);
 }
 
 /**
- * A society authority's sign-in: after OTP, link their authority entry and give
- * them one membership with authority powers (flat-less until they onboard as a
- * resident). The OTP proved the number. Idempotent.
- *
- * @param {string} accessToken the authority's session access token
- * @returns {Promise<{ok:true, societyId:string, needsSetup:boolean, needsFlat:boolean} | {error:string}>}
+ * @deprecated Use setMyPin(pin). Kept so existing callers keep compiling: the
+ * user id and phone arguments are IGNORED — the session decides whose PIN this
+ * is (CODE-REVIEW C2). Only the last argument (the PIN) is used.
  */
-export async function claimAuthority(accessToken) {
-  if (!accessToken) return { error: "AUTH_REQUIRED" };
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return { error: "SERVER_ERROR" };
+export async function setPin(...args) {
+  return setMyPin(args.length ? args[args.length - 1] : "");
+}
 
-  const asUser = createClient(url, anon, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await asUser.rpc("claim_society_authority");
+/** Run a claim RPC as the cookie-session user; map its coded errors. */
+async function claimAsCaller(fn, knownError) {
+  const ctx = await signedIn();
+  if (!ctx) return { error: "AUTH_REQUIRED" };
+  const { data, error } = await ctx.supabase.rpc(fn);
   if (error) {
-    return {
-      error: error.message.includes("NOT_AN_AUTHORITY") ? "NOT_AN_AUTHORITY" : "SERVER_ERROR",
-    };
+    return { error: error.message?.includes(knownError) ? knownError : "SERVER_ERROR" };
   }
+  return { ok: true, data };
+}
+
+/**
+ * Family member's FIRST login (after OTP): turn the entry a resident pre-made
+ * for them into their own membership. Arguments are ignored — the cookie
+ * session is the caller.
+ *
+ * @returns {Promise<{ok:true, societyId:string|null} | {error:string}>}
+ */
+export async function claimFamilyMember() {
+  const r = await claimAsCaller("claim_family_membership", "NOT_A_FAMILY_MEMBER");
+  return r.ok ? { ok: true, societyId: r.data?.society_id ?? null } : r;
+}
+
+/**
+ * Society authority's sign-in (after OTP): link their authority entry.
+ * Idempotent. Arguments are ignored — the cookie session is the caller.
+ *
+ * @returns {Promise<{ok:true, societyId:string|null, needsSetup:boolean, needsFlat:boolean} | {error:string}>}
+ */
+export async function claimAuthority() {
+  const r = await claimAsCaller("claim_society_authority", "NOT_AN_AUTHORITY");
+  if (!r.ok) return r;
   return {
     ok: true,
-    societyId: data?.society_id ?? null,
-    needsSetup: Boolean(data?.needs_setup),
-    needsFlat: Boolean(data?.needs_flat),
+    societyId: r.data?.society_id ?? null,
+    needsSetup: Boolean(r.data?.needs_setup),
+    needsFlat: Boolean(r.data?.needs_flat),
   };
 }
 
 /**
- * Guard's first login: link their auth user to the pre-created society_guards row
- * (matched on phone) so the Auth Hook can inject their guard_society_id claim.
- * Mirrors claimAuthority — runs as the just-authenticated user via their token.
+ * Guard's first login (after OTP): link their auth user to the pre-created
+ * society_guards row. Arguments are ignored — the cookie session is the caller.
+ *
+ * @returns {Promise<{ok:true, societyId:string|null} | {error:string}>}
  */
-export async function claimGuard(accessToken) {
-  if (!accessToken) return { error: "AUTH_REQUIRED" };
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return { error: "SERVER_ERROR" };
-
-  const asUser = createClient(url, anon, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await asUser.rpc("claim_guard");
-  if (error) {
-    return { error: error.message.includes("NOT_A_GUARD") ? "NOT_A_GUARD" : "SERVER_ERROR" };
-  }
-  return { ok: true, societyId: data?.society_id ?? null };
+export async function claimGuard() {
+  const r = await claimAsCaller("claim_guard", "NOT_A_GUARD");
+  return r.ok ? { ok: true, societyId: r.data?.society_id ?? null } : r;
 }

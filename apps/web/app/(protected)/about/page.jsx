@@ -17,7 +17,7 @@ const APP_VERSION = "0.1.0";
 
 export default async function AboutPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["moderation"]);
+  const { t } = await initTranslations(lng, ["moderation", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -38,9 +38,9 @@ export default async function AboutPage() {
         <Link
           href="/dashboard"
           className="-mx-2 inline-flex min-h-11 items-center px-2 text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to dashboard"
+          aria-label={t("auth:common.backToDashboard")}
         >
-          ← Dashboard
+          ← {t("auth:common.dashboard")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">{t("about.title")}</h1>
       </header>

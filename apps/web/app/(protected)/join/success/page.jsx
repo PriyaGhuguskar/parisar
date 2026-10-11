@@ -15,21 +15,25 @@ import { useJoinState } from "../../../../lib/join-state";
 export default function JoinSuccessPage() {
   const { t } = useTranslation("auth");
   const router = useRouter();
-  const joinStore = useJoinState();
-  const { joinResult, society } = joinStore;
+  const joinResult = useJoinState((s) => s.joinResult);
+  const society = useJoinState((s) => s.society);
+  const resetJoin = useJoinState((s) => s.reset);
+  const isActive = joinResult?.status === "active";
 
-  // Guard: missing state → back to code
+  // Guard: missing state → back to code. The store is NOT cleared in an effect
+  // cleanup: React StrictMode runs mount → cleanup → mount in development, so a
+  // cleanup reset wiped the result and blanked this screen. It is cleared when
+  // the user explicitly leaves (handleContinue) instead.
   useEffect(() => {
-    if (!joinResult || joinResult.status !== "active") {
-      router.replace("/join/code");
-    }
-    // Clear store on mount so re-visiting doesn't show stale data
-    return () => {
-      joinStore.reset();
-    };
-  }, []);
+    if (!isActive) router.replace("/join/code");
+  }, [isActive, router]);
 
-  if (!joinResult || joinResult.status !== "active") {
+  function handleContinue() {
+    resetJoin();
+    router.push("/dashboard");
+  }
+
+  if (!isActive) {
     return null;
   }
 
@@ -56,7 +60,7 @@ export default function JoinSuccessPage() {
           {bodyText}
         </p>
 
-        {/* Co-Secretary chip (English-only for Phase 3; Phase 7 will i18n this) */}
+        {/* Co-Secretary chip */}
         {autoElevatedToCoSecretary && (
           <div
             className="rounded-xl px-4 py-3 border"
@@ -69,14 +73,15 @@ export default function JoinSuccessPage() {
               className="text-sm font-medium text-center"
               style={{ color: "var(--color-brand-500)" }}
             >
-              You've been added as Co-Secretary.
+              {t("join.success.coSecretaryChip")}
             </p>
           </div>
         )}
 
         {/* Go to Dashboard */}
         <button
-          onClick={() => router.push("/dashboard")}
+          type="button"
+          onClick={handleContinue}
           className="h-12 w-full rounded-xl font-semibold text-base text-white hover:opacity-90 transition-opacity"
           style={{ backgroundColor: "var(--color-brand-500)" }}
         >

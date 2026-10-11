@@ -4,7 +4,8 @@
 
 import { HelpCircle, MessageCircle, Tag } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const TYPE_STYLES = {
   sell: {

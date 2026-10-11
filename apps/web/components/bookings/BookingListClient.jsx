@@ -21,7 +21,6 @@
 // NO payment surface anywhere (PROJECT no-payments constraint).
 
 import { subscribeToBookings } from "@parisar/api-client";
-import { format } from "date-fns";
 import { AlertTriangle, CheckCircle2, Loader2, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { approveBookingAction, rejectBookingAction } from "../../app/actions/bookings";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import { OwnerChip } from "../complaints/OwnerChip";
+import { fetchRowById, upsertById } from "../shared/realtime";
 import {
   Dialog,
   DialogClose,
@@ -40,6 +40,34 @@ import {
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 const MAX_REASON = 300;
+const TOAST_MS = 2000;
+const IST = "Asia/Kolkata";
+
+// Same embeds as listBookings (packages/api-client/src/bookings.js) so Realtime
+// rows render with amenity + requester attribution.
+const BOOKING_SELECT = `
+  id,
+  society_id,
+  amenity_id,
+  requester_id,
+  requester_flat_id,
+  time_range,
+  purpose,
+  status,
+  approved_by,
+  approver_flat_id,
+  approved_at,
+  rejected_by,
+  rejecter_flat_id,
+  rejection_reason,
+  rejected_at,
+  created_at,
+  amenity:amenity_id ( id, name, open_time, close_time ),
+  requester:requester_id ( user_id, full_name ),
+  requester_flat:requester_flat_id ( number, wing:wing_id ( name ) ),
+  approver_flat:approver_flat_id ( number, wing:wing_id ( name ) ),
+  rejecter_flat:rejecter_flat_id ( number, wing:wing_id ( name ) )
+`;
 
 // Booking-status badge token map (UI-SPEC Booking Status Badge Colors).
 // pending = amber (DD-6, NOT neutral).
@@ -70,23 +98,32 @@ function parseRange(timeRange) {
   return { start: m[1], end: m[2] };
 }
 
+// Bookings are society-local (IST) — always render them in Asia/Kolkata, not
+// the browser's zone.
+const TIME_FMT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: IST,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+const DAY_FMT = new Intl.DateTimeFormat("en-GB", { timeZone: IST, day: "2-digit" });
+const MONTH_FMT = new Intl.DateTimeFormat("en-GB", { timeZone: IST, month: "short" });
+
+function toDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function safeTime(iso) {
-  if (!iso) return "";
-  try {
-    return format(new Date(iso), "HH:mm");
-  } catch {
-    return "";
-  }
+  const d = toDate(iso);
+  return d ? TIME_FMT.format(d) : "";
 }
 
 function dayPill(iso) {
-  if (!iso) return { day: "--", month: "" };
-  try {
-    const d = new Date(iso);
-    return { day: format(d, "dd"), month: format(d, "MMM").toUpperCase() };
-  } catch {
-    return { day: "--", month: "" };
-  }
+  const d = toDate(iso);
+  if (!d) return { day: "--", month: "" };
+  return { day: DAY_FMT.format(d), month: MONTH_FMT.format(d).toUpperCase() };
 }
 
 /**
@@ -112,27 +149,32 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
 
-  const cleanupRef = useRef(null);
+  const toastTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   useEffect(() => {
     if (!societyId) return undefined;
     const supabase = createSupabaseBrowserClient();
-    cleanupRef.current = subscribeToBookings(supabase, societyId, {
-      onInsert: (row) => {
-        setBookings((prev) => {
-          if (prev.some((b) => b.id === row.id)) return prev;
-          return [row, ...prev];
-        });
+    let active = true;
+    const unsubscribe = subscribeToBookings(supabase, societyId, {
+      onInsert: async (raw) => {
+        // Re-read with joins; null = not visible to this caller (RLS).
+        const row = await fetchRowById(supabase, "bookings", BOOKING_SELECT, raw?.id);
+        if (!active || !row) return;
+        setBookings((prev) => upsertById(prev, row));
       },
-      onUpdate: (row) => {
-        // Merge the decided row so a losing board member's card flips read-only
-        // with the winner's status/approver live.
+      onUpdate: async (raw) => {
+        // Merge the decided row (with approver/rejecter joins) so a losing board
+        // member's card flips read-only with the winner's status live.
+        const row = (await fetchRowById(supabase, "bookings", BOOKING_SELECT, raw?.id)) ?? raw;
+        if (!active || !row?.id) return;
         setBookings((prev) => prev.map((b) => (b.id === row.id ? { ...b, ...row } : b)));
       },
     });
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      active = false;
+      unsubscribe?.();
     };
   }, [societyId]);
 
@@ -144,7 +186,8 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
 
   function showToast(text) {
     setToast(text);
-    setTimeout(() => setToast(null), 2000);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), TOAST_MS);
   }
 
   async function handleApprove(booking) {
@@ -177,7 +220,10 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
         // race_lost_or_not_pending — show banner; Realtime UPDATE flips read-only.
         setBanners((prev) => ({
           ...prev,
-          [booking.id]: { kind: "raceLost", text: t("booking.raceLost") },
+          [booking.id]: {
+            kind: "raceLost",
+            text: t("booking.raceLost", { name: t("booking.aBoardMember"), flat: "—" }),
+          },
         }));
       }
     } catch {
@@ -226,9 +272,9 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
           <Link
             href="/dashboard"
             className="text-sm text-[#0E5A48] hover:underline"
-            aria-label="Back to dashboard"
+            aria-label={t("booking.backToDashboard")}
           >
-            ← Dashboard
+            ← {t("booking.dashboardLink")}
           </Link>
           <h1 className="text-xl font-semibold text-[#171717] truncate">
             {isBoard ? t("booking.queueTitle") : t("booking.myTitle")}
@@ -248,12 +294,12 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
         <div className="bg-white border-b border-neutral-100 px-4">
           <div className="flex gap-6 max-w-3xl mx-auto">
             <TabButton
-              label="Pending"
+              label={t("booking.tabPending")}
               active={activeTab === "pending"}
               onClick={() => setActiveTab("pending")}
             />
             <TabButton
-              label="All"
+              label={t("booking.tabAll")}
               active={activeTab === "all"}
               onClick={() => setActiveTab("all")}
             />
@@ -313,7 +359,7 @@ export function BookingListClient({ initialBookings, societyId, role, loadError 
           />
           <DialogFooter>
             <DialogClose className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50">
-              Cancel
+              {t("booking.cancel")}
             </DialogClose>
             <button
               type="button"
@@ -482,7 +528,7 @@ function BookingStatusBadge({ status }) {
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-sm whitespace-nowrap shrink-0 ${classes}`}
-      title={`Status: ${label}`}
+      title={t("booking.statusTitle", { status: label })}
     >
       {label}
     </span>
@@ -495,7 +541,7 @@ function ApproverBanner({ kind, name, flat }) {
   // shows the flat with a generic "A board member" name. When a future query joins
   // the approver name, it flows through unchanged.
   const tpl = kind === "approved" ? t("booking.approvedBy") : t("booking.rejectedBy");
-  const text = tpl.replace("{{name}}", name ?? "A board member").replace("{{flat}}", flat);
+  const text = tpl.replace("{{name}}", name ?? t("booking.aBoardMember")).replace("{{flat}}", flat);
   const tint = kind === "approved" ? "bg-[#ecfdf5] text-[#047857]" : "bg-[#fef2f2] text-[#c81e1e]";
   return (
     <span
@@ -560,7 +606,7 @@ function ErrorState() {
         onClick={() => window.location.reload()}
         className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
       >
-        Try again
+        {t("booking.tryAgain")}
       </button>
     </div>
   );

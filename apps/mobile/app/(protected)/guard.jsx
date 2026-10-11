@@ -12,25 +12,35 @@ import { guardCreateVisit, guardListFlats } from "@parisar/api-client";
 import { LogOut, ShieldCheck } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FormError } from "../../components/auth/FormError";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { Field, TextField } from "../../components/onboarding/Form";
 import { SosAlerts } from "../../components/sos/SosAlerts";
+import { Text } from "../../components/ui/Text";
 import { useAuthStore } from "../../lib/auth-store";
+import { rpcErrorCode } from "../../lib/rpc-error";
 import { getSupabase } from "../../lib/supabase";
+import { useSocietyRealtime } from "../../lib/use-society-realtime";
 
 const STATUS = {
   pending: { key: "visitor.statusPending", bg: "#FDF0DF", fg: "#B45309" },
   approved: { key: "visitor.statusApproved", bg: "#DCEFE6", fg: "#0A4436" },
   denied: { key: "visitor.statusDenied", bg: "#FCE9E6", fg: "#c81e1e" },
   cancelled: { key: "visitor.statusDenied", bg: "#F1F5F9", fg: "#64748B" },
+  expired: { key: "visitor.statusExpired", bg: "#F1F5F9", fg: "#64748B" },
 };
 
 export default function GuardScreen() {
   const { t } = useTranslation("auth");
   const signOut = useAuthStore((s) => s.signOut);
+  const guardSocietyId = useAuthStore(
+    (s) =>
+      s.session?.user?.app_metadata?.guard_society_id ??
+      s.session?.user?.app_metadata?.society_id ??
+      null,
+  );
   const [guardName, setGuardName] = useState("");
   const [societyName, setSocietyName] = useState("");
   const [wings, setWings] = useState([]);
@@ -79,16 +89,10 @@ export default function GuardScreen() {
       .then(setWings)
       .catch(() => setWings([]));
     loadRequests();
-    const channel = supabase
-      .channel(`guard-visits-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "visitor_requests" }, () =>
-        loadRequests(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [loadRequests]);
+
+  // Live while this screen is focused, for the guard's own society only.
+  useSocietyRealtime("visitor_requests", guardSocietyId, loadRequests);
 
   const flatLabel = (id) => {
     for (const w of wings) {
@@ -97,6 +101,12 @@ export default function GuardScreen() {
     }
     return "";
   };
+
+  function raiseErrorMessage(err) {
+    return rpcErrorCode(err, ["VISIT_RATE_LIMITED"])
+      ? t("visitor.rateLimited")
+      : t("visitor.raiseError");
+  }
 
   async function raise() {
     setError(null);
@@ -111,7 +121,7 @@ export default function GuardScreen() {
         purpose: purpose.trim(),
       });
       if (res?.error) {
-        setError(t("visitor.raiseError"));
+        setError(raiseErrorMessage(res.error));
         return;
       }
       setName("");
@@ -119,8 +129,9 @@ export default function GuardScreen() {
       setPurpose("");
       setFlatId("");
       await loadRequests();
-    } catch {
-      setError(t("visitor.raiseError"));
+    } catch (err) {
+      console.warn("[guard] raise failed:", err?.message ?? err);
+      setError(raiseErrorMessage(err));
     } finally {
       setBusy(false);
     }

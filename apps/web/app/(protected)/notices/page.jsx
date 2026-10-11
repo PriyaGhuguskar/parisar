@@ -34,7 +34,9 @@ export default async function NoticesPage() {
   try {
     initialNotices = await listNotices(supabase, { limit: 30 });
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[notices] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
 
   return (

@@ -5,7 +5,8 @@
 
 import { Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
+import { Text } from "../ui/Text";
 
 const BRAND_500 = "#12715A";
 
@@ -24,7 +25,7 @@ export function SocietySwitcherSheet({
   onSelect,
   onClose,
 }) {
-  const { t } = useTranslation("dashboard");
+  const { t } = useTranslation(["dashboard", "auth"]);
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable
@@ -32,7 +33,7 @@ export function SocietySwitcherSheet({
         style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="Dismiss"
+        accessibilityLabel={t("auth:common.dismiss")}
       >
         <Pressable
           className="bg-white rounded-t-3xl p-4 mt-auto"

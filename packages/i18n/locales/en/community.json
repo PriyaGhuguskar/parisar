@@ -37,7 +37,7 @@
     "deleteConfirm": "Delete this post?",
     "deleteCommentConfirm": "Delete this comment?",
     "reportTitle": "Report this {{target}}",
-    "reportSubhead": "Tell us why. Reported content is hidden right away while the Secretary reviews it.",
+    "reportSubhead": "Tell us why. Reported content is hidden once several residents report it or a board member reviews it.",
     "reportNotePlaceholder": "Add a note (optional)",
     "reportConfirm": "Report",
     "reportSuccess": "Reported.",
@@ -58,6 +58,36 @@
     "push": {
       "body": "New post in your community"
     },
-    "deleteError": "Couldn't delete. Please try again."
+    "deleteError": "Couldn't delete. Please try again.",
+    "reportThanks": "Reported, thanks. The Secretary will review it.",
+    "reportRateLimited": "You've reported a lot recently. Please try again later.",
+    "postOptions": "Post options",
+    "deletePost": "Delete post",
+    "deleteComment": "Delete comment",
+    "photoState": {
+      "idle": "Photo",
+      "uploading": "Photo uploading",
+      "checking": "Photo being checked",
+      "pass": "Photo approved",
+      "reject": "Photo can't be used"
+    },
+    "notFoundTitle": "Post not found",
+    "notFoundBody": "This post may have been removed, or you may not have permission to view it.",
+    "backToList": "Back to Community",
+    "moderationQueueLabel": "Moderation queue",
+    "openPostLabel": "Open post: {{excerpt}}",
+    "postOptionsLabel": "Post options",
+    "deleteCta": "Delete",
+    "tryAgain": "Try again",
+    "postDeleted": "This post has been deleted.",
+    "backToCommunity": "Back to Community",
+    "back": "Back",
+    "deletePostLabel": "Delete post",
+    "deleteCommentLabel": "Delete comment",
+    "removePhoto": "Remove photo",
+    "removeRejectedPhoto": "Remove rejected photo",
+    "imgInvalid": "Some files were skipped. Only images up to 10 MB can be added.",
+    "reportInvalidReason": "Choose a reason for the report.",
+    "reportedThanks": "Reported, thanks. The Secretary will review it."
   }
 }

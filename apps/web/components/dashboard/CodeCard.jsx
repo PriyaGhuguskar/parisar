@@ -3,9 +3,10 @@
 import { resumeSocietyCode } from "@parisar/api-client";
 import { AlertTriangle, Copy, Share2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SurfaceCard } from "@/components/kit";
+import { buildJoinUrl } from "@/lib/join-link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /**
@@ -17,11 +18,16 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
  *   paused     {boolean}       true iff society_codes.paused_at is non-null
  *   onResume   {Function}      called after a successful inline resume
  */
+const COPIED_MS = 2000;
+
 export function CodeCard({ code, societyId, paused = false, onResume }) {
   const { t } = useTranslation(["auth", "dashboard"]);
   const [copied, setCopied] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [resumeError, setResumeError] = useState(null);
+  const copiedTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
 
   // ---------------------------------------------------------------------------
   // Copy via Clipboard API
@@ -31,7 +37,8 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), COPIED_MS);
     } catch {
       // Clipboard API unavailable (e.g. non-HTTPS dev) — silent
     }
@@ -40,7 +47,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
   // ---------------------------------------------------------------------------
   // Share via WhatsApp anchor (per UI-SPEC: anchor href, not window.open)
   // ---------------------------------------------------------------------------
-  const joinUrl = code ? `https://parisar.app/join?code=${code}` : "";
+  const joinUrl = buildJoinUrl(code);
   const shareMessage = t("setup.shareMessage", {
     link: joinUrl,
     defaultValue: `Join our society on Parisar: ${joinUrl}`,
@@ -58,8 +65,9 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
       const supabase = createSupabaseBrowserClient();
       await resumeSocietyCode(supabase, { societyId });
       if (onResume) onResume();
-    } catch (err) {
-      setResumeError(err?.message ?? "Failed to resume code. Please try again.");
+    } catch {
+      // Never show raw PostgREST text — a localized message only.
+      setResumeError(t("codeRotation.resumeError"));
     } finally {
       setResuming(false);
     }
@@ -106,7 +114,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           className="pk-press h-11 w-full rounded-[14px] border text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ borderColor: "var(--color-warning)", color: "var(--color-warning)" }}
         >
-          {resuming ? "Resuming…" : t("codeRotation.resume")}
+          {resuming ? t("codeRotation.resuming") : t("codeRotation.resume")}
         </button>
       </SurfaceCard>
     );
@@ -127,11 +135,11 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
         className="mb-4 rounded-[14px] px-3 py-4 text-center"
         style={{ backgroundColor: "var(--color-brand-50)" }}
       >
-        <span
-          className="select-all font-mono text-[26px] font-extrabold tracking-[0.18em] text-[var(--color-brand-600)]"
-          aria-label={`Society code: ${code ?? "not loaded"}`}
-        >
-          {code ?? "—"}
+        <span className="select-all font-mono text-[26px] font-extrabold tracking-[0.18em] text-[var(--color-brand-600)]">
+          <span className="sr-only">
+            {code ? t("dashboard.code.codeLabel", { code }) : t("dashboard.code.codeNotLoaded")}
+          </span>
+          <span aria-hidden="true">{code ?? "—"}</span>
         </span>
       </div>
 
@@ -142,16 +150,12 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           type="button"
           onClick={handleCopy}
           className="pk-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-[12px] border border-[var(--color-neutral-200)] text-sm font-semibold text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-100)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-          aria-label="Copy society code"
+          aria-label={t("dashboard.code.copyLabel")}
         >
           <Copy size={16} aria-hidden="true" />
           {/* PAR-072: role="status" so the copy confirmation is announced to
               screen readers, not just shown visually. */}
-          {copied ? (
-            <span role="status">{t("setup.step6.copied")}</span>
-          ) : (
-            t("setup.step6.copyCode")
-          )}
+          {copied ? <output>{t("setup.step6.copied")}</output> : t("setup.step6.copyCode")}
         </button>
 
         {/* Share via WhatsApp — anchor tag per UI-SPEC (no window.open) */}
@@ -160,7 +164,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           target="_blank"
           rel="noopener noreferrer"
           className="pk-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-[12px] border border-[var(--color-neutral-200)] text-sm font-semibold text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-100)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-          aria-label="Share society code via WhatsApp"
+          aria-label={t("dashboard.code.shareLabel")}
         >
           <Share2 size={16} aria-hidden="true" />
           {t("setup.step6.shareWhatsApp")}

@@ -2,6 +2,7 @@
 
 import { LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { resetDashboardSummary } from "@/lib/dashboard-summary-store";
 import { signOutAction } from "../app/actions/auth";
 
 // One-click logout using the <form action={signOutAction}> server-action pattern.
@@ -11,7 +12,7 @@ import { signOutAction } from "../app/actions/auth";
 export default function LogoutButton() {
   const { t } = useTranslation("auth");
   return (
-    <form action={signOutAction}>
+    <form action={signOutAction} onSubmit={() => resetDashboardSummary()}>
       <button
         type="submit"
         className="flex items-center gap-1.5 text-sm text-[var(--color-danger)] hover:opacity-80 transition-opacity"

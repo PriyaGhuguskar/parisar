@@ -18,7 +18,7 @@
 import { uploadNoticeAttachmentWeb } from "@parisar/api-client";
 import { BarChart3, CheckCircle2, FileText, Loader2, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { postNoticeAction } from "../../app/actions/notifications";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
@@ -29,6 +29,7 @@ const MIN_BODY = 10;
 const MAX_BODY = 2000;
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_QUESTION = 200;
+const REDIRECT_DELAY_MS = 600;
 
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2";
@@ -79,6 +80,11 @@ export function NoticeComposer({ societyId }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  // Stays true through the redirect delay so the form can't be re-submitted.
+  const [submitted, setSubmitted] = useState(false);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(redirectTimerRef.current), []);
 
   const titleLen = title.length;
   const bodyLen = body.length;
@@ -93,10 +99,17 @@ export function NoticeComposer({ societyId }) {
       trimmedOptions.length >= 2 &&
       trimmedOptions.length <= 4);
 
-  const titleValid = titleLen >= MIN_TITLE && titleLen <= MAX_TITLE;
-  const bodyValid = bodyLen >= MIN_BODY && bodyLen <= MAX_BODY;
+  // Whitespace-only text never counts toward the minimums.
+  const titleValid = title.trim().length >= MIN_TITLE && titleLen <= MAX_TITLE;
+  const bodyValid = body.trim().length >= MIN_BODY && bodyLen <= MAX_BODY;
   const canSubmit =
-    titleValid && bodyValid && pollValid && !submitting && !attachUploading && noticeId;
+    titleValid &&
+    bodyValid &&
+    pollValid &&
+    !submitting &&
+    !submitted &&
+    !attachUploading &&
+    !!noticeId;
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -170,11 +183,12 @@ export function NoticeComposer({ societyId }) {
         );
         return;
       }
+      setSubmitted(true);
       setSuccessOpen(true);
-      setTimeout(() => {
+      redirectTimerRef.current = setTimeout(() => {
         router.push("/notices");
         router.refresh();
-      }, 600);
+      }, REDIRECT_DELAY_MS);
     } catch {
       setSubmitError(t("notifications:notice.postError"));
     } finally {
@@ -251,7 +265,7 @@ export function NoticeComposer({ societyId }) {
             <button
               type="button"
               onClick={removeAttachment}
-              aria-label="Remove attachment"
+              aria-label={t("notifications:notice.removeAttachment")}
               className={`pk-press inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-neutral-200)] text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-100)] ${FOCUS_RING}`}
             >
               <X size={16} aria-hidden="true" />
@@ -317,6 +331,7 @@ export function NoticeComposer({ societyId }) {
                 type="text"
                 value={opt}
                 onChange={(e) => updateOption(idx, e.target.value)}
+                maxLength={MAX_QUESTION}
                 placeholder={t("polls:poll.optionPlaceholder").replace("{{n}}", String(idx + 1))}
                 className={`${FIELD} flex-1`}
               />
@@ -324,7 +339,7 @@ export function NoticeComposer({ societyId }) {
                 <button
                   type="button"
                   onClick={() => removeOption(idx)}
-                  aria-label={`Remove option ${idx + 1}`}
+                  aria-label={t("polls:poll.removeOption", { n: idx + 1 })}
                   className={`pk-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--color-neutral-600)] transition-colors hover:bg-[var(--color-neutral-200)] ${FOCUS_RING}`}
                 >
                   <X size={16} aria-hidden="true" />

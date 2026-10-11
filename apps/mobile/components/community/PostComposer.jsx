@@ -6,99 +6,32 @@
 
 import { createPost, MAX_POST_PHOTOS } from "@parisar/api-client";
 import { CheckCircle2, ImagePlus } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActionSheetIOS,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { pickAndCompressImage, showPhotoSourceChooser } from "../shared/image-capture";
+import { cryptoRandomUUID } from "../shared/uuid";
+import { Text } from "../ui/Text";
 import { ImageSafetyState, isBlockingState } from "./ImageSafetyState";
 
 const TEXT_MAX = 2000;
 const DANGER_500 = "#c81e1e";
 
-function cryptoRandomUUID() {
-  const g = globalThis.crypto;
-  if (g && typeof g.randomUUID === "function") return g.randomUUID();
-  const bytes = new Uint8Array(16);
-  if (g && typeof g.getRandomValues === "function") g.getRandomValues(bytes);
-  else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-function showSourceChooser(label) {
-  return new Promise((resolve) => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ["Take a photo", "Choose from gallery", "Cancel"], cancelButtonIndex: 2 },
-        (idx) => resolve(idx === 0 ? "camera" : idx === 1 ? "gallery" : null),
-      );
-    } else {
-      Alert.alert(label, undefined, [
-        { text: "Take a photo", onPress: () => resolve("camera") },
-        { text: "Choose from gallery", onPress: () => resolve("gallery") },
-        { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
-      ]);
-    }
-  });
-}
-
 async function pickAndProcess(source) {
-  const ImagePicker = await import("expo-image-picker");
-  const ImageManipulator = await import("expo-image-manipulator");
-  const FileSystem = await import("expo-file-system");
-
-  let asset;
-  if (source === "camera") {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return null;
-    const shot = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-    if (shot.canceled || !shot.assets?.[0]) return null;
-    asset = shot.assets[0];
-  } else {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return null;
-    const pick = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-    if (pick.canceled || !pick.assets?.[0]) return null;
-    asset = pick.assets[0];
-  }
-
-  const resize = asset.width > asset.height ? { width: 1600 } : { height: 1600 };
-  const manip = await ImageManipulator.manipulateAsync(asset.uri, [{ resize }], {
-    compress: 0.7,
-    format: ImageManipulator.SaveFormat.JPEG,
-  });
-
-  const base64 = await FileSystem.readAsStringAsync(manip.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-
+  const picked = await pickAndCompressImage(source);
+  if (!picked) return null;
   return {
     photoId: cryptoRandomUUID(),
-    previewUri: manip.uri,
-    bytes: bytes.buffer,
+    previewUri: picked.uri,
+    bytes: picked.bytes,
     mimeType: "image/jpeg",
   };
 }
@@ -107,7 +40,7 @@ async function pickAndProcess(source) {
  * @param {{ supabase: object, societyId: string, onSuccess?: () => void }} props
  */
 export function PostComposer({ supabase, societyId, onSuccess }) {
-  const { t } = useTranslation("community");
+  const { t } = useTranslation(["community", "auth"]);
   const [kind, setKind] = useState("general"); // default General
   const [text, setText] = useState("");
   const [photos, setPhotos] = useState([]);
@@ -115,16 +48,24 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Synchronous guard: state updates are async, so a fast double-tap could
+  // start two createPost calls before `submitting` re-renders the button.
+  const submitLockRef = useRef(false);
+  // One post id per submit attempt, fixed before the first await so the
+  // quarantine uploads and the moderation call can never disagree. A failed
+  // attempt rotates it (its photos already sit under the old id and uploads
+  // are upsert:false, so re-using it would collide).
+  const postIdRef = useRef(cryptoRandomUUID());
 
   const textValid = text.trim().length >= 1 && text.trim().length <= TEXT_MAX;
   const anyBlocking = photos.some((p) => isBlockingState(p.state));
-  const canSubmit = textValid && !anyBlocking && !submitting;
+  const canSubmit = textValid && !anyBlocking && !submitting && !showSuccess;
   const hasReject = photos.some((p) => p.state === "reject");
 
   async function handleAddPhoto() {
     if (photos.length >= MAX_POST_PHOTOS) return;
     setSubmitError(null);
-    const source = await showSourceChooser(t("community.photosLabel"));
+    const source = await showPhotoSourceChooser(t, t("community.photosLabel"));
     if (!source) return;
 
     const placeholderId = cryptoRandomUUID();
@@ -156,9 +97,11 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
   }
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
+    let posted = false;
 
     // Flip every selected photo to `checking` for the duration of the gate.
     if (photos.length > 0) {
@@ -168,6 +111,7 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
     try {
       const result = await createPost(supabase, {
         societyId,
+        postId: postIdRef.current,
         kind,
         body: text.trim(),
         photos: photos.map((p) => ({ photoId: p.photoId, bytes: p.bytes, mimeType: p.mimeType })),
@@ -175,6 +119,9 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
 
       if (result?.ok) {
         // All photos PASSed → the post is created. Mark pass briefly, then navigate.
+        // Stay locked/disabled from here on so the 1s success toast can't be
+        // tapped through into a duplicate post.
+        posted = true;
         setPhotos((prev) => prev.map((p) => ({ ...p, state: "pass" })));
         setShowSuccess(true);
         setTimeout(() => onSuccess?.(), 1000);
@@ -209,7 +156,11 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
       setPhotos((prev) => prev.map((p) => (p.state === "checking" ? { ...p, state: "idle" } : p)));
       setSubmitError(t("community.postError"));
     } finally {
-      setSubmitting(false);
+      if (!posted) {
+        postIdRef.current = cryptoRandomUUID();
+        submitLockRef.current = false;
+        setSubmitting(false);
+      }
     }
   }
 
@@ -254,7 +205,8 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
                     className={`text-sm font-semibold ${
                       kind === typeOpt.value ? "text-white" : "text-neutral-600"
                     }`}
-                    numberOfLines={1}
+                    numberOfLines={2}
+                    style={{ textAlign: "center" }}
                   >
                     {typeOpt.label}
                   </Text>
@@ -301,7 +253,7 @@ export function PostComposer({ supabase, societyId, onSuccess }) {
               {photos.length < MAX_POST_PHOTOS ? (
                 <Pressable
                   onPress={handleAddPhoto}
-                  disabled={submitting}
+                  disabled={submitting || showSuccess}
                   accessibilityRole="button"
                   accessibilityLabel={t("community.photosLabel")}
                   style={{

@@ -24,7 +24,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
@@ -32,8 +31,11 @@ import { z } from "zod";
 import { FormError } from "../../../../components/auth/FormError";
 import { PhotoPicker } from "../../../../components/complaints/PhotoPicker";
 import { BackArrow } from "../../../../components/kit";
+import { Text } from "../../../../components/ui/Text";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 import { useMyContext } from "../../../../lib/use-my-context";
+import { useSafeTimeout } from "../../../../lib/use-safe-timeout";
 
 const DESCRIPTION_MAX = 1000;
 
@@ -52,6 +54,7 @@ function cryptoRandomUUID() {
 
 export default function NewComplaintScreen() {
   const router = useRouter();
+  const later = useSafeTimeout();
   const { t } = useTranslation("complaints");
 
   // Society and the reporter's own flat come from their membership — the
@@ -112,9 +115,7 @@ export default function NewComplaintScreen() {
       // 2-second toast — then navigate back. Use a short delay so the user sees
       // confirmation; the new complaint will appear in the list via Realtime
       // INSERT shortly after navigation.
-      setTimeout(() => {
-        router.back();
-      }, 1200);
+      later(() => goBack(router), 1200);
     } catch (err) {
       console.warn("[complaints/new] submit failed:", err?.message ?? err);
       const code = err?.message ?? "";
@@ -147,10 +148,10 @@ export default function NewComplaintScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("complaint.back")}
         >
           <BackArrow />
         </Pressable>

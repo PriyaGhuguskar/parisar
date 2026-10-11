@@ -9,11 +9,13 @@ import {
   COMPLAINT_STATUS,
   COMPLAINTS_BUCKET,
   claimComplaint,
+  fetchUnreadComplaintCount,
   fileComplaint,
   RESPONSE_LABELS,
   registerPushToken,
   subscribeToComplaintResponses,
   subscribeToComplaints,
+  unregisterPushToken,
 } from "../complaints.js";
 
 // ---------------------------------------------------------------------------
@@ -280,7 +282,9 @@ describe("subscribeToComplaintResponses", () => {
 
     const cleanup = subscribeToComplaintResponses(client, "comp-7", onInsert);
 
-    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^complaint-responses-comp-7:/));
+    expect(client.channel).toHaveBeenCalledWith(
+      expect.stringMatching(/^complaint-responses-comp-7:/),
+    );
     expect(onFn).toHaveBeenCalledTimes(1);
     expect(onFn.mock.calls[0][1]).toMatchObject({
       event: "INSERT",
@@ -299,15 +303,13 @@ describe("subscribeToComplaintResponses", () => {
 });
 
 // ---------------------------------------------------------------------------
-// registerPushToken — onConflict expo_token, user_id from auth.getUser
+// registerPushToken / unregisterPushToken — SECURITY DEFINER RPCs (contract-055)
 // ---------------------------------------------------------------------------
 
 describe("registerPushToken", () => {
   let supabase;
-  let upsertFn;
 
   beforeEach(() => {
-    upsertFn = vi.fn(async () => ({ data: [{ id: "row-1" }], error: null }));
     supabase = {
       auth: {
         getUser: vi.fn(async () => ({
@@ -315,27 +317,24 @@ describe("registerPushToken", () => {
           error: null,
         })),
       },
-      from: vi.fn(() => ({ upsert: upsertFn })),
+      rpc: vi.fn(async () => ({ data: { expo_token: "tk", user_id: "user-1" }, error: null })),
+      from: vi.fn(),
     };
   });
 
-  it("upserts a push_tokens row with onConflict expo_token", async () => {
+  it("calls register_push_token (no direct push_tokens upsert, which RLS blocks)", async () => {
     const result = await registerPushToken(supabase, {
       expoToken: "ExponentPushToken[abc]",
       platform: "android",
       deviceLabel: "Pixel 6",
     });
     expect(result).toBe("ExponentPushToken[abc]");
-    expect(supabase.from).toHaveBeenCalledWith("push_tokens");
-    expect(upsertFn).toHaveBeenCalledTimes(1);
-    const [row, opts] = upsertFn.mock.calls[0];
-    expect(row.user_id).toBe("user-1");
-    expect(row.expo_token).toBe("ExponentPushToken[abc]");
-    expect(row.platform).toBe("android");
-    expect(row.device_label).toBe("Pixel 6");
-    expect(row.notifications_enabled).toBe(true);
-    expect(typeof row.last_seen_at).toBe("string");
-    expect(opts).toEqual({ onConflict: "expo_token" });
+    expect(supabase.rpc).toHaveBeenCalledWith("register_push_token", {
+      p_token: "ExponentPushToken[abc]",
+      p_platform: "android",
+      p_device_label: "Pixel 6",
+    });
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 
   it("returns null when there is no auth user", async () => {
@@ -348,17 +347,91 @@ describe("registerPushToken", () => {
       platform: "ios",
     });
     expect(result).toBeNull();
-    expect(supabase.from).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
-  it("throws when upsert fails", async () => {
-    upsertFn.mockImplementationOnce(async () => ({
+  it("throws when the RPC fails (e.g. INVALID_PLATFORM)", async () => {
+    supabase.rpc.mockImplementationOnce(async () => ({
       data: null,
-      error: new Error("conflict"),
+      error: new Error("INVALID_PLATFORM"),
     }));
     await expect(registerPushToken(supabase, { expoToken: "tk", platform: "ios" })).rejects.toThrow(
-      "conflict",
+      "INVALID_PLATFORM",
     );
+  });
+});
+
+describe("unregisterPushToken", () => {
+  it("calls unregister_push_token and returns the deleted flag", async () => {
+    const supabase = { rpc: vi.fn(async () => ({ data: true, error: null })) };
+    expect(await unregisterPushToken(supabase, "tk")).toBe(true);
+    expect(supabase.rpc).toHaveBeenCalledWith("unregister_push_token", { p_token: "tk" });
+  });
+
+  it("returns false without a network call for an empty token", async () => {
+    const supabase = { rpc: vi.fn() };
+    expect(await unregisterPushToken(supabase, null)).toBe(false);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("throws on RPC errors", async () => {
+    const supabase = {
+      rpc: vi.fn(async () => ({ data: null, error: new Error("AUTH_REQUIRED") })),
+    };
+    await expect(unregisterPushToken(supabase, "tk")).rejects.toThrow("AUTH_REQUIRED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchUnreadComplaintCount — responses by others on my complaints since lastSeen
+// ---------------------------------------------------------------------------
+
+describe("fetchUnreadComplaintCount", () => {
+  function makeResponsesClient(result) {
+    const builder = {};
+    for (const m of ["select", "eq", "neq", "gt"]) {
+      builder[m] = vi.fn(() => builder);
+    }
+    builder.limit = vi.fn(async () => result);
+    return { client: { from: vi.fn(() => builder) }, builder };
+  }
+
+  it("counts DISTINCT complaints with a newer response from someone else", async () => {
+    const { client, builder } = makeResponsesClient({
+      data: [{ complaint_id: "c1" }, { complaint_id: "c1" }, { complaint_id: "c2" }],
+      error: null,
+    });
+    const n = await fetchUnreadComplaintCount(client, {
+      userId: "u1",
+      since: "2026-10-01T00:00:00.000Z",
+    });
+    expect(n).toBe(2);
+    expect(client.from).toHaveBeenCalledWith("complaint_responses");
+    expect(builder.eq).toHaveBeenCalledWith("complaint.reporter_id", "u1");
+    expect(builder.neq).toHaveBeenCalledWith("responder_id", "u1");
+    expect(builder.gt).toHaveBeenCalledWith("created_at", "2026-10-01T00:00:00.000Z");
+  });
+
+  it("returns 0 without querying when there is no lastSeen timestamp or user", async () => {
+    const { client } = makeResponsesClient({ data: [], error: null });
+    expect(await fetchUnreadComplaintCount(client, { userId: "u1", since: null })).toBe(0);
+    expect(await fetchUnreadComplaintCount(client, { userId: null, since: "2026-10-01" })).toBe(0);
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unparseable timestamp", async () => {
+    const { client } = makeResponsesClient({ data: [], error: null });
+    await expect(
+      fetchUnreadComplaintCount(client, { userId: "u1", since: "not-a-date" }),
+    ).rejects.toThrow("INVALID_SINCE");
+  });
+
+  it("throws on query errors", async () => {
+    const err = new Error("rls");
+    const { client } = makeResponsesClient({ data: null, error: err });
+    await expect(
+      fetchUnreadComplaintCount(client, { userId: "u1", since: "2026-10-01T00:00:00Z" }),
+    ).rejects.toBe(err);
   });
 });
 

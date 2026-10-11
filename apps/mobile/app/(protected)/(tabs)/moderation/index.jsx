@@ -24,12 +24,14 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ShieldCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { AuditLogRow } from "../../../../components/community/AuditLogRow";
 import { ModerationCard } from "../../../../components/community/ModerationCard";
 import { BackArrow } from "../../../../components/kit";
+import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
@@ -181,7 +183,11 @@ function ModerationScreen() {
   if (!isAdmin) {
     return (
       <View className="flex-1 bg-neutral-50">
-        <Header onBack={() => router.back()} title={t("moderation:moderation.title")} />
+        <Header
+          onBack={() => goBack(router)}
+          backLabel={t("community:community.back")}
+          title={t("moderation:moderation.title")}
+        />
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-base text-neutral-600 text-center">
             {t("community:community.loadError")}
@@ -193,7 +199,11 @@ function ModerationScreen() {
 
   return (
     <View className="flex-1 bg-neutral-50">
-      <Header onBack={() => router.back()} title={t("moderation:moderation.title")} />
+      <Header
+        onBack={() => goBack(router)}
+        backLabel={t("community:community.back")}
+        title={t("moderation:moderation.title")}
+      />
 
       {/* Tabs */}
       <View className="flex-row gap-6 px-4 bg-white border-b border-neutral-100">
@@ -223,7 +233,9 @@ function ModerationScreen() {
             className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center"
             accessibilityRole="button"
           >
-            <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
+            <Text className="text-sm font-semibold text-neutral-900">
+              {t("community.tryAgain")}
+            </Text>
           </Pressable>
         </View>
       ) : tab === "review" ? (
@@ -272,14 +284,14 @@ function ModerationScreen() {
   );
 }
 
-function Header({ onBack, title }) {
+function Header({ onBack, backLabel, title }) {
   return (
     <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
       <Pressable
         onPress={onBack}
         className="p-2"
         accessibilityRole="button"
-        accessibilityLabel="Go back"
+        accessibilityLabel={backLabel}
       >
         <BackArrow />
       </Pressable>

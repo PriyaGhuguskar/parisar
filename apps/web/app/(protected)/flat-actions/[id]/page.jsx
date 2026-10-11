@@ -10,11 +10,12 @@
 //   5. Hands off to FlatActionDetailClient (Realtime status flip).
 
 import { FLAT_ACTIONS_BUCKET, getFlatAction } from "@parisar/api-client";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FlatActionDetailClient } from "../../../../components/flat-actions/FlatActionDetailClient";
 import { resolveActiveSociety } from "../../../../lib/auth/activeSociety";
+import { getServerT } from "../../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { DetailNotFound, logLoadError } from "../../_components/DetailNotFound";
 
 export const dynamic = "force-dynamic";
 
@@ -35,28 +36,24 @@ export default async function FlatActionDetailPage({ params }) {
   const { id } = await params;
 
   let detail = null;
-  let loadError = null;
+  let loadFailed = false;
   try {
     detail = await getFlatAction(supabase, id);
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    loadFailed = true;
+    logLoadError("flat-action-detail", err);
   }
 
   if (!detail?.action) {
+    const { t } = await getServerT(["flat-actions", "auth"]);
     return (
-      <div className="min-h-screen bg-[var(--color-neutral-50)] flex flex-col items-center justify-center gap-3 px-8 text-center">
-        <h2 className="text-xl font-semibold text-[#171717]">Action not found</h2>
-        <p className="text-base text-[#525252]">
-          This action may have been removed, or you may not have permission to view it.
-        </p>
-        {loadError ? <p className="text-sm text-[#6e6e6e]">{loadError}</p> : null}
-        <Link
-          href="/flat-actions"
-          className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
-        >
-          Back to flat actions
-        </Link>
-      </div>
+      <DetailNotFound
+        title={t("flatAction.notFoundTitle")}
+        body={t("flatAction.notFoundBody")}
+        errorText={loadFailed ? t("auth:common.loadFailed") : null}
+        backHref="/flat-actions"
+        backLabel={t("flatAction.backToList")}
+      />
     );
   }
 

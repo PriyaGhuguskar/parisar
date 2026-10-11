@@ -3,54 +3,135 @@
 // SosAlerts — live banners for active emergency alerts the caller is allowed to
 // see (RLS scopes visibility by audience + role, so this just selects + subscribes).
 // Shown at the top of home for residents and on the guard screen for watchmen.
+//
+// "Mark resolved" is shown only to people resolve_sos accepts: the raiser, or a
+// secretary / co-secretary of the society. Callers may pass role / userId /
+// societyId; otherwise they are resolved here (auth.getUser + my_active_society —
+// the api-client has no wrapper for my_active_society yet).
 
 import { resolveSos } from "@parisar/api-client";
 import { Check, Siren } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "../shared/realtime";
+
+const RESOLVER_ROLES = new Set(["secretary", "co_secretary"]);
+const WINDOW_MS = 2 * 3600 * 1000; // active alerts from the last 2 hours
 
 function fmtTime(iso) {
   try {
-    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "Asia/Kolkata",
+    });
   } catch {
     return "";
   }
 }
 
-export function SosAlerts() {
+/** Resolve the viewer's user id + live role when the caller didn't pass them. */
+function useViewer({ role, userId, societyId }) {
+  const [viewer, setViewer] = useState({ role, userId, societyId });
+
+  useEffect(() => {
+    if (role !== undefined && userId !== undefined) {
+      setViewer({ role, userId, societyId });
+      return undefined;
+    }
+    let active = true;
+    const supabase = createSupabaseBrowserClient();
+    (async () => {
+      try {
+        const [{ data: userData }, { data: ctx }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.rpc("my_active_society"),
+        ]);
+        if (!active) return;
+        setViewer({
+          role: role ?? ctx?.role ?? null,
+          userId: userId ?? userData?.user?.id ?? null,
+          societyId: societyId ?? ctx?.society_id ?? null,
+        });
+      } catch {
+        // Unknown viewer → no resolve button; banners still show.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [role, userId, societyId]);
+
+  return viewer;
+}
+
+/**
+ * @param {{ role?: string|null, userId?: string|null, societyId?: string|null }} props
+ */
+export function SosAlerts({ role, userId, societyId } = {}) {
   const { t } = useTranslation("auth");
   const [alerts, setAlerts] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [errors, setErrors] = useState({}); // alertId -> i18n key
+  const viewer = useViewer({ role, userId, societyId });
+  const channelSocietyId = viewer.societyId ?? null;
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    // Active alerts from the last 2 hours; RLS returns only what the caller may see.
-    const cutoff = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
-    const { data } = await supabase
+    const cutoff = new Date(Date.now() - WINDOW_MS).toISOString();
+    const { data, error } = await supabase
       .from("sos_alerts")
-      .select("id, description, audience, raised_by_name, raised_by_flat, created_at")
+      .select("id, description, audience, raised_by, raised_by_name, raised_by_flat, created_at")
       .is("resolved_at", null)
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
+    if (error) return; // keep what is on screen; the next event retries
     setAlerts(Array.isArray(data) ? data : []);
   }, []);
 
   useEffect(() => {
     load();
     const supabase = createSupabaseBrowserClient();
+    const filter = channelSocietyId ? { filter: `society_id=eq.${channelSocietyId}` } : {};
     const channel = supabase
-      .channel("sos-alerts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sos_alerts" }, () => load())
+      .channel(uniqueChannelName(`sos-alerts-${channelSocietyId ?? "mine"}`))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sos_alerts", ...filter },
+        () => load(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, channelSocietyId]);
+
+  function canResolve(alert) {
+    if (!viewer.userId && !viewer.role) return false;
+    return alert.raised_by === viewer.userId || RESOLVER_ROLES.has(viewer.role);
+  }
 
   async function dismiss(id) {
-    const supabase = createSupabaseBrowserClient();
-    await resolveSos(supabase, id);
-    await load();
+    if (busyId) return;
+    setBusyId(id);
+    setErrors((prev) => ({ ...prev, [id]: null }));
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const res = await resolveSos(supabase, id);
+      if (res?.error) {
+        setErrors((prev) => ({
+          ...prev,
+          [id]: res.error === "NOT_ALLOWED" ? "sos.resolveNotAllowed" : "sos.resolveError",
+        }));
+        return;
+      }
+      await load();
+    } catch {
+      setErrors((prev) => ({ ...prev, [id]: "sos.resolveError" }));
+    } finally {
+      setBusyId(null);
+    }
   }
 
   if (alerts.length === 0) return null;
@@ -87,15 +168,23 @@ export function SosAlerts() {
                   {t("sos.raisedBy", { who })}
                 </p>
               ) : null}
+              {errors[a.id] ? (
+                <p className="mt-1 text-[12px] font-semibold text-[var(--color-danger)]">
+                  {t(errors[a.id])}
+                </p>
+              ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => dismiss(a.id)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-[12px] font-bold text-[var(--color-danger)] hover:bg-white"
-            >
-              <Check size={13} strokeWidth={2.6} aria-hidden="true" />
-              {t("sos.resolve")}
-            </button>
+            {canResolve(a) ? (
+              <button
+                type="button"
+                onClick={() => dismiss(a.id)}
+                disabled={busyId === a.id}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1.5 text-[12px] font-bold text-[var(--color-danger)] hover:bg-white disabled:opacity-60"
+              >
+                <Check size={13} strokeWidth={2.6} aria-hidden="true" />
+                {t("sos.resolve")}
+              </button>
+            ) : null}
           </div>
         );
       })}

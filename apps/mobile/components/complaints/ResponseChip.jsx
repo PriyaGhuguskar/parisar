@@ -12,7 +12,8 @@
 // Label resolves from i18n response.* keys.
 
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable } from "react-native";
+import { Text } from "../ui/Text";
 
 const VARIANT_META = {
   checking: { color: "#12715A", bgPressed: "#f5f7ff", labelKey: "response.checking" },
@@ -54,7 +55,7 @@ export function ResponseChip({ responseKind, onPress, loading = false, disabled 
         // without truncating — line height handles wrap.
       })}
       accessibilityRole="button"
-      accessibilityLabel={`Respond: ${label}`}
+      accessibilityLabel={label}
       accessibilityState={{ disabled: !isInteractive, busy: loading }}
     >
       {loading ? (

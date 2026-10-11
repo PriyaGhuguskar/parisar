@@ -6,7 +6,7 @@
 // 'overdue' status, no push, no escalation. The amount is a RECORDED figure, NEVER a
 // payment field (PROJECT.md NO PAYMENTS).
 //
-// FLAT-05 LOCKED-VERBATIM: the no-payment footer renders via t("fine.noPaymentFooter").
+// FLAT-05 LOCKED-VERBATIM: the no-payment footer renders via t("flatAction.noPaymentFooter").
 // The JSON value is unchanged (Plan 07-01 locked-verbatim snapshot tests guard byte exactness).
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
@@ -15,18 +15,20 @@ import { format } from "date-fns";
 import { FileText, Info } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { isOverdue, overdueDays } from "../../lib/fine-overdue";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { Text } from "../ui/Text";
 import { FineStatusBadge } from "./FineStatusBadge";
 
 const BRAND_500 = "#12715A";
 const NEUTRAL_600 = "#475569";
 const DANGER_500 = "#c81e1e";
 
-function safeDate(value) {
+function safeDate(value, locale) {
   if (!value) return "—";
   try {
-    return format(new Date(value), "dd MMM yyyy");
+    return format(new Date(value), "dd MMM yyyy", { locale });
   } catch {
     return String(value);
   }
@@ -73,7 +75,8 @@ export function FineDetailBlock({
   actionError = null,
   nowMs = Date.now(),
 }) {
-  const { t } = useTranslation("flat-actions");
+  const { t } = useTranslation(["flat-actions", "auth"]);
+  const dateLocale = useDateLocale();
   // Phase 7 IN-02 — both helpers now share the 3-arg (fineStatus, dueDate, nowMs)
   // signature from @parisar/api-client. The old 2-arg mobile-only overdueDays
   // dropped the status gate; the unified signature makes the gate explicit so
@@ -88,9 +91,7 @@ export function FineDetailBlock({
 
   // LOCKED-VERBATIM (FLAT-05): the no-payment footer is rendered via t().
   // The byte-exact value lives in flat-actions.json (Plan 07-01 snapshot suite).
-  const noPaymentFooter = t("fine.noPaymentFooter", {
-    defaultValue: t("flatAction.noPaymentFooter"),
-  });
+  const noPaymentFooter = t("flatAction.noPaymentFooter");
 
   return (
     <View className="bg-white rounded-xl p-6 gap-4">
@@ -110,7 +111,7 @@ export function FineDetailBlock({
           </Text>
         ) : (
           <Text className="text-sm text-neutral-600" numberOfLines={2}>
-            {t("flatAction.dueOn", { date: safeDate(dueDate) })}
+            {t("flatAction.dueOn", { date: safeDate(dueDate, dateLocale) })}
           </Text>
         )}
         <FineStatusBadge status={status} dueDate={dueDate} nowMs={nowMs} />
@@ -134,7 +135,7 @@ export function FineDetailBlock({
         </Pressable>
       ) : null}
 
-      {/* LOCKED no-payment footer (FLAT-05) — verbatim via t("fine.noPaymentFooter"). */}
+      {/* LOCKED no-payment footer (FLAT-05) — verbatim via t("flatAction.noPaymentFooter"). */}
       <View
         className="flex-row items-start gap-2 rounded-xl bg-neutral-100 p-3"
         accessibilityRole="text"
@@ -233,7 +234,7 @@ function WaiveConfirm({ t, onWaive, waiving }) {
           onPress={() => setConfirming(false)}
           disabled={waiving}
           accessibilityRole="button"
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t("auth:common.cancel")}
           className="flex-1 h-10 px-4 rounded-lg items-center justify-center border border-neutral-200"
         >
           <Text className="text-base text-neutral-600">Cancel</Text>

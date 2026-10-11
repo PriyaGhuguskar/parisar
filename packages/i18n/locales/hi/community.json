@@ -37,7 +37,7 @@
     "deleteConfirm": "इस पोस्ट को हटाएं?",
     "deleteCommentConfirm": "इस टिप्पणी को हटाएं?",
     "reportTitle": "इस {{target}} की रिपोर्ट करें",
-    "reportSubhead": "हमें बताएं क्यों। रिपोर्ट की गई सामग्री समीक्षा के दौरान तुरंत छिपा दी जाती है।",
+    "reportSubhead": "हमें बताएं क्यों। जब कई निवासी इसकी रिपोर्ट करते हैं या कोई बोर्ड सदस्य इसकी समीक्षा करता है, तब रिपोर्ट की गई सामग्री छिपा दी जाती है।",
     "reportNotePlaceholder": "एक नोट जोड़ें (वैकल्पिक)",
     "reportConfirm": "रिपोर्ट करें",
     "reportSuccess": "रिपोर्ट की गई।",
@@ -58,6 +58,36 @@
     "push": {
       "body": "New post in your community"
     },
-    "deleteError": "हटाया नहीं जा सका। कृपया पुनः प्रयास करें।"
+    "deleteError": "हटाया नहीं जा सका। कृपया पुनः प्रयास करें।",
+    "reportThanks": "रिपोर्ट हो गई, धन्यवाद। सचिव इसकी समीक्षा करेंगे।",
+    "reportRateLimited": "आपने हाल ही में बहुत रिपोर्ट की हैं। कृपया बाद में फिर से कोशिश करें।",
+    "postOptions": "पोस्ट के विकल्प",
+    "deletePost": "पोस्ट हटाएँ",
+    "deleteComment": "टिप्पणी हटाएँ",
+    "photoState": {
+      "idle": "फ़ोटो",
+      "uploading": "फ़ोटो अपलोड हो रही है",
+      "checking": "फ़ोटो की जाँच हो रही है",
+      "pass": "फ़ोटो स्वीकृत",
+      "reject": "यह फ़ोटो इस्तेमाल नहीं की जा सकती"
+    },
+    "notFoundTitle": "पोस्ट नहीं मिली",
+    "notFoundBody": "यह पोस्ट हटा दी गई हो सकती है, या आपको इसे देखने की अनुमति नहीं है।",
+    "backToList": "समुदाय पर वापस जाएं",
+    "moderationQueueLabel": "मॉडरेशन कतार",
+    "openPostLabel": "पोस्ट खोलें: {{excerpt}}",
+    "postOptionsLabel": "पोस्ट विकल्प",
+    "deleteCta": "हटाएँ",
+    "tryAgain": "फिर से कोशिश करें",
+    "postDeleted": "यह पोस्ट हटा दी गई है।",
+    "backToCommunity": "कम्युनिटी पर वापस जाएँ",
+    "back": "वापस",
+    "deletePostLabel": "पोस्ट हटाएँ",
+    "deleteCommentLabel": "टिप्पणी हटाएँ",
+    "removePhoto": "फ़ोटो हटाएँ",
+    "removeRejectedPhoto": "अस्वीकृत फ़ोटो हटाएँ",
+    "imgInvalid": "कुछ फ़ाइलें छोड़ दी गईं। केवल 10 MB तक की इमेज ही जोड़ी जा सकती हैं।",
+    "reportInvalidReason": "रिपोर्ट का कारण चुनें।",
+    "reportedThanks": "रिपोर्ट कर दिया, धन्यवाद। सचिव इसकी समीक्षा करेंगे।"
   }
 }

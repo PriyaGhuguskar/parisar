@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPostPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["community"]);
+  const { t } = await initTranslations(lng, ["community", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -32,9 +32,9 @@ export default async function NewPostPage() {
         <Link
           href="/community"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to community"
+          aria-label={t("community.backToList")}
         >
-          ← Back
+          ← {t("auth:common.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("community.composeTitle")}

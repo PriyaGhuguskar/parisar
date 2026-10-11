@@ -7,12 +7,11 @@
 
 import { redirect } from "next/navigation";
 import { SocietyProfileClient } from "../../../components/society/SocietyProfileClient";
-import { resolveActiveSociety } from "../../../lib/auth/activeSociety";
+import { isManagerRole, resolveActiveSociety } from "../../../lib/auth/activeSociety";
+import { getServerT } from "../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 export const dynamic = "force-dynamic";
-
-const MANAGER_ROLES = new Set(["secretary", "co_secretary"]);
 
 function composeAddress(s) {
   const parts = [s.address_line, s.landmark, s.city, s.state, s.pincode]
@@ -34,7 +33,9 @@ export default async function SocietyProfilePage() {
 
   const { societyId, role } = await resolveActiveSociety(supabase, user);
   if (!societyId) redirect("/onboarding");
-  if (!MANAGER_ROLES.has(role)) redirect("/dashboard");
+  if (!isManagerRole(role)) redirect("/dashboard");
+
+  const { t } = await getServerT(["auth"]);
 
   const { data: soc } = await supabase
     .from("societies")
@@ -52,7 +53,7 @@ export default async function SocietyProfilePage() {
 
   const society = soc
     ? { id: soc.id, name: soc.name, address: composeAddress(soc), code: codeRow?.code ?? null }
-    : { id: societyId, name: "Your Society", address: "", code: null };
+    : { id: societyId, name: t("common.yourSociety"), address: "", code: null };
 
   const [{ data: wings }, { data: flats }, { data: members }] = await Promise.all([
     supabase.from("wings").select("id, name").eq("society_id", societyId),
@@ -68,7 +69,7 @@ export default async function SocietyProfilePage() {
   for (const m of members ?? []) {
     if (!m.flat_id) continue;
     const list = residentsByFlat.get(m.flat_id) ?? [];
-    list.push({ userId: m.user_id, name: m.profiles?.full_name ?? "Member" });
+    list.push({ userId: m.user_id, name: m.profiles?.full_name ?? t("profile.roleMember") });
     residentsByFlat.set(m.flat_id, list);
   }
 

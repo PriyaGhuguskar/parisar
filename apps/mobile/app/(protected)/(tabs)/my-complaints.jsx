@@ -12,10 +12,13 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { MessageSquareWarning, Plus, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
 import { ComplaintCard } from "../../../components/complaints/ComplaintCard";
 import { BackArrow } from "../../../components/kit";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
+import { markComplaintsSeen } from "../../../lib/complaint-unread";
+import { goBack } from "../../../lib/navigation";
 import { getSupabase } from "../../../lib/supabase";
 
 export default function MyComplaintsScreen() {
@@ -52,12 +55,13 @@ export default function MyComplaintsScreen() {
     load();
   }, [load]);
 
-  // Refetch on focus (no realtime here per plan).
+  // Refetch on focus (no realtime here per plan) and clear the tab red-dot.
   useFocusEffect(
     useCallback(() => {
       load();
+      markComplaintsSeen(userId);
       return () => {};
-    }, [load]),
+    }, [load, userId]),
   );
 
   function handleOpen(complaint) {
@@ -72,10 +76,10 @@ export default function MyComplaintsScreen() {
     <View className="flex-1 bg-neutral-50">
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("complaint.back")}
         >
           <BackArrow />
         </Pressable>
@@ -100,7 +104,9 @@ export default function MyComplaintsScreen() {
             className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
             accessibilityRole="button"
           >
-            <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
+            <Text className="text-sm font-semibold text-neutral-900">
+              {t("complaint.tryAgain")}
+            </Text>
           </Pressable>
         </View>
       ) : complaints.length === 0 ? (

@@ -28,7 +28,15 @@
     "emptyBodyBoard": "तुमच्या सोसायटीसाठी पहिली सूचना पोस्ट करा.",
     "postedBy": "{{name}} ({{flat}}) यांनी पोस्ट केले",
     "postedByAt": "{{name}} ({{flat}}) यांनी {{time}} वाजता पोस्ट केले",
-    "openAttachment": "उघडण्यासाठी टॅप करा"
+    "openAttachment": "उघडण्यासाठी टॅप करा",
+    "back": "मागे",
+    "tryAgain": "पुन्हा प्रयत्न करा",
+    "attachPdfOption": "PDF जोडा",
+    "attachPhotoOption": "फोटो जोडा",
+    "removeAttachment": "जोडणी काढून टाका",
+    "notFoundTitle": "सूचना सापडली नाही",
+    "notFoundBody": "ही सूचना काढून टाकली गेली असू शकते, किंवा ती पाहण्याची तुम्हाला परवानगी नाही.",
+    "backToList": "सूचनांकडे परत जा"
   },
   "push": {
     "body": {

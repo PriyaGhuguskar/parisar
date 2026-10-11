@@ -1,7 +1,8 @@
 import { Building2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { PrimaryButton } from "../auth/PrimaryButton";
+import { Text } from "../ui/Text";
 
 /**
  * WelcomeCard — entry point of the Secretary society-creation wizard.

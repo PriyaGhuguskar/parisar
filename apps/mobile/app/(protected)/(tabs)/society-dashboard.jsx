@@ -20,12 +20,13 @@ import {
   Users,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthoritiesSection } from "../../../components/authorities/AuthoritiesSection";
 import { SocietyFeaturesSection } from "../../../components/authorities/SocietyFeaturesSection";
 import { AuthorityEntry } from "../../../components/dashboard/AuthorityEntry";
 import { LinkRow, PageHeader } from "../../../components/kit";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
 import { useMyContext } from "../../../lib/use-my-context";
 

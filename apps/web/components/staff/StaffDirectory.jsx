@@ -2,14 +2,18 @@
 
 // StaffDirectory — a shared contact list of local help. Any resident can add;
 // everyone sees; the adder is attributed ("Added by Rahul · B-203", highlighted).
-// A category filter narrows the list. Realtime keeps it fresh.
+// A category filter narrows the list. Realtime keeps it fresh. Removing a contact
+// needs a typed-name confirmation; a refused delete (NOT_ALLOWED) is surfaced.
 
 import { addStaff, deleteStaff } from "@parisar/api-client";
-import { Phone, Plus, Trash2, UserRound, X } from "lucide-react";
+import { Phone, Plus, Trash2, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState, PageHeader, PageShell, SurfaceCard } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ConfirmRemoveDialog } from "../shared/ConfirmRemoveDialog";
+import { uniqueChannelName } from "../shared/realtime";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const CATS = ["maid", "driver", "cook", "electrician", "plumber", "gardener", "other"];
 const MANAGER_ROLES = new Set(["secretary", "co_secretary"]);
@@ -47,27 +51,13 @@ function AddStaffDialog({ societyId, onClose, onAdded }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,38,28,0.45)] p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("staff.add")}
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-md rounded-t-[22px] bg-[var(--color-neutral-0)] p-6 sm:rounded-[22px]">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="max-w-md rounded-[22px] bg-[var(--color-neutral-0)] p-6 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
             {t("staff.add")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("profile.cancel")}
-            className="rounded-lg p-1.5 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-          >
-            <X size={18} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
@@ -90,7 +80,6 @@ function AddStaffDialog({ societyId, onClose, onAdded }) {
               {t("staff.name")}
             </span>
             <input
-              // biome-ignore lint/a11y/noAutofocus: first field of an explicitly-opened dialog
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -112,7 +101,9 @@ function AddStaffDialog({ societyId, onClose, onAdded }) {
             />
           </label>
           {error ? (
-            <p className="text-[13px] font-semibold text-[var(--color-danger)]">{error}</p>
+            <p role="alert" className="text-[13px] font-semibold text-[var(--color-danger)]">
+              {error}
+            </p>
           ) : null}
           <div className="flex items-center justify-end gap-2.5">
             <button
@@ -132,8 +123,8 @@ function AddStaffDialog({ societyId, onClose, onAdded }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -143,15 +134,17 @@ export function StaffDirectory({ societyId, userId, role }) {
   const [staff, setStaff] = useState([]);
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState(null); // { id, name } | null
   const canManage = MANAGER_ROLES.has(role);
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("society_staff")
       .select("id, name, phone, category, added_by, added_by_name, added_by_flat")
       .eq("society_id", societyId)
       .order("created_at", { ascending: false });
+    if (error) return; // keep what is on screen; the next event retries
     setStaff(Array.isArray(data) ? data : []);
   }, [societyId]);
 
@@ -159,20 +152,29 @@ export function StaffDirectory({ societyId, userId, role }) {
     load();
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
-      .channel("staff")
-      .on("postgres_changes", { event: "*", schema: "public", table: "society_staff" }, () =>
-        load(),
+      .channel(uniqueChannelName(`staff-${societyId}`))
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "society_staff",
+          filter: `society_id=eq.${societyId}`,
+        },
+        () => load(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, societyId]);
 
-  async function remove(id) {
+  async function remove(target) {
     const supabase = createSupabaseBrowserClient();
-    await deleteStaff(supabase, id);
+    const res = await deleteStaff(supabase, target.id);
+    if (res?.error) return res;
     await load();
+    return { ok: true };
   }
 
   const shown = filter === "all" ? staff : staff.filter((s) => s.category === filter);
@@ -276,7 +278,7 @@ export function StaffDirectory({ societyId, userId, role }) {
                 {s.added_by === userId || canManage ? (
                   <button
                     type="button"
-                    onClick={() => remove(s.id)}
+                    onClick={() => setRemoveTarget({ id: s.id, name: s.name })}
                     aria-label={t("staff.remove")}
                     className="shrink-0 rounded-lg p-2 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)] hover:text-[var(--color-danger)]"
                   >
@@ -292,6 +294,12 @@ export function StaffDirectory({ societyId, userId, role }) {
       {adding ? (
         <AddStaffDialog societyId={societyId} onClose={() => setAdding(false)} onAdded={load} />
       ) : null}
+
+      <ConfirmRemoveDialog
+        target={removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={remove}
+      />
     </PageShell>
   );
 }

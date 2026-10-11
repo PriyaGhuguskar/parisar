@@ -1,11 +1,16 @@
 // Member Onboarding Isolation Tests
 // Covers: ONBD-01, ONBD-04, ONBD-05, ONBD-06, ONBD-07
-//         + co-secretary auto-elevation (ONBD-04 co-sec variant)
+//         + pending_review resolution (054 approve/reject_pending_membership)
 //         + pending_review phone reveal (ONBD-06 pending_review variant)
+//
+// Migration 054 revoked validate_society_code / redeem_society_code /
+// create_society_with_secretary / finalize_society_setup from clients. Joining is
+// onboard_resident (code + flat + name + family in one call, returns
+// {society_id, status}); the code preview is onboard_flats_for_code. The society is
+// created through the service role (helpers/phase3.js createSocietyAsSecretary).
 //
 // Uses:
 //   +919000000001 = Secretary
-//   +919000000002 = Co-Secretary candidate (phone matches society.co_secretary_phone='9000000002')
 //   +919000000003 = Member-A (first to claim a flat)
 //   +919000000004 = Member-B (second to claim same flat → pending_review)
 //
@@ -15,6 +20,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   adminClient,
   cleanupTestUsers,
+  createSocietyAsSecretary,
   refreshSession,
   resetTestState,
   signInTestPhone,
@@ -25,195 +31,169 @@ afterAll(async () => {
   await cleanupTestUsers();
 });
 
-describe("Phase 3 — Member Onboarding (ONBD-01, 04, 05, 06, 07 + co-sec auto-elevation + pending_review reveal)", () => {
+describe("Phase 3 — Member Onboarding (ONBD-01, 04, 05, 06, 07 + 054 review queue)", () => {
   beforeEach(async () => {
     await resetTestState();
   });
 
-  // -----------------------------------------------------------------------
-  // Helper: create a standard test society with Secretary + 2 flats
-  // -----------------------------------------------------------------------
+  // Society with wing A, flats 101 (secretary's) and 102 (free).
   async function createTestSociety() {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created, error } = await sec.client.rpc("create_society_with_secretary", {
-      p_name: "Onboard Test Society",
-      p_address: "42 Onboard Lane, Mumbai, MH 400001",
-      p_co_secretary_phone: "9000000002",
-    });
-    if (error) throw new Error(`create_society_with_secretary failed: ${error.message}`);
-
     const admin = adminClient();
-    const { data: wing } = await admin
-      .from("wings")
-      .insert({ society_id: created.society_id, name: "A" })
-      .select()
-      .single();
-    const { data: flat1 } = await admin
-      .from("flats")
-      .insert({ society_id: created.society_id, wing_id: wing.id, number: "101" })
-      .select()
-      .single();
-    const { data: flat2 } = await admin
-      .from("flats")
-      .insert({ society_id: created.society_id, wing_id: wing.id, number: "102" })
-      .select()
-      .single();
+    const created = await createSocietyAsSecretary(sec.userId, { name: "Onboard Test Society" });
 
-    // Finalize Secretary's membership
-    const { error: finalizeError } = await sec.client.rpc("finalize_society_setup", {
-      p_society_id: created.society_id,
-      p_flat_id: flat1.id,
-    });
-    if (finalizeError) throw new Error(`finalize_society_setup failed: ${finalizeError.message}`);
+    const { data: wing, error: wErr } = await admin
+      .from("wings")
+      .insert({ society_id: created.societyId, name: "A" })
+      .select()
+      .single();
+    if (wErr) throw new Error(`wing insert: ${wErr.message}`);
+    const { data: flats, error: fErr } = await admin
+      .from("flats")
+      .insert([
+        { society_id: created.societyId, wing_id: wing.id, number: "101" },
+        { society_id: created.societyId, wing_id: wing.id, number: "102" },
+      ])
+      .select()
+      .order("number");
+    if (fErr) throw new Error(`flat insert: ${fErr.message}`);
+    const [flat1, flat2] = flats;
+
+    const { error: mErr } = await admin
+      .from("society_memberships")
+      .update({ flat_id: flat1.id })
+      .eq("id", created.membershipId);
+    if (mErr) throw new Error(`attach secretary flat: ${mErr.message}`);
 
     return { sec, created, wing, flat1, flat2, admin };
   }
 
-  it("ONBD-01: validate_society_code returns INVALID_CODE for bad code; returns {society_id, name} for valid code", async () => {
-    const { sec, created } = await createTestSociety();
+  async function join(member, code, flatId, { residency = "owner", family = [] } = {}) {
+    const { data, error } = await member.client.rpc("onboard_resident", {
+      p_code: code,
+      p_flat_id: flatId,
+      p_full_name: `Member ${member.userId.slice(0, 4)}`,
+      p_residency: residency,
+      p_alt_phone: null,
+      p_family: family,
+    });
+    if (error) throw new Error(`onboard_resident: ${error.message}`);
+    return data;
+  }
 
-    // Valid code
-    const { data: validResult, error: validError } = await sec.client.rpc(
-      "validate_society_code",
-      { p_code: created.code },
-    );
+  async function membershipOf(admin, userId, societyId) {
+    const { data, error } = await admin
+      .from("society_memberships")
+      .select("id, role, status, flat_id")
+      .eq("user_id", userId)
+      .eq("society_id", societyId)
+      .single();
+    if (error) throw new Error(`membership lookup: ${error.message}`);
+    return data;
+  }
+
+  it("ONBD-01: onboard_flats_for_code returns INVALID_CODE for a bad code; {society_id, society_name} for a valid one", async () => {
+    const { created } = await createTestSociety();
+    const member = await signInTestPhone("+919000000003", "member");
+
+    const { data: valid, error: validError } = await member.client.rpc("onboard_flats_for_code", {
+      p_code: created.code,
+    });
     expect(validError).toBeNull();
-    expect(validResult.society_id).toBe(created.society_id);
-    expect(validResult.name).toBe("Onboard Test Society");
-    expect(typeof validResult.member_count).toBe("number");
+    expect(valid.society_id).toBe(created.societyId);
+    expect(valid.society_name).toBe("Onboard Test Society");
 
-    // Invalid code
-    const { data: invalidResult, error: invalidError } = await sec.client.rpc(
-      "validate_society_code",
+    const { data: invalid, error: invalidError } = await member.client.rpc(
+      "onboard_flats_for_code",
       { p_code: "XXXX-XXXX" },
     );
     expect(invalidError).toBeNull();
-    expect(invalidResult.error).toBe("INVALID_CODE");
+    expect(invalid.error).toBe("INVALID_CODE");
+
+    // The legacy RPC is gone for clients.
+    const { error: legacyError } = await member.client.rpc("validate_society_code", {
+      p_code: created.code,
+    });
+    expect(legacyError).not.toBeNull();
   });
 
-  it("ONBD-04: redeem_society_code with valid code + fresh flat → status=active, role=member, auto_elevated=false", async () => {
+  it("ONBD-04: onboard_resident with valid code + fresh flat → status=active, role=member, family stored", async () => {
     const { created, flat2, admin } = await createTestSociety();
 
     const memberA = await signInTestPhone("+919000000003", "member");
-    const { data: joinResult, error } = await memberA.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
+    const result = await join(memberA, created.code, flat2.id, {
+      family: [{ name: "Asha", relation: "Mother", is_resident: true }],
     });
+    expect(result.status).toBe("active");
+    expect(result.society_id).toBe(created.societyId);
 
-    expect(error).toBeNull();
-    expect(joinResult.status).toBe("active");
-    expect(joinResult.role).toBe("member");
-    expect(joinResult.auto_elevated_to_co_secretary).toBe(false);
-    expect(joinResult.duplicate).toBe(false);
+    const mem = await membershipOf(admin, memberA.userId, created.societyId);
+    expect(mem).toMatchObject({ role: "member", status: "active", flat_id: flat2.id });
 
-    // Assert membership row exists
-    const { data: mem } = await admin
-      .from("society_memberships")
-      .select("role, status")
-      .eq("id", joinResult.membership_id)
-      .single();
-    expect(mem.role).toBe("member");
-    expect(mem.status).toBe("active");
+    const { data: fam } = await admin
+      .from("family_members")
+      .select("full_name")
+      .eq("membership_id", mem.id);
+    expect(fam.map((f) => f.full_name)).toEqual(["Asha"]);
   });
 
-  it("ONBD-04 (auto-elevation): redeem_society_code elevates role to co_secretary when phone matches society.co_secretary_phone", async () => {
+  it("ONBD-05: second member claiming same flat → status=pending_review", async () => {
     const { created, flat2, admin } = await createTestSociety();
 
-    // +919000000002 was set as co_secretary_phone during create_society_with_secretary
-    const coSec = await signInTestPhone("+919000000002", "member");
-    const { data: joinResult, error } = await coSec.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
-    });
-
-    expect(error).toBeNull();
-    expect(joinResult.auto_elevated_to_co_secretary).toBe(true);
-    expect(joinResult.role).toBe("co_secretary");
-
-    // Assert DB membership row has role=co_secretary
-    const { data: mem } = await admin
-      .from("society_memberships")
-      .select("role")
-      .eq("id", joinResult.membership_id)
-      .single();
-    expect(mem.role).toBe("co_secretary");
-
-    // Assert audit_log payload includes auto_elevated_to_co_secretary: true
-    const { data: logs } = await admin
-      .from("audit_log")
-      .select("payload")
-      .eq("action", "member.joined")
-      .eq("society_id", created.society_id);
-    const joinLog = logs.find((l) => l.payload?.auto_elevated_to_co_secretary === true);
-    expect(joinLog).toBeDefined();
-  });
-
-  it("ONBD-05: second member claiming same flat → status=pending_review, duplicate=true", async () => {
-    const { created, flat2, admin } = await createTestSociety();
-
-    // Member-A claims flat2 first (active)
     const memberA = await signInTestPhone("+919000000003", "member");
-    await memberA.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
-    });
+    await join(memberA, created.code, flat2.id);
 
-    // Member-B claims same flat → pending_review
     const memberB = await signInTestPhone("+919000000004", "member");
-    const { data: joinResult, error } = await memberB.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "tenant",
-      p_household: "bachelor",
-      p_emergency: "8888888888",
-    });
+    const result = await join(memberB, created.code, flat2.id, { residency: "tenant" });
+    expect(result.status).toBe("pending_review");
 
-    expect(error).toBeNull();
-    expect(joinResult.status).toBe("pending_review");
-    expect(joinResult.duplicate).toBe(true);
-
-    // Assert membership row in DB
-    const { data: mem } = await admin
-      .from("society_memberships")
-      .select("status")
-      .eq("id", joinResult.membership_id)
-      .single();
+    const mem = await membershipOf(admin, memberB.userId, created.societyId);
     expect(mem.status).toBe("pending_review");
+  });
+
+  it("054: approve_pending_membership approves one claimant; reject_pending_membership rejects", async () => {
+    const { sec, created, flat2, admin } = await createTestSociety();
+
+    const memberA = await signInTestPhone("+919000000003", "member");
+    await join(memberA, created.code, flat2.id);
+    const memberB = await signInTestPhone("+919000000004", "member");
+    await join(memberB, created.code, flat2.id, { residency: "tenant" });
+    const pendingB = await membershipOf(admin, memberB.userId, created.societyId);
+
+    // A plain member cannot resolve the queue.
+    const { error: memberError } = await memberA.client.rpc("approve_pending_membership", {
+      p_membership_id: pendingB.id,
+    });
+    expect(memberError?.message ?? "").toMatch(/INSUFFICIENT_PRIVILEGES/);
+
+    const refreshedSec = await refreshSession(sec.session.refresh_token);
+    const { data: approved, error } = await refreshedSec.client.rpc("approve_pending_membership", {
+      p_membership_id: pendingB.id,
+    });
+    expect(error).toBeNull();
+    expect(approved.approved).toBe(pendingB.id);
+    expect((await membershipOf(admin, memberB.userId, created.societyId)).status).toBe("active");
+
+    // Resolving again → NOT_PENDING.
+    const { error: againError } = await refreshedSec.client.rpc("reject_pending_membership", {
+      p_membership_id: pendingB.id,
+    });
+    expect(againError?.message ?? "").toMatch(/NOT_PENDING/);
   });
 
   it("ONBD-06 (active member reveal): reveal_phone returns phone for active member + writes audit_log", async () => {
     const { sec, created, flat2, admin } = await createTestSociety();
 
-    // Member-B joins flat2 (active)
     const memberB = await signInTestPhone("+919000000004", "member");
-    await memberB.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
-    });
+    await join(memberB, created.code, flat2.id);
 
-    // Refresh Secretary's session so JWT has society_id + role
     const refreshedSec = await refreshSession(sec.session.refresh_token);
-
     const { data: phone, error } = await refreshedSec.client.rpc("reveal_phone", {
       p_target_user_id: memberB.userId,
     });
-
     expect(error).toBeNull();
     expect(phone).toMatch(/^\+91\d{10}$/);
 
-    // Assert audit_log row written
     const { data: logs } = await admin
       .from("audit_log")
       .select("action, target_id")
@@ -222,103 +202,53 @@ describe("Phase 3 — Member Onboarding (ONBD-01, 04, 05, 06, 07 + co-sec auto-e
     expect(logs.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("ONBD-06 (pending_review reveal): reveal_phone returns phone for pending_review member so Secretary can contact reviewees", async () => {
+  it("ONBD-06 (pending_review reveal): reveal_phone returns phone for a pending_review member", async () => {
     const { sec, created, flat2, admin } = await createTestSociety();
 
-    // Member-A joins flat2 (active)
     const memberA = await signInTestPhone("+919000000003", "member");
-    await memberA.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
-    });
-
-    // Member-B joins same flat → pending_review
+    await join(memberA, created.code, flat2.id);
     const memberB = await signInTestPhone("+919000000004", "member");
-    await memberB.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "tenant",
-      p_household: "bachelor",
-      p_emergency: "8888888888",
-    });
+    await join(memberB, created.code, flat2.id, { residency: "tenant" });
+    expect((await membershipOf(admin, memberB.userId, created.societyId)).status).toBe(
+      "pending_review",
+    );
 
-    // Confirm Member-B is pending_review
-    const { data: pendingMem } = await admin
-      .from("society_memberships")
-      .select("status")
-      .eq("user_id", memberB.userId)
-      .eq("society_id", created.society_id)
-      .single();
-    expect(pendingMem.status).toBe("pending_review");
-
-    // Refresh Secretary session so JWT has society claims
     const refreshedSec = await refreshSession(sec.session.refresh_token);
-
-    // pending_review reveal test: Secretary reveals pending member's phone
     const { data: phone, error } = await refreshedSec.client.rpc("reveal_phone", {
       p_target_user_id: memberB.userId,
     });
-
     expect(error).toBeNull();
     expect(phone).toMatch(/^\+91\d{10}$/);
-
-    // Audit log must record the reveal
-    const { data: logs } = await admin
-      .from("audit_log")
-      .select("action, target_id")
-      .eq("action", "phone.revealed")
-      .eq("target_id", memberB.userId);
-    expect(logs.length).toBeGreaterThanOrEqual(1);
   });
 
   it("ONBD-07: remove_member → status=deleted, profile=[REDACTED], family_members deleted, audit_log has member.removed", async () => {
     const { sec, created, flat2, admin } = await createTestSociety();
 
-    // Member-B joins
     const memberB = await signInTestPhone("+919000000004", "member");
-    const { data: joinResult } = await memberB.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
+    await join(memberB, created.code, flat2.id, {
+      family: [{ name: "Family Person", phone: "9111111111" }],
     });
+    const mem = await membershipOf(admin, memberB.userId, created.societyId);
 
-    // Insert a family member for Member-B
-    await admin.from("family_members").insert({
-      society_id: created.society_id,
-      membership_id: joinResult.membership_id,
-      full_name: "Family Person",
-      phone: "+919111111111",
-    });
-
-    // Refresh Secretary session so JWT has society claims
     const refreshedSec = await refreshSession(sec.session.refresh_token);
-
     const { error: removeError } = await refreshedSec.client.rpc("remove_member", {
-      p_membership_id: joinResult.membership_id,
+      p_membership_id: mem.id,
     });
     expect(removeError).toBeNull();
 
-    // Membership status → deleted
-    const { data: mem } = await admin
+    const { data: after } = await admin
       .from("society_memberships")
       .select("status")
-      .eq("id", joinResult.membership_id)
+      .eq("id", mem.id)
       .single();
-    expect(mem.status).toBe("deleted");
+    expect(after.status).toBe("deleted");
 
-    // Family members deleted
     const { data: fam } = await admin
       .from("family_members")
       .select("id")
-      .eq("membership_id", joinResult.membership_id);
+      .eq("membership_id", mem.id);
     expect(fam).toHaveLength(0);
 
-    // Profile PII redacted (Member-B has no other active memberships)
     const { data: profile } = await admin
       .from("profiles")
       .select("full_name, phone")
@@ -327,34 +257,36 @@ describe("Phase 3 — Member Onboarding (ONBD-01, 04, 05, 06, 07 + co-sec auto-e
     expect(profile.full_name).toBe("[REDACTED]");
     expect(profile.phone).toMatch(/^REDACTED-[a-f0-9]{64}$/);
 
-    // audit_log has member.removed
     const { data: logs } = await admin
       .from("audit_log")
-      .select("action, payload")
+      .select("action")
       .eq("action", "member.removed")
-      .eq("society_id", created.society_id);
+      .eq("society_id", created.societyId);
     expect(logs.length).toBeGreaterThanOrEqual(1);
+
+    // 054: a removed member cannot rejoin themselves with the code.
+    const { data: rejoin, error: rejoinError } = await memberB.client.rpc("onboard_resident", {
+      p_code: created.code,
+      p_flat_id: flat2.id,
+      p_full_name: "Back Again",
+      p_residency: "owner",
+      p_alt_phone: null,
+      p_family: [],
+    });
+    expect(rejoinError).toBeNull();
+    expect(rejoin.error).toBe("MEMBERSHIP_REMOVED");
   });
 
   it("ONBD-07: non-Secretary calling remove_member raises INSUFFICIENT_PRIVILEGES", async () => {
-    const { created, flat2 } = await createTestSociety();
+    const { created, flat2, admin } = await createTestSociety();
 
-    // Member-A joins (role=member)
     const memberA = await signInTestPhone("+919000000003", "member");
-    const { data: joinResult } = await memberA.client.rpc("redeem_society_code", {
-      p_code: created.code,
-      p_flat_id: flat2.id,
-      p_residency: "owner",
-      p_household: "family",
-      p_emergency: "9999999999",
-    });
-
-    // Refresh memberA so JWT has society_id (but role=member)
+    await join(memberA, created.code, flat2.id);
+    const mem = await membershipOf(admin, memberA.userId, created.societyId);
     const refreshedMemberA = await refreshSession(memberA.session.refresh_token);
 
-    // Member-A tries to remove themselves — should fail
     const { error } = await refreshedMemberA.client.rpc("remove_member", {
-      p_membership_id: joinResult.membership_id,
+      p_membership_id: mem.id,
     });
     expect(error).not.toBeNull();
     expect(error.message ?? "").toMatch(/INSUFFICIENT_PRIVILEGES/);

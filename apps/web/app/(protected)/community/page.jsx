@@ -30,7 +30,9 @@ export default async function CommunityPage() {
   try {
     initialPosts = await listPosts(supabase, { limit: 50 });
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[community] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
 
   return (

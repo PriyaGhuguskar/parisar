@@ -24,7 +24,8 @@ import {
 export function SocietySwitcherDropdown({ memberships = [], activeSocietyId, onSelect }) {
   const { t } = useTranslation("dashboard");
   const active = memberships.find((m) => m.society_id === activeSocietyId);
-  const activeName = active?.society_name ?? memberships[0]?.society_name ?? "Society";
+  const activeName =
+    active?.society_name ?? memberships[0]?.society_name ?? t("switcher.societyFallback");
 
   if (memberships.length <= 1) {
     // Static text — no interactive chrome. DT-05.

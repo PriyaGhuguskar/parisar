@@ -6,7 +6,8 @@ import { setGrievanceOfficer } from "@parisar/api-client";
 import { CheckCircle2 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
+import { Text } from "../ui/Text";
 
 const DANGER_500 = "#c81e1e";
 

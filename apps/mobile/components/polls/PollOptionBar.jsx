@@ -9,7 +9,8 @@
 
 import { Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const BRAND_500 = "#12715A";
 const NEUTRAL_300 = "#CBD5E1";

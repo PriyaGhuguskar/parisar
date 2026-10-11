@@ -185,7 +185,7 @@ export function FineDetailBlock({ action, pdf = null, isAdmin, isMemberResident,
                   disabled={busy}
                   className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm text-[#525252] hover:bg-neutral-100"
                 >
-                  Cancel
+                  {t("flatAction.cancel")}
                 </button>
               </div>
             </div>

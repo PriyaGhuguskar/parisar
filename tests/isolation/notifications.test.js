@@ -14,16 +14,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   adminClient,
+  BOARD_A_PHONE,
+  BOARD_A2_PHONE,
+  clientForSession,
+  MEMBER_A_PHONE,
+  MEMBER_B_PHONE,
+  seedTestSociety,
   signInAsBoard,
   signInAsMember,
-  seedTestSociety,
-  clientForSession,
-  waitFor,
   teardownPhase5,
-  BOARD_A_PHONE,
-  MEMBER_A_PHONE,
-  BOARD_A2_PHONE,
-  MEMBER_B_PHONE,
+  waitFor,
 } from "./helpers/phase5.js";
 
 const societyA = seedTestSociety("A");
@@ -79,15 +79,20 @@ describe("NOTF-01/04: file_notification attribution + attachment", () => {
   });
 
   it("inserts an attachment row (owner_kind='notification') when storage_key is provided", async () => {
+    // 054: the key must be {society}/notifications/{p_notification_id}/{file}, so the
+    // notice id is pre-generated and passed to the RPC.
+    const noticeId = crypto.randomUUID();
     const { data, error } = await boardA.client.rpc("file_notification", {
       p_title: "AGM minutes",
       p_body: "Please find attached the AGM minutes.",
       p_category: "general",
-      p_storage_key: `${societyA.societyId}/notifications/test/minutes.pdf`,
+      p_notification_id: noticeId,
+      p_storage_key: `${societyA.societyId}/notifications/${noticeId}/minutes.pdf`,
       p_mime_type: "application/pdf",
       p_byte_size: 54321,
     });
     expect(error).toBeNull();
+    expect(data.notification_id).toBe(noticeId);
 
     const admin = adminClient();
     const { data: attachment } = await admin
@@ -211,20 +216,18 @@ describe("NOTF-03: Realtime subscription with RLS isolation", () => {
     const received = [];
     const subClient = await clientForSession(memberA.accessToken, memberA.refreshToken);
 
-    const channel = subClient
-      .channel(`notifications-test-${channelSuffix}-${Date.now()}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `society_id=eq.${societyA.societyId}`,
-        },
-        (payload) => {
-          received.push(payload.new);
-        },
-      );
+    const channel = subClient.channel(`notifications-test-${channelSuffix}-${Date.now()}`).on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "notifications",
+        filter: `society_id=eq.${societyA.societyId}`,
+      },
+      (payload) => {
+        received.push(payload.new);
+      },
+    );
 
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("SUBSCRIBE timeout (15s)")), 15_000);

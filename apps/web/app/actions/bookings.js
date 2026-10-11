@@ -2,23 +2,33 @@
 
 // Server actions for Phase 5 amenity-booking mutations (web).
 //
-// Each action creates a cookie-bound @supabase/ssr server client and delegates to
-// the shared api-client function. RLS/RPC guards do the real enforcement; the
-// approve/reject RPCs are board-gated server-side (T-05-02). Atomic first-approval
-// outcomes (won / race_lost / slot_taken) are returned as TYPED results — never
-// thrown — so the client renders the right banner (BOOK-03/05).
+// Each action reads the caller from the cookie session (getUser), validates its
+// arguments, and delegates to the shared api-client function. RLS/RPC guards do
+// the real enforcement; the approve/reject RPCs are board-gated server-side
+// (T-05-02). Atomic first-approval outcomes (won / race_lost / slot_taken) are
+// returned as TYPED results — never thrown — so the client renders the right
+// banner (BOOK-03/05).
 //
 // revalidatePath('/bookings') after each mutation so a subsequent SSR navigation
 // re-hydrates the queue.
 
 import { approveBooking, rejectBooking, requestBooking } from "@parisar/api-client";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { signedInClient } from "../../lib/auth/actionSession";
+import { cleanText, isIsoTimestamp, isUuid } from "../../lib/validation";
+
+// Mirrors BookingForm / BookingListClient maxLength.
+const MAX_PURPOSE = 300;
+const MAX_REJECT_REASON = 300;
 
 // Map request_booking RPC error messages → UI error codes the client maps to copy.
 function mapRequestError(message) {
   const m = String(message ?? "");
+  // 055: null amenity / start / end.
+  if (m.includes("INVALID_TIME")) return "invalid_time";
   if (m.includes("TIME_ORDER")) return "time_order";
+  // 055: a member may hold only a few pending requests at once.
+  if (m.includes("TOO_MANY_PENDING")) return "too_many_pending";
   if (m.includes("LEAD_TIME")) return "lead_time";
   if (m.includes("TOO_FAR")) return "too_far";
   if (m.includes("DURATION")) return "duration";
@@ -34,13 +44,21 @@ function mapRequestError(message) {
  * @returns {Promise<{ ok: boolean, bookingId?: string, error?: string }>}
  */
 export async function requestBookingAction(input) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(input?.amenityId)) return { ok: false, error: "submit_failed" };
+  if (!isIsoTimestamp(input?.startsAt) || !isIsoTimestamp(input?.endsAt)) {
+    return { ok: false, error: "invalid_time" };
+  }
+  const purpose = cleanText(input?.purpose, { max: MAX_PURPOSE, multiline: true, optional: true });
+  if (!purpose.ok) return { ok: false, error: "submit_failed" };
+
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "submit_failed" };
   try {
-    const result = await requestBooking(supabase, {
+    const result = await requestBooking(ctx.supabase, {
       amenityId: input.amenityId,
       startsAt: input.startsAt,
       endsAt: input.endsAt,
-      purpose: input.purpose ?? null,
+      purpose: purpose.value,
     });
     revalidatePath("/bookings");
     return { ok: true, bookingId: result.bookingId };
@@ -60,9 +78,11 @@ export async function requestBookingAction(input) {
  * @returns {Promise<{ ok: boolean, approved?: boolean, reason?: string, booking?: object, error?: string }>}
  */
 export async function approveBookingAction(bookingId) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(bookingId)) return { ok: false, error: "invalid_input" };
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    const result = await approveBooking(supabase, { bookingId });
+    const result = await approveBooking(ctx.supabase, { bookingId });
     revalidatePath("/bookings");
     return {
       ok: true,
@@ -83,9 +103,14 @@ export async function approveBookingAction(bookingId) {
  * @returns {Promise<{ ok: boolean, result?: object, error?: string }>}
  */
 export async function rejectBookingAction(bookingId, reason) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(bookingId)) return { ok: false, error: "invalid_input" };
+  const why = cleanText(reason, { max: MAX_REJECT_REASON, multiline: true, optional: true });
+  if (!why.ok) return { ok: false, error: "invalid_input" };
+
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    const result = await rejectBooking(supabase, { bookingId, reason: reason ?? null });
+    const result = await rejectBooking(ctx.supabase, { bookingId, reason: why.value });
     revalidatePath("/bookings");
     return { ok: true, result };
   } catch (err) {

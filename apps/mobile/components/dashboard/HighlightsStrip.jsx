@@ -7,9 +7,10 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { setHighlights } from "@parisar/api-client";
+import { format } from "date-fns";
 import { useRouter } from "expo-router";
 import { CalendarClock, Pin, Plus, Trash2, X } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
@@ -17,12 +18,15 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { getSupabase } from "../../lib/supabase";
 import { AUTHORITY_ROLES } from "../../lib/use-my-context";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { parsePgTimestamp, toIstWallClock } from "../shared/ist-time";
+import { cryptoRandomUUID } from "../shared/uuid";
+import { Text } from "../ui/Text";
 
 const MAX = 4;
 
@@ -34,22 +38,14 @@ const TONES = [
   { bg: "#F5F3FF", border: "#DDD6FE", fg: "#6D28D9" },
 ];
 
-function fmtEvent(iso, lng) {
-  try {
-    return new Date(iso).toLocaleString(lng, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
+// Facility events are shown in India time with the UI language's month names.
+function fmtEvent(iso, locale) {
+  const d = parsePgTimestamp(iso);
+  return d ? format(toIstWallClock(d), "EEE, d MMM, h:mm a", { locale }) : "";
 }
 
 const FIELD =
-  "h-11 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900";
+  "min-h-11 py-2 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900";
 
 function Manager({ visible, societyId, initial, onClose, onSaved }) {
   const { t } = useTranslation("auth");
@@ -57,11 +53,15 @@ function Manager({ visible, societyId, initial, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Seed the editable rows only when the sheet OPENS. `initial` changes on
+  // every realtime refresh, and re-seeding then would wipe in-progress edits.
+  const wasVisible = useRef(false);
   useEffect(() => {
-    if (visible) {
+    if (visible && !wasVisible.current) {
       setItems(initial.length ? initial.map((h) => ({ title: h.title, body: h.body })) : []);
       setError(null);
     }
+    wasVisible.current = visible;
   }, [visible, initial]);
 
   const setAt = (i, patch) =>
@@ -102,7 +102,12 @@ function Manager({ visible, societyId, initial, onClose, onSaved }) {
               </Text>
               <Text className="text-sm text-neutral-600">{t("highlights.manageLead")}</Text>
             </View>
-            <Pressable onPress={onClose} accessibilityRole="button" className="p-1">
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+              className="p-1"
+            >
               <X size={20} color="#64748B" />
             </Pressable>
           </View>
@@ -183,8 +188,11 @@ function Manager({ visible, societyId, initial, onClose, onSaved }) {
 }
 
 export function HighlightsStrip({ societyId, role }) {
-  const { t, i18n } = useTranslation("auth");
+  const { t } = useTranslation("auth");
+  const dateLocale = useDateLocale();
   const router = useRouter();
+  // One channel name per mount (supabase.channel() re-uses open channels by name).
+  const channelNameRef = useRef(`highlights:${cryptoRandomUUID()}`);
   const [highlights, setList] = useState([]);
   const [nextEvent, setNextEvent] = useState(null);
   const [managing, setManaging] = useState(false);
@@ -193,35 +201,45 @@ export function HighlightsStrip({ societyId, role }) {
   const load = useCallback(async () => {
     if (!societyId) return;
     const supabase = getSupabase();
-    const [{ data: hs }, { data: ev }] = await Promise.all([
-      supabase
-        .from("society_highlights")
-        .select("id, title, body, position")
-        .eq("society_id", societyId)
-        .order("position", { ascending: true }),
-      supabase
-        .from("facility_events")
-        .select("id, category, title, starts_at")
-        .eq("society_id", societyId)
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at", { ascending: true })
-        .limit(1),
-    ]);
-    setList(Array.isArray(hs) ? hs : []);
-    setNextEvent(Array.isArray(ev) && ev.length ? ev[0] : null);
+    try {
+      const [{ data: hs, error: hsError }, { data: ev, error: evError }] = await Promise.all([
+        supabase
+          .from("society_highlights")
+          .select("id, title, body, position")
+          .eq("society_id", societyId)
+          .order("position", { ascending: true }),
+        supabase
+          .from("facility_events")
+          .select("id, category, title, starts_at")
+          .eq("society_id", societyId)
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at", { ascending: true })
+          .limit(1),
+      ]);
+      // Keep the last good data on a failed refresh; a later event retries.
+      if (!hsError) setList(Array.isArray(hs) ? hs : []);
+      if (!evError) setNextEvent(Array.isArray(ev) && ev.length ? ev[0] : null);
+    } catch {
+      // Network failure — same: keep what is on screen.
+    }
   }, [societyId]);
 
   useEffect(() => {
     if (!societyId) return undefined;
     load();
     const supabase = getSupabase();
+    const filter = `society_id=eq.${societyId}`;
     const channel = supabase
-      .channel(`highlights-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "society_highlights" }, () =>
-        load(),
+      .channel(`${channelNameRef.current}:${societyId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "society_highlights", filter },
+        () => load(),
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "facility_events" }, () =>
-        load(),
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "facility_events", filter },
+        () => load(),
       )
       .subscribe();
     return () => {
@@ -265,7 +283,7 @@ export function HighlightsStrip({ societyId, role }) {
                 {nextEvent.title}
               </Text>
               <Text className="text-xs text-neutral-600">
-                {fmtEvent(nextEvent.starts_at, i18n.language)}
+                {fmtEvent(nextEvent.starts_at, dateLocale)}
               </Text>
             </Pressable>
           ) : null}

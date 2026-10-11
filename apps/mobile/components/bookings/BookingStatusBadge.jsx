@@ -12,7 +12,8 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const STATUS_STYLES = {
   pending: { bg: "#fffbeb", text: "#f59e0b", border: "#f59e0b" },
@@ -47,7 +48,7 @@ export function BookingStatusBadge({ status }) {
         alignSelf: "flex-start",
       }}
       accessibilityRole="text"
-      accessibilityLabel={`Status: ${label}`}
+      accessibilityLabel={label}
     >
       <Text className="text-sm" style={{ color: style.text }} numberOfLines={1}>
         {label}

@@ -16,7 +16,7 @@
 
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fileComplaintAction } from "../../app/actions/complaints";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
@@ -24,6 +24,8 @@ import { PhotoPicker } from "./PhotoPicker";
 
 const MIN_DESC = 10;
 const MAX_DESC = 1000;
+const REDIRECT_DELAY_MS = 600;
+const SUPPORTED_LANGS = new Set(["en", "hi", "mr"]);
 
 function cryptoRandomUUIDClient() {
   const g = globalThis.crypto;
@@ -45,7 +47,7 @@ function cryptoRandomUUIDClient() {
  * }} props
  */
 export function FileComplaintForm({ societyId, reporterFlatId }) {
-  const { t } = useTranslation("complaints");
+  const { t, i18n } = useTranslation("complaints");
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -54,6 +56,12 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  // Stays true through the redirect delay so the form can't be re-submitted.
+  const [submitted, setSubmitted] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const redirectTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(redirectTimerRef.current), []);
 
   // Pre-generated complaintId so the photo upload key is stable.
   const [complaintId, setComplaintId] = useState(null);
@@ -64,11 +72,20 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
   const [photo, setPhoto] = useState(null); // { storageKey, mimeType, byteSize } | null
 
   const descLen = description.length;
+  const trimmedLen = description.trim().length;
   const counterColor = descLen >= MAX_DESC ? "#c81e1e" : descLen >= 900 ? "#f59e0b" : "#6e6e6e";
-  const canSubmit = descLen >= MIN_DESC && descLen <= MAX_DESC && !submitting && complaintId;
+  const canSubmit =
+    trimmedLen >= MIN_DESC &&
+    descLen <= MAX_DESC &&
+    !submitting &&
+    !submitted &&
+    !photoUploading &&
+    !!complaintId;
+  const baseLang = String(i18n?.language ?? "en").slice(0, 2);
+  const languageCode = SUPPORTED_LANGS.has(baseLang) ? baseLang : "en";
 
   function handleKindChange(next) {
-    if (submitting) return;
+    if (submitting || submitted) return;
     setKind(next);
   }
 
@@ -82,7 +99,7 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
         kind,
         description: description.trim(),
         reporterFlatId,
-        languageCode: "en",
+        languageCode,
         complaintId,
         storageKey: photo?.storageKey ?? null,
         mimeType: photo?.mimeType ?? null,
@@ -97,15 +114,15 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
         return;
       }
       // Success — show transient toast, then push back to list.
+      setSubmitted(true);
       setSuccessOpen(true);
-      setTimeout(() => {
+      redirectTimerRef.current = setTimeout(() => {
         router.push("/complaints");
         // Refresh so the SSR list re-fetches with the new row alongside the
         // Realtime arrival (defensive — Realtime should also deliver).
         router.refresh();
-      }, 600);
-    } catch (err) {
-      console.warn("[FileComplaintForm] submit failed:", err?.message ?? err);
+      }, REDIRECT_DELAY_MS);
+    } catch {
       setSubmitError(t("complaint.submitError"));
     } finally {
       setSubmitting(false);
@@ -174,7 +191,7 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
         <p className="text-sm self-end" style={{ color: counterColor }} aria-live="polite">
           {descLen}/{MAX_DESC}
         </p>
-        {descLen > 0 && descLen < MIN_DESC ? (
+        {descLen > 0 && trimmedLen < MIN_DESC ? (
           <p className="text-sm text-[#525252]">{t("complaint.descriptionRequired")}</p>
         ) : null}
       </div>
@@ -189,6 +206,7 @@ export function FileComplaintForm({ societyId, reporterFlatId }) {
             complaintId={complaintId}
             onUpload={(result) => setPhoto(result)}
             onRemove={() => setPhoto(null)}
+            onUploadingChange={setPhotoUploading}
           />
         ) : null}
       </div>

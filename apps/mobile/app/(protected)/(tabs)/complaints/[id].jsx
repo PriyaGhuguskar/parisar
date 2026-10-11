@@ -24,12 +24,15 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Lock } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from "react-native";
 import { ResponseChip } from "../../../../components/complaints/ResponseChip";
 import { ResponseTrailItem } from "../../../../components/complaints/ResponseTrailItem";
 import { StatusBadge } from "../../../../components/complaints/StatusBadge";
 import { BackArrow } from "../../../../components/kit";
+import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
+import { goBack } from "../../../../lib/navigation";
+import { rpcErrorCode } from "../../../../lib/rpc-error";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -79,8 +82,16 @@ export default function ComplaintDetailScreen() {
   // -------------------------------------------------------------------------
   // Initial fetch
   // -------------------------------------------------------------------------
+  // Returns the loaded complaint (or null) so callers can read the fresh row.
+  // A response for a previous id (the screen is reused when id changes) is
+  // dropped instead of overwriting the new complaint.
+  const currentIdRef = useRef(complaintId);
+  currentIdRef.current = complaintId;
   const load = useCallback(async () => {
-    if (!complaintId) return;
+    if (!complaintId) {
+      setLoading(false);
+      return null;
+    }
     setError(null);
     try {
       const supabase = getSupabase();
@@ -89,18 +100,29 @@ export default function ComplaintDetailScreen() {
         responses: r,
         attachments: a,
       } = await getComplaintDetail(supabase, complaintId);
+      if (currentIdRef.current !== complaintId) return null;
       setComplaint(c);
       setResponses(r);
       setAttachments(a);
+      return c;
     } catch (err) {
       console.warn("[complaints/[id]] load failed:", err?.message ?? err);
-      setError(err?.message ?? "load_failed");
+      if (currentIdRef.current === complaintId) setError("load_failed");
+      return null;
     } finally {
-      setLoading(false);
+      if (currentIdRef.current === complaintId) setLoading(false);
     }
   }, [complaintId]);
 
+  // A new id (e.g. a notification tap while this screen is open) starts clean.
   useEffect(() => {
+    setLoading(true);
+    setComplaint(null);
+    setResponses([]);
+    setAttachments([]);
+    setClaimLost(null);
+    setActionError(null);
+    setFreeText("");
     load();
   }, [load]);
 
@@ -179,11 +201,12 @@ export default function ComplaintDetailScreen() {
           // The Realtime subscription will append the new response row,
           // so we don't push it manually (avoid double-render).
         } else {
-          // Race lost — refetch to learn the winner.
-          await load();
-          // The detail header banner uses complaint.owner; we surface a transient
-          // "claim lost" inline message too.
-          setClaimLost({ name: "Another board member", flat: "—" });
+          // Race lost — refetch to learn the winner, then name them.
+          const fresh = await load();
+          setClaimLost({
+            name: fresh?.owner?.full_name || t("complaint.anotherBoardMember"),
+            flat: "—",
+          });
         }
       } else if (ownerId === userId) {
         // Case B — owner adds another response
@@ -200,7 +223,11 @@ export default function ComplaintDetailScreen() {
       }
     } catch (err) {
       console.warn("[complaints/[id]] action failed:", err?.message ?? err);
-      setActionError(t("complaint.submitError"));
+      if (rpcErrorCode(err, ["COMPLAINT_NOT_FOUND"])) {
+        setActionError(t("complaint.loadError"));
+      } else {
+        setActionError(t("complaint.submitError"));
+      }
     } finally {
       setPendingKind(null);
     }
@@ -226,11 +253,15 @@ export default function ComplaintDetailScreen() {
           {t("complaint.loadErrorBody")}
         </Text>
         <Pressable
-          onPress={load}
+          onPress={() => {
+            setLoading(true);
+            load();
+          }}
           className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
           accessibilityRole="button"
+          accessibilityLabel={t("complaint.tryAgain")}
         >
-          <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
+          <Text className="text-sm font-semibold text-neutral-900">{t("complaint.tryAgain")}</Text>
         </Pressable>
       </View>
     );
@@ -271,10 +302,10 @@ export default function ComplaintDetailScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("complaint.back")}
         >
           <BackArrow />
         </Pressable>
@@ -312,7 +343,7 @@ export default function ComplaintDetailScreen() {
               })
             }
             accessibilityRole="button"
-            accessibilityLabel="Open complaint photo"
+            accessibilityLabel={t("complaint.photoOpen")}
             className="bg-white rounded-xl overflow-hidden"
             style={{ aspectRatio: 4 / 3 }}
           >
@@ -403,7 +434,9 @@ export default function ComplaintDetailScreen() {
           <View className="rounded-xl border border-neutral-200 bg-neutral-100 p-4 flex-row gap-3 items-start">
             <Lock size={20} color="#64748B" />
             <Text className="flex-1 text-base text-neutral-600">
-              {t("complaint.ownedByBanner", { name: ownerName, flat: "—" })}
+              {claimLost
+                ? t("complaint.claimLost", { name: claimLost.name, flat: claimLost.flat })
+                : t("complaint.ownedByBanner", { name: ownerName, flat: "—" })}
             </Text>
           </View>
         ) : null}

@@ -22,6 +22,7 @@
     "capUnlimited": "No limit",
     "allMutedNote": "All categories are muted — you won't get any pushes. You'll still see updates in the app.",
     "saved": "Saved",
-    "saveError": "Couldn't save. Check your connection."
+    "saveError": "Couldn't save. Check your connection.",
+    "back": "Back"
   }
 }

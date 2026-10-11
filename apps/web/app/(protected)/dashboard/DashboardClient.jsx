@@ -110,20 +110,32 @@ export function DashboardClient({
 
   // Phase 7 Plan 07-08 — Live dashboard summary store selectors.
   // Shallow selectors so re-renders fire only when the picked slice changes.
-  const summary = useDashboardSummary((s) => s.summary);
-  const summaryStatus = useDashboardSummary((s) => s.status);
+  const storedSummary = useDashboardSummary((s) => s.summary);
+  const storedSocietyId = useDashboardSummary((s) => s.societyId);
+  const storedStatus = useDashboardSummary((s) => s.status);
   const setSummary = useDashboardSummary((s) => s.setSummary);
+  const bindSociety = useDashboardSummary((s) => s.bindSociety);
   const fetchSummary = useDashboardSummary((s) => s.fetchSummary);
   const patchEvent = useDashboardSummary((s) => s.patchEvent);
 
-  // Seed the store from the SSR-fetched initialSummary on first render.
-  // Guard with `!summary` so a navigation back to /dashboard (which re-mounts
-  // this component) does not clobber patches applied since the last paint.
+  // The store is a module singleton that outlives this component, so a cached
+  // summary belonging to ANOTHER society (after a switch, or another user on
+  // the same tab) must never render. Until the seed effect below runs, fall
+  // back to the SSR summary for this society.
+  const storeMatches = storedSocietyId === societyId;
+  const summary = storeMatches ? storedSummary : initialSummary;
+  const summaryStatus = storeMatches ? storedStatus : initialSummary ? "ready" : "idle";
+
+  // Seed the store whenever the server hands us a new summary or the active
+  // society changes. force-dynamic means each navigation's SSR summary is the
+  // freshest data available, so it wins over earlier realtime patches.
   useEffect(() => {
-    if (initialSummary && !summary) {
-      setSummary(initialSummary);
+    if (initialSummary) {
+      setSummary(initialSummary, societyId);
+    } else {
+      bindSociety(societyId);
     }
-  }, [initialSummary, summary, setSummary]);
+  }, [initialSummary, societyId, setSummary, bindSociety]);
 
   // Phase 7 Plan 07-08 — Realtime subscription + window-focus reconciliation
   // (D-02 + D-03). The window "focus" event is the web analogue of mobile's
@@ -238,7 +250,7 @@ export function DashboardClient({
 
       {/* Emergency: live SOS banners for anyone targeted (the raise button lives
           in the sidebar so it's reachable from every page). */}
-      <SosAlerts />
+      <SosAlerts role={role} userId={userId} societyId={societyId} />
 
       {/* Secretary-pinned highlights (water timing, notices…) — live for residents. */}
       <HighlightsStrip societyId={societyId} role={role} />

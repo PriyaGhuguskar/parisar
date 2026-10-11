@@ -37,7 +37,7 @@
     "deleteConfirm": "ही पोस्ट हटवायची?",
     "deleteCommentConfirm": "ही प्रतिक्रिया हटवायची?",
     "reportTitle": "या {{target}} ची तक्रार करा",
-    "reportSubhead": "आम्हाला कारण सांगा. तक्रार केलेली सामग्री पुनरावलोकनादरम्यान लगेच लपवली जाते.",
+    "reportSubhead": "आम्हाला कारण सांगा. अनेक रहिवाशांनी तक्रार केल्यावर किंवा बोर्ड सदस्याने पुनरावलोकन केल्यावर तक्रार केलेली सामग्री लपवली जाते.",
     "reportNotePlaceholder": "एक टीप जोडा (ऐच्छिक)",
     "reportConfirm": "तक्रार करा",
     "reportSuccess": "तक्रार केली.",
@@ -58,6 +58,36 @@
     "push": {
       "body": "New post in your community"
     },
-    "deleteError": "हटवता आले नाही. कृपया पुन्हा प्रयत्न करा."
+    "deleteError": "हटवता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+    "reportThanks": "तक्रार नोंदवली, धन्यवाद. सचिव त्याचे पुनरावलोकन करतील.",
+    "reportRateLimited": "तुम्ही अलीकडे खूप रिपोर्ट केल्या आहेत. कृपया नंतर पुन्हा प्रयत्न करा.",
+    "postOptions": "पोस्टचे पर्याय",
+    "deletePost": "पोस्ट हटवा",
+    "deleteComment": "टिप्पणी हटवा",
+    "photoState": {
+      "idle": "फोटो",
+      "uploading": "फोटो अपलोड होत आहे",
+      "checking": "फोटो तपासला जात आहे",
+      "pass": "फोटो मंजूर",
+      "reject": "हा फोटो वापरता येणार नाही"
+    },
+    "notFoundTitle": "पोस्ट सापडली नाही",
+    "notFoundBody": "ही पोस्ट काढून टाकली गेली असू शकते, किंवा ती पाहण्याची तुम्हाला परवानगी नाही.",
+    "backToList": "समुदायाकडे परत जा",
+    "moderationQueueLabel": "मॉडरेशन रांग",
+    "openPostLabel": "पोस्ट उघडा: {{excerpt}}",
+    "postOptionsLabel": "पोस्ट पर्याय",
+    "deleteCta": "हटवा",
+    "tryAgain": "पुन्हा प्रयत्न करा",
+    "postDeleted": "ही पोस्ट हटवली आहे.",
+    "backToCommunity": "कम्युनिटीकडे परत जा",
+    "back": "मागे",
+    "deletePostLabel": "पोस्ट हटवा",
+    "deleteCommentLabel": "टिप्पणी हटवा",
+    "removePhoto": "फोटो काढा",
+    "removeRejectedPhoto": "नाकारलेला फोटो काढा",
+    "imgInvalid": "काही फाइल्स वगळल्या. फक्त 10 MB पर्यंतच्या इमेज जोडता येतात.",
+    "reportInvalidReason": "रिपोर्टचे कारण निवडा.",
+    "reportedThanks": "रिपोर्ट केले, धन्यवाद. सचिव त्याचे पुनरावलोकन करतील."
   }
 }

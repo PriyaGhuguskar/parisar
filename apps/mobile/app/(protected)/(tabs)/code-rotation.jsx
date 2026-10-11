@@ -10,10 +10,13 @@ import {
   Pressable,
   SafeAreaView,
   Share,
-  Text,
   View,
 } from "react-native";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
+import { buildJoinLink } from "../../../lib/join-link";
+import { goBack } from "../../../lib/navigation";
+import { localizedRpcError } from "../../../lib/rpc-error";
 import { getSupabase } from "../../../lib/supabase";
 import { useMyContext } from "../../../lib/use-my-context";
 
@@ -33,7 +36,7 @@ const STATE_ERROR = "error"; // fetch/RPC failed
  * Active-code path:
  *   Shows current code + warning block.
  *   "Generate New Code" → calls rotateSocietyCode → transitions to STATE_ROTATED.
- *   "Keep Current Code" → router.back().
+ *   "Keep Current Code" → goBack(router).
  *
  * Paused-code path:
  *   Shows "Your code is paused" heading.
@@ -71,7 +74,7 @@ export default function CodeRotationScreen() {
     async function fetchCode() {
       if (!societyId) {
         setScreenState(STATE_ERROR);
-        setError("Society not found. Please go back and try again.");
+        setError(t("codeRotation.noSociety"));
         return;
       }
 
@@ -81,7 +84,9 @@ export default function CodeRotationScreen() {
           .from("society_codes")
           .select("code, paused_at")
           .eq("society_id", societyId)
-          .eq("active", true)
+          .is("revoked_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (fetchErr) throw fetchErr;
@@ -91,7 +96,8 @@ export default function CodeRotationScreen() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message ?? "Failed to load society code.");
+          console.warn("[code-rotation] load failed:", err?.message ?? err);
+          setError(t("codeRotation.loadError"));
           setScreenState(STATE_ERROR);
         }
       }
@@ -101,7 +107,18 @@ export default function CodeRotationScreen() {
     return () => {
       cancelled = true;
     };
-  }, [societyId]);
+  }, [societyId, t]);
+
+  function actionError(err) {
+    return localizedRpcError(
+      err,
+      {
+        NOT_SECRETARY: t("codeRotation.errNotAllowed"),
+        INSUFFICIENT_PRIVILEGES: t("codeRotation.errNotAllowed"),
+      },
+      t("auth.obErr"),
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Action: Rotate
@@ -116,7 +133,8 @@ export default function CodeRotationScreen() {
       setNewCode(result.code);
       setScreenState(STATE_ROTATED);
     } catch (err) {
-      setError(err.message ?? "Failed to rotate code. Please try again.");
+      console.warn("[code-rotation] rotate failed:", err?.message ?? err);
+      setError(actionError(err));
     } finally {
       setWorking(false);
     }
@@ -134,7 +152,8 @@ export default function CodeRotationScreen() {
       await resumeSocietyCode(supabase, { societyId });
       setScreenState(STATE_RESUMED);
     } catch (err) {
-      setError(err.message ?? "Failed to resume code. Please try again.");
+      console.warn("[code-rotation] resume failed:", err?.message ?? err);
+      setError(actionError(err));
     } finally {
       setWorking(false);
     }
@@ -146,14 +165,18 @@ export default function CodeRotationScreen() {
   async function handleShareNew(codeArg) {
     const code = typeof codeArg === "string" ? codeArg : newCode;
     if (!code) return;
-    const joinUrl = `parisar://join?code=${code}`;
-    const message = t("setup.shareMessage", { link: joinUrl });
+    const message = t("setup.shareMessage", { link: buildJoinLink(code) });
     const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    const canOpen = await Linking.canOpenURL(waUrl).catch(() => false);
-    if (canOpen) {
-      await Linking.openURL(waUrl);
-    } else {
-      await Share.share({ message });
+    try {
+      const canOpen = await Linking.canOpenURL(waUrl).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Share.share({ message });
+      }
+    } catch (err) {
+      // Share sheet dismissed / no handler — nothing to recover.
+      console.warn("[code-rotation] share failed:", err?.message ?? err);
     }
   }
 
@@ -186,10 +209,10 @@ export default function CodeRotationScreen() {
   function CloseButton() {
     return (
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => goBack(router)}
         className="p-2 rounded-full"
         accessibilityRole="button"
-        accessibilityLabel="Close"
+        accessibilityLabel={t("common.close")}
       >
         <X size={20} color="#64748B" />
       </Pressable>
@@ -220,11 +243,11 @@ export default function CodeRotationScreen() {
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-base text-danger-500 text-center">{error}</Text>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack(router)}
             className="mt-6 h-12 px-8 rounded-xl border border-neutral-200 items-center justify-center"
             accessibilityRole="button"
           >
-            <Text className="text-base font-semibold text-neutral-900">Go Back</Text>
+            <Text className="text-base font-semibold text-neutral-900">{t("common.goBack")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -303,11 +326,11 @@ export default function CodeRotationScreen() {
 
           {/* Done */}
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack(router)}
             className="h-12 rounded-xl border border-neutral-200 items-center justify-center"
             accessibilityRole="button"
           >
-            <Text className="text-base font-semibold text-neutral-900">Done</Text>
+            <Text className="text-base font-semibold text-neutral-900">{t("common.done")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -331,11 +354,11 @@ export default function CodeRotationScreen() {
             {t("codeRotation.resumedSuccess")}
           </Text>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack(router)}
             className="mt-8 h-12 px-8 rounded-xl bg-brand-500 items-center justify-center"
             accessibilityRole="button"
           >
-            <Text className="text-base font-semibold text-white">Done</Text>
+            <Text className="text-base font-semibold text-white">{t("common.done")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -445,7 +468,7 @@ export default function CodeRotationScreen() {
 
         {/* Keep Current Code — outlined secondary */}
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           disabled={working}
           className="h-12 rounded-xl border border-neutral-200 items-center justify-center"
           accessibilityRole="button"

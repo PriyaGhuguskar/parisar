@@ -2,19 +2,13 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Search, Users } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
 import { MemberRow } from "../../../components/directory/MemberRow";
 import { RecentJoinersSection } from "../../../components/directory/RecentJoinersSection";
 import { BackArrow } from "../../../components/kit";
+import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
+import { goBack } from "../../../lib/navigation";
 import { getSupabase } from "../../../lib/supabase";
 
 // ---------------------------------------------------------------------------
@@ -74,7 +68,8 @@ export default function DirectoryScreen() {
           }
           setWings(Array.from(wingMap.entries()).map(([id, name]) => ({ id, name })));
         } catch (err) {
-          if (active) setError(err.message ?? "Failed to load members.");
+          console.warn("[directory] load failed:", err?.message ?? err);
+          if (active) setError(t("common.loadError"));
         } finally {
           if (active) setLoading(false);
         }
@@ -84,7 +79,7 @@ export default function DirectoryScreen() {
       return () => {
         active = false;
       };
-    }, [societyId]),
+    }, [societyId, t]),
   );
 
   // ---------------------------------------------------------------------------
@@ -119,10 +114,10 @@ export default function DirectoryScreen() {
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100">
         <View className="flex-row items-center gap-3 mb-3">
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack(router)}
             className="p-2"
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.goBack")}
           >
             <BackArrow />
           </Pressable>

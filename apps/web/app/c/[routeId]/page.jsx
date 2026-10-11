@@ -24,6 +24,7 @@ import { StaffConsole } from "@/components/console/StaffConsole";
 import { GuardClient } from "@/components/guard/GuardClient";
 import { ServiceStatusScreen } from "@/components/society/ServiceStatusScreen";
 import { resolveCallerRole } from "@/lib/auth/callerRole";
+import { getServerT } from "@/lib/i18n/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { homeHrefForRole } from "@/lib/surface-routes";
 
@@ -77,8 +78,13 @@ export default async function SurfacePage({ params }) {
           />
         );
       }
+      const { t } = await getServerT(["auth"]);
       return (
-        <GuardClient guardName={guard.name} societyName={guard.societies?.name ?? "Society"} />
+        <GuardClient
+          guardName={guard.name}
+          societyName={guard.societies?.name ?? t("profile.society")}
+          societyId={guard.society_id ?? null}
+        />
       );
     }
 

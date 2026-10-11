@@ -1,4 +1,4 @@
-import { Text } from "react-native";
+import { Text } from "../ui/Text";
 
 /**
  * Inline error message below a form field.

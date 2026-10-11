@@ -36,7 +36,9 @@ export default async function ComplaintsPage() {
   try {
     initialComplaints = await listComplaints(supabase, { limit: 50 });
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[complaints] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
 
   return (

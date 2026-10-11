@@ -4,7 +4,8 @@
 
 import { AlertCircle, AlertTriangle, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const KIND_STYLES = {
   warning: { bg: "#fffbeb", text: "#f59e0b", border: "#f59e0b", Icon: AlertTriangle },
@@ -46,7 +47,7 @@ export function FlatActionKindBadge({ kind }) {
         alignSelf: "flex-start",
       }}
       accessibilityRole="text"
-      accessibilityLabel={`Action type: ${label}`}
+      accessibilityLabel={label}
     >
       <Icon size={14} color={style.text} />
       <Text className="text-sm" style={{ color: style.text }} numberOfLines={1}>

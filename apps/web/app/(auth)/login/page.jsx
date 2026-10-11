@@ -1,7 +1,7 @@
 "use client";
 
-// Sign-in, step 1: phone only. We ALWAYS send an OTP, then /verify decides what
-// to ask for next based on who this number is.
+// Sign-in, step 1: phone only. We ALWAYS send an OTP; /verify then asks the
+// database (my_login_state, as the just-verified user) what comes next:
 //
 //   staff   -> OTP -> in
 //   pin     -> OTP -> enter PIN -> in            (returning resident)
@@ -9,26 +9,28 @@
 //   family  -> OTP -> claim flat -> set PIN -> in (pre-entered family member)
 //   code    -> OTP -> society code -> onboard     (brand-new resident)
 //
-// WHY OTP EVERY TIME: the OTP proves the person holds the number on every login,
-// and the PIN is a second factor on top. This is a deliberate choice — it costs
-// one SMS per login but removes any way to reach an account without the live
-// number. lookupPhone still never reveals whether a number is registered; the
-// mode only changes what the NEXT screen asks for, after the OTP is already sent.
+// WHY NOTHING IS LOOKED UP BEFORE THE OTP: a pre-OTP lookup tells anyone who
+// types a number whether it belongs to staff, a guard or an authority. Deciding
+// after the OTP means only the number's owner ever learns that.
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AuthShell from "../../../components/auth/AuthShell";
 import DevOtpHint from "../../../components/auth/DevOtpHint";
 import FormError from "../../../components/auth/FormError";
 import PhoneInput from "../../../components/auth/PhoneInput";
 import PrimaryButton from "../../../components/auth/PrimaryButton";
+import { safeNextPath } from "../../../lib/auth/loginMode";
+import { otpErrorCode, otpErrorKey } from "../../../lib/auth/otpErrors";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
-import { lookupPhone } from "../../actions/codeLogin";
 
-export default function LoginPage() {
+function LoginForm() {
   const { t } = useTranslation("auth");
   const router = useRouter();
+  const params = useSearchParams();
+  // Where the middleware was sending them before it bounced them to /login.
+  const next = safeNextPath(params.get("next"), "");
 
   const [phone, setPhone] = useState("");
   const [error, setError] = useState(null);
@@ -46,30 +48,22 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await lookupPhone(phone);
-      if (res?.error) {
-        setError(t("auth.networkError"));
-        setLoading(false);
-        return;
-      }
-
       // Send the OTP for every path. verifyOtp runs client-side on /verify so
       // the session cookie lands in the browser (RESEARCH.md Pitfall 2).
       const supabase = createSupabaseBrowserClient();
       const { error: otpErr } = await supabase.auth.signInWithOtp({ phone: `+91${phone}` });
       if (otpErr) {
-        setError(t(otpErr.status === 429 ? "auth.rateLimited" : "auth.networkError"));
+        setError(t(otpErrorKey(otpErrorCode(otpErr))));
         setLoading(false);
         return;
       }
 
-      // The mode tells /verify what to ask for after the OTP succeeds. When the
-      // user came in via "Forgot PIN?", add reset=1 so /verify skips the
-      // enter-PIN screen and goes straight to setting a new PIN.
-      const resetFlag = forgot ? "&reset=1" : "";
-      router.push(
-        `/verify?phone=${encodeURIComponent(`+91${phone}`)}&mode=${encodeURIComponent(res.mode)}${resetFlag}`,
-      );
+      // "Forgot PIN?" adds reset=1 so /verify skips the enter-PIN screen and
+      // goes straight to setting a new PIN (the fresh OTP authorises it).
+      const q = new URLSearchParams({ phone: `+91${phone}` });
+      if (forgot) q.set("reset", "1");
+      if (next) q.set("next", next);
+      router.push(`/verify?${q.toString()}`);
     } catch {
       setError(t("auth.networkError"));
       setLoading(false);
@@ -122,5 +116,13 @@ export default function LoginPage() {
         {t("auth.termsNote")}
       </p>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

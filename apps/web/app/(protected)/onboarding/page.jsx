@@ -9,12 +9,13 @@
 
 import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { sanitizeSocietyCode } from "@/lib/join-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Join your society — Parisar" };
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -43,7 +44,9 @@ export default async function OnboardingPage() {
   // An authority already belongs to the society. If its wings/flats haven't been
   // set up yet, that comes first (any authority can do it); otherwise fill in the
   // society code for them so they go straight to picking their flat.
-  let initialCode = "";
+  // A share link (/join/code?code=…) forwards here with the code; pre-fill it.
+  const query = (await searchParams) ?? {};
+  let initialCode = sanitizeSocietyCode(query.code);
   if (flatless) {
     const { count: flatCount } = await supabase
       .from("flats")

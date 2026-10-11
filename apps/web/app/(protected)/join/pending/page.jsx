@@ -19,20 +19,23 @@ import { useJoinState } from "../../../../lib/join-state";
 export default function JoinPendingPage() {
   const { t } = useTranslation("auth");
   const router = useRouter();
-  const joinStore = useJoinState();
-  const { joinResult } = joinStore;
+  const joinResult = useJoinState((s) => s.joinResult);
+  const resetJoin = useJoinState((s) => s.reset);
+  const isPending = joinResult?.status === "pending_review";
 
-  // Guard: missing state → back to code
+  // Guard: missing state → back to code. No reset in the effect cleanup —
+  // StrictMode's mount → cleanup → mount wiped the result and blanked the
+  // screen. The store is cleared on the explicit "Go to Society" navigation.
   useEffect(() => {
-    if (!joinResult || joinResult.status !== "pending_review") {
-      router.replace("/join/code");
-    }
-    return () => {
-      joinStore.reset();
-    };
-  }, []);
+    if (!isPending) router.replace("/join/code");
+  }, [isPending, router]);
 
-  if (!joinResult || joinResult.status !== "pending_review") {
+  function handleContinue() {
+    resetJoin();
+    router.push("/dashboard");
+  }
+
+  if (!isPending) {
     return null;
   }
 
@@ -64,7 +67,8 @@ export default function JoinPendingPage() {
 
         {/* "Go to Society" — secondary outlined button (warning accent, NOT red) */}
         <button
-          onClick={() => router.push("/dashboard")}
+          type="button"
+          onClick={handleContinue}
           className="h-12 w-full rounded-xl font-semibold text-base transition-colors border"
           style={{
             borderColor: "var(--color-neutral-200)",

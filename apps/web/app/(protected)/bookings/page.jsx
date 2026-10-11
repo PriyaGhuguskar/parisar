@@ -35,7 +35,9 @@ export default async function BookingsPage() {
   try {
     initialBookings = await listBookings(supabase, { mode });
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[bookings] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
 
   return (

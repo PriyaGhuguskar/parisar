@@ -11,7 +11,8 @@
 // Accessibility: the label text is rendered alongside color so color is never the sole signal.
 
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 const STATUS_STYLES = {
   open: { bg: "#F1F5F9", text: "#475569", border: "transparent" },
@@ -52,7 +53,7 @@ export function StatusBadge({ status }) {
         alignSelf: "flex-start",
       }}
       accessibilityRole="text"
-      accessibilityLabel={`Status: ${label}`}
+      accessibilityLabel={label}
     >
       <Text className="text-sm" style={{ color: style.text }} numberOfLines={1}>
         {label}

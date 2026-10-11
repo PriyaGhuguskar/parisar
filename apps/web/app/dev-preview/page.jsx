@@ -1,4 +1,5 @@
-// DEV-ONLY app-shell preview. Returns 404 outside development.
+// DEV-ONLY app-shell preview. Returns 404 unless NODE_ENV=development AND
+// ENABLE_DEV_ROUTES=1 (lib/devRoutes.js).
 //
 // WHY THIS EXISTS: every authenticated screen sits behind a server-side session
 // check, so with no Supabase running there is literally no way to render the app
@@ -17,6 +18,7 @@
 import { notFound } from "next/navigation";
 import { AppSidebar } from "../../components/AppSidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "../../components/ui/sidebar";
+import { devRoutesEnabled } from "../../lib/devRoutes";
 import { DashboardClient } from "../(protected)/dashboard/DashboardClient";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +31,14 @@ const MOCK = {
   flatLabel: "B-203",
 };
 
-export default function DevPreviewPage({ searchParams }) {
-  if (process.env.NODE_ENV !== "development") notFound();
+export default async function DevPreviewPage({ searchParams }) {
+  if (!devRoutesEnabled()) notFound();
 
   // ?role=member|board_member|co_secretary|secretary — the tile grid and the
   // sidebar both branch on role, so each one needs auditing separately.
-  const role = searchParams?.role || "secretary";
+  // Next 15: searchParams is a Promise; reading it synchronously is deprecated.
+  const query = (await searchParams) ?? {};
+  const role = query.role || "secretary";
 
   return (
     <SidebarProvider defaultOpen>

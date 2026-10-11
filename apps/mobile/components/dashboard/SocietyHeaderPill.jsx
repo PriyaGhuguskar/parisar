@@ -6,7 +6,8 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { Building2 } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 /**
  * @param {object} props

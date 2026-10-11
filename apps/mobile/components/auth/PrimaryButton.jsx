@@ -1,4 +1,5 @@
-import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
+import { ActivityIndicator, TouchableOpacity } from "react-native";
+import { Text } from "../ui/Text";
 
 /**
  * Full-width primary button.

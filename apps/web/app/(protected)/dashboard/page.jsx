@@ -17,15 +17,16 @@
 // the (protected)/layout.jsx guard already 302s a signed-out user, this is a
 // defensive second check so the server component never renders stale identity.
 //
-// JWT shape (04.1-00-JWT-SHAPE.md): the Auth Hook injects ONLY society_id + role.
-// society_name and full_name are NOT in app_metadata — society_name falls back to
-// the first membership's society name (fetched below), full_name to user_metadata
-// then "Member". Wave 3 wires the real profiles.full_name fetch.
+// Active society + role: resolveActiveSociety (my_active_society() RPC) — the
+// single source of truth. full_name falls back to user_metadata then "Member".
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { getDashboardSummary } from "@parisar/api-client";
 import { redirect } from "next/navigation";
+import { isManagerRole } from "../../../lib/auth/activeSociety";
+import { loadSocietyContext } from "../../../lib/auth/societyContext";
+import { getServerT } from "../../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { DashboardClient } from "./DashboardClient";
 
@@ -40,53 +41,41 @@ export default async function DashboardPage() {
   // Protected layout already 302s when no user; defensive check anyway.
   if (!user) redirect("/login");
 
+  const { t } = await getServerT(["auth"]);
   const meta = user.app_metadata ?? {};
-  const fullName = meta.full_name ?? user.user_metadata?.full_name ?? "Member";
+  const fullName = meta.full_name ?? user.user_metadata?.full_name ?? t("profile.roleMember");
 
-  // Membership is the SOURCE OF TRUTH for society_id + role — NOT app_metadata.
-  // The Custom Access Token Hook injects society_id/role into the JWT, but
-  // getUser() returns the stored user record, where those claims are absent. So
-  // reading meta.society_id gave null for every real member and bounced the whole
-  // dashboard to /onboard (blank screen after onboarding). We fetch the active
-  // membership directly; RLS + the user_id filter scope it to this user, and it
-  // exists the moment onboarding/claim completes — no waiting for a JWT refresh.
-  let memberships = [];
-  if (user.id) {
-    const { data } = await supabase
-      .from("society_memberships")
-      .select("society_id, role, flat_id, societies:society_id(name)")
-      .eq("user_id", user.id)
-      .eq("status", "active");
-    if (Array.isArray(data)) {
-      memberships = data.map((r) => ({
-        society_id: r.society_id,
-        role: r.role,
-        flat_id: r.flat_id,
-        society_name: r.societies?.name ?? "Society",
-      }));
-    }
-  }
+  // Active society + role come from resolveActiveSociety (my_active_society()
+  // RPC) — the same resolver the layout and every page use. NOT app_metadata
+  // (absent on getUser()) and NOT memberships[0] (unordered). No active
+  // membership at all → onboarding not finished.
+  const {
+    active,
+    memberships: rawMemberships,
+    activeMembership,
+  } = await loadSocietyContext(supabase, user);
+  if (!active.societyId) redirect("/onboarding");
+  const memberships = rawMemberships.map((m) => ({
+    ...m,
+    society_name: m.society_name ?? t("profile.society"),
+  }));
 
-  // Prefer the JWT claim's active society when present (multi-society switching),
-  // else the first membership. No membership at all → onboarding not finished.
-  const active =
-    memberships.find((m) => m.society_id === meta.society_id) ?? memberships[0] ?? null;
-  if (!active) redirect("/onboarding");
+  const societyId = active.societyId;
+  const role = active.role;
 
   // A society authority must finish onboarding before the app opens: set up the
   // society's wings/flats first if there are none, then join as a resident
   // (their authority membership has no flat until then).
-  if ((active.role === "secretary" || active.role === "co_secretary") && !active.flat_id) {
+  if (isManagerRole(role) && activeMembership && !activeMembership.flat_id) {
     const { count } = await supabase
       .from("flats")
       .select("id", { count: "exact", head: true })
-      .eq("society_id", active.society_id);
+      .eq("society_id", societyId);
     redirect((count ?? 0) === 0 ? "/setup/structure" : "/onboarding");
   }
 
-  const societyId = active.society_id;
-  const role = meta.role ?? active.role ?? "member";
-  const resolvedSocietyName = meta.society_name ?? active.society_name ?? "Your Society";
+  const resolvedSocietyName =
+    active.societyName ?? activeMembership?.society_name ?? t("common.yourSociety");
 
   // Phase 7 Plan 07-08 — SSR-fetch the initial dashboard summary so the client
   // hydrates with real tile previews on first paint (no FOUC, no loading flash).
@@ -98,11 +87,12 @@ export default async function DashboardPage() {
   try {
     // An authority's home is the resident view (management is on the Society
     // Dashboard), so ask for the resident summary to match its tiles.
-    const isAuthority = role === "secretary" || role === "co_secretary";
+    const isAuthority = isManagerRole(role);
     initialSummary = await getDashboardSummary(supabase, {
       view: isAuthority ? "member" : null,
     });
-  } catch {
+  } catch (err) {
+    console.error("[dashboard] summary load failed:", err?.message ?? err);
     initialSummary = null;
   }
 

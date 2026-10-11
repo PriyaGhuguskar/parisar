@@ -17,6 +17,10 @@
 // closePollAction → State C via Realtime/local.
 //
 // aria-live="polite" announces "Vote recorded. Results now visible." on vote.
+//
+// Status is server-driven: the polls row UPDATE is subscribed (filter id=eq.),
+// the row's status is re-read with every tally refresh, and a vote rejected with
+// POLL_CLOSED flips the block to the closed results view.
 
 import { getPollTally, subscribeToVotes } from "@parisar/api-client";
 import { Check, Loader2 } from "lucide-react";
@@ -25,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { StatusPill, SurfaceCard } from "@/components/kit";
 import { closePollAction, votePollAction } from "../../app/actions/notifications";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { uniqueChannelName } from "../shared/realtime";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -77,6 +82,47 @@ export function PollBlock({ poll, options, myVote, role, isAuthor = false }) {
     [poll.id],
   );
 
+  // Follow the poll row's status (closed by a board member elsewhere). Status is
+  // not a tally, so this is safe in State A too.
+  useEffect(() => {
+    if (!poll.id) return undefined;
+    const supabase = createSupabaseBrowserClient();
+    let active = true;
+    const applyStatus = (next) => {
+      if (active && (next === "open" || next === "closed")) setStatus(next);
+    };
+    const channel = supabase
+      .channel(uniqueChannelName(`poll-${poll.id}`))
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "polls", filter: `id=eq.${poll.id}` },
+        (payload) => applyStatus(payload?.new?.status),
+      )
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [poll.id]);
+
+  const refreshStatus = useCallback(
+    async (supabase) => {
+      try {
+        const { data, error } = await supabase
+          .from("polls")
+          .select("status")
+          .eq("id", poll.id)
+          .maybeSingle();
+        if (!error && (data?.status === "open" || data?.status === "closed")) {
+          setStatus(data.status);
+        }
+      } catch {
+        // Non-fatal — keep the last-known status.
+      }
+    },
+    [poll.id],
+  );
+
   // Live tally — subscribe ONLY once results are visible (anti-bandwagon: no
   // tally fetch in State A). getPollTally + subscribeToVotes are gated on
   // showResults so neither is called before the user votes.
@@ -84,16 +130,18 @@ export function PollBlock({ poll, options, myVote, role, isAuthor = false }) {
     if (!showResults) return undefined;
     const supabase = createSupabaseBrowserClient();
     refreshTally(supabase);
+    refreshStatus(supabase);
     cleanupRef.current = subscribeToVotes(supabase, poll.id, () => {
       // Recompute the aggregate from rows on every event (never trust a single
       // payload as the whole tally — Pitfall 5).
       refreshTally(supabase);
+      refreshStatus(supabase);
     });
     return () => {
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
-  }, [showResults, poll.id, refreshTally]);
+  }, [showResults, poll.id, refreshTally, refreshStatus]);
 
   const countMap = useMemo(() => {
     const m = new Map();
@@ -108,6 +156,13 @@ export function PollBlock({ poll, options, myVote, role, isAuthor = false }) {
     try {
       const result = await votePollAction(poll.id, selected);
       if (!result.ok) {
+        if (String(result.error ?? "").includes("POLL_CLOSED")) {
+          // Closed meanwhile — show the final results instead of an error.
+          setStatus("closed");
+          setChanging(false);
+          setVoteError(t("poll.closedWhileVoting"));
+          return;
+        }
         setVoteError(t("poll.voteError"));
         return;
       }
@@ -318,7 +373,8 @@ function ResultsView({ options, countMap, total, votedOptionId }) {
         const valueText = t("poll.tallyValue")
           .replace("{{percent}}", String(percent))
           .replace("{{count}}", String(count));
-        const a11y = `${opt.label}: ${percent} percent, ${count} votes${isMine ? `, ${t("poll.yourVote")}` : ""}`;
+        const a11yBase = t("poll.optionA11y", { label: opt.label, percent, count });
+        const a11y = isMine ? `${a11yBase}, ${t("poll.yourVote")}` : a11yBase;
 
         return (
           <div

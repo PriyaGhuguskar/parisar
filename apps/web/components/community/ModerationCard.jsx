@@ -236,7 +236,11 @@ export function ModerationCard({ item, onResolved }) {
         )}
 
         {error ? (
-          <p role="alert" className="text-sm font-semibold" style={{ color: "var(--color-danger)" }}>
+          <p
+            role="alert"
+            className="text-sm font-semibold"
+            style={{ color: "var(--color-danger)" }}
+          >
             {error}
           </p>
         ) : null}

@@ -3,13 +3,18 @@
 // FacilityCalendar — society-ops schedule (water shutdown, lift maintenance,
 // events, garbage). Secretary/co-sec schedule; everyone browses by category.
 // The next upcoming event also surfaces on the home highlights strip.
+// Times are society-local: the datetime-local value is read as IST and shown in
+// Asia/Kolkata. Removing an event needs a typed-title confirmation.
 
 import { addFacilityEvent, deleteFacilityEvent } from "@parisar/api-client";
-import { CalendarDays, Plus, Trash2, X } from "lucide-react";
+import { CalendarDays, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState, PageHeader, PageShell, SurfaceCard } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ConfirmRemoveDialog } from "../shared/ConfirmRemoveDialog";
+import { uniqueChannelName } from "../shared/realtime";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const FCATS = [
   "water_shutdown",
@@ -23,14 +28,17 @@ const MANAGER_ROLES = new Set(["secretary", "co_secretary"]);
 const FIELD =
   "h-11 w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
 
+const IST_OFFSET = "+05:30";
+
 function fmt(iso) {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(iso).toLocaleString("en-IN", {
       weekday: "short",
       day: "numeric",
       month: "short",
       hour: "numeric",
       minute: "2-digit",
+      timeZone: "Asia/Kolkata",
     });
   } catch {
     return iso;
@@ -59,7 +67,8 @@ function AddFacilityDialog({ societyId, onClose, onAdded }) {
         category,
         title: title.trim(),
         note,
-        startsAt: new Date(when).toISOString(),
+        // datetime-local has no zone — interpret it as IST, not browser-local.
+        startsAt: new Date(`${when}:00${IST_OFFSET}`).toISOString(),
       });
       if (res?.error) {
         setError(t("facility.saveError"));
@@ -75,27 +84,13 @@ function AddFacilityDialog({ societyId, onClose, onAdded }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,38,28,0.45)] p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("facility.add")}
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-md rounded-t-[22px] bg-[var(--color-neutral-0)] p-6 sm:rounded-[22px]">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="max-w-md rounded-[22px] bg-[var(--color-neutral-0)] p-6 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
             {t("facility.add")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("profile.cancel")}
-            className="rounded-lg p-1.5 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-          >
-            <X size={18} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
@@ -118,7 +113,6 @@ function AddFacilityDialog({ societyId, onClose, onAdded }) {
               {t("facility.eventTitle")}
             </span>
             <input
-              // biome-ignore lint/a11y/noAutofocus: first text field of an explicitly-opened dialog
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -150,7 +144,9 @@ function AddFacilityDialog({ societyId, onClose, onAdded }) {
             />
           </label>
           {error ? (
-            <p className="text-[13px] font-semibold text-[var(--color-danger)]">{error}</p>
+            <p role="alert" className="text-[13px] font-semibold text-[var(--color-danger)]">
+              {error}
+            </p>
           ) : null}
           <div className="flex items-center justify-end gap-2.5">
             <button
@@ -170,55 +166,16 @@ function AddFacilityDialog({ societyId, onClose, onAdded }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-export function FacilityCalendar({ societyId, role }) {
+// Hoisted out of FacilityCalendar so React keeps the same component type
+// across renders (a component defined in render remounts every time).
+function FacilityRow({ event: e, canManage, onRemove }) {
   const { t } = useTranslation("auth");
-  const { t: tNav } = useTranslation("dashboard");
-  const [events, setEvents] = useState([]);
-  const [filter, setFilter] = useState("all");
-  const [adding, setAdding] = useState(false);
-  const canManage = MANAGER_ROLES.has(role);
-
-  const load = useCallback(async () => {
-    const supabase = createSupabaseBrowserClient();
-    const { data } = await supabase
-      .from("facility_events")
-      .select("id, category, title, note, starts_at")
-      .eq("society_id", societyId)
-      .order("starts_at", { ascending: true });
-    setEvents(Array.isArray(data) ? data : []);
-  }, [societyId]);
-
-  useEffect(() => {
-    load();
-    const supabase = createSupabaseBrowserClient();
-    const channel = supabase
-      .channel("facilities")
-      .on("postgres_changes", { event: "*", schema: "public", table: "facility_events" }, () =>
-        load(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [load]);
-
-  async function remove(id) {
-    const supabase = createSupabaseBrowserClient();
-    await deleteFacilityEvent(supabase, id);
-    await load();
-  }
-
-  const now = Date.now();
-  const filtered = filter === "all" ? events : events.filter((e) => e.category === filter);
-  const upcoming = filtered.filter((e) => new Date(e.starts_at).getTime() >= now);
-  const past = filtered.filter((e) => new Date(e.starts_at).getTime() < now).reverse();
-
-  const Row = ({ e }) => (
+  return (
     <SurfaceCard className="flex items-start justify-between gap-3 p-4">
       <div className="min-w-0">
         <span className="inline-flex items-center rounded-full bg-[var(--color-brand-50)] px-2.5 py-0.5 text-[12px] font-bold text-[var(--color-brand-600)]">
@@ -237,7 +194,7 @@ export function FacilityCalendar({ societyId, role }) {
       {canManage ? (
         <button
           type="button"
-          onClick={() => remove(e.id)}
+          onClick={() => onRemove(e)}
           aria-label={t("facility.remove")}
           className="shrink-0 rounded-lg p-2 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)] hover:text-[var(--color-danger)]"
         >
@@ -246,6 +203,61 @@ export function FacilityCalendar({ societyId, role }) {
       ) : null}
     </SurfaceCard>
   );
+}
+
+export function FacilityCalendar({ societyId, role }) {
+  const { t } = useTranslation("auth");
+  const { t: tNav } = useTranslation("dashboard");
+  const [events, setEvents] = useState([]);
+  const [filter, setFilter] = useState("all");
+  const [adding, setAdding] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState(null); // { id, name } | null
+  const canManage = MANAGER_ROLES.has(role);
+
+  const load = useCallback(async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from("facility_events")
+      .select("id, category, title, note, starts_at")
+      .eq("society_id", societyId)
+      .order("starts_at", { ascending: true });
+    if (error) return; // keep what is on screen; the next event retries
+    setEvents(Array.isArray(data) ? data : []);
+  }, [societyId]);
+
+  useEffect(() => {
+    load();
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(uniqueChannelName(`facilities-${societyId}`))
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "facility_events",
+          filter: `society_id=eq.${societyId}`,
+        },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load, societyId]);
+
+  async function remove(target) {
+    const supabase = createSupabaseBrowserClient();
+    const res = await deleteFacilityEvent(supabase, target.id);
+    if (res?.error) return res;
+    await load();
+    return { ok: true };
+  }
+
+  const now = Date.now();
+  const filtered = filter === "all" ? events : events.filter((e) => e.category === filter);
+  const upcoming = filtered.filter((e) => new Date(e.starts_at).getTime() >= now);
+  const past = filtered.filter((e) => new Date(e.starts_at).getTime() < now).reverse();
 
   return (
     <PageShell>
@@ -310,7 +322,12 @@ export function FacilityCalendar({ societyId, role }) {
                 {t("facility.upcoming")}
               </p>
               {upcoming.map((e) => (
-                <Row key={e.id} e={e} />
+                <FacilityRow
+                  key={e.id}
+                  event={e}
+                  canManage={canManage}
+                  onRemove={(ev) => setRemoveTarget({ id: ev.id, name: ev.title })}
+                />
               ))}
             </section>
           ) : null}
@@ -320,7 +337,12 @@ export function FacilityCalendar({ societyId, role }) {
                 {t("facility.past")}
               </p>
               {past.map((e) => (
-                <Row key={e.id} e={e} />
+                <FacilityRow
+                  key={e.id}
+                  event={e}
+                  canManage={canManage}
+                  onRemove={(ev) => setRemoveTarget({ id: ev.id, name: ev.title })}
+                />
               ))}
             </section>
           ) : null}
@@ -330,6 +352,12 @@ export function FacilityCalendar({ societyId, role }) {
       {adding ? (
         <AddFacilityDialog societyId={societyId} onClose={() => setAdding(false)} onAdded={load} />
       ) : null}
+
+      <ConfirmRemoveDialog
+        target={removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={remove}
+      />
     </PageShell>
   );
 }

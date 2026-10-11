@@ -12,7 +12,8 @@
 
 import { ensureNotificationPreferences, updateNotificationPreference } from "@parisar/api-client";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { signedInClient } from "../../lib/auth/actionSession";
+import { isUuid } from "../../lib/validation";
 
 /**
  * Idempotently provision the caller's preferences row for a society (D-05).
@@ -21,24 +22,17 @@ import { createSupabaseServerClient } from "../../lib/supabase/server";
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function ensurePreferencesAction(societyId) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(societyId)) return { ok: false, error: "invalid_society" };
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    await ensureNotificationPreferences(supabase, societyId);
+    await ensureNotificationPreferences(ctx.supabase, societyId);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err?.message ?? "ensure_failed" };
   }
 }
 
-/**
- * Apply a partial patch to the caller's preferences for a society (scoped to the
- * session user via RLS). e.g. { mute_polls: true }, { quiet_start, quiet_end },
- * { cap_per_day }.
- *
- * @param {string} societyId
- * @param {object} patch
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
 // PAR-014: allow-list of user-editable preference columns. The client patch is
 // NOT trusted — only these keys are forwarded to the DB (no mass-assignment of
 // arbitrary columns), and each value is validated.
@@ -53,8 +47,20 @@ const EDITABLE_PREF_COLUMNS = new Set([
   "cap_per_day",
 ]);
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+// A per-day push cap beyond this is indistinguishable from "unlimited" (null).
+const MAX_CAP_PER_DAY = 1000;
 
+/**
+ * Apply a partial patch to the caller's preferences for a society (scoped to the
+ * session user via RLS). e.g. { mute_polls: true }, { quiet_start, quiet_end },
+ * { cap_per_day }.
+ *
+ * @param {string} societyId
+ * @param {object} patch
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
 export async function updatePreferenceAction(societyId, patch) {
+  if (!isUuid(societyId)) return { ok: false, error: "invalid_society" };
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
     return { ok: false, error: "invalid_patch" };
   }
@@ -68,7 +74,7 @@ export async function updatePreferenceAction(societyId, patch) {
     } else if (key === "cap_per_day") {
       // 0 would silently suppress ALL push (a foot-gun the audit flagged). A cap
       // must be a positive integer, or null for "unlimited".
-      if (value !== null && !(Number.isInteger(value) && value > 0)) {
+      if (value !== null && !(Number.isInteger(value) && value > 0 && value <= MAX_CAP_PER_DAY)) {
         return { ok: false, error: "invalid_cap" };
       }
     } else if (key === "quiet_start" || key === "quiet_end") {
@@ -80,9 +86,10 @@ export async function updatePreferenceAction(societyId, patch) {
   }
   if (Object.keys(clean).length === 0) return { ok: false, error: "empty_patch" };
 
-  const supabase = await createSupabaseServerClient();
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    await updateNotificationPreference(supabase, societyId, clean);
+    await updateNotificationPreference(ctx.supabase, societyId, clean);
     revalidatePath("/settings/notifications");
     return { ok: true };
   } catch (err) {

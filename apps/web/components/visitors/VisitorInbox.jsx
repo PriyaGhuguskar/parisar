@@ -3,6 +3,9 @@
 // VisitorInbox — the resident's gate approvals. Pending requests for their flat
 // sit at the top with Approve / Deny; the list updates live via a realtime
 // subscription (RLS visitor_requests_resident_read scopes rows to their flat).
+// A decision that loses a race (ALREADY_DECIDED) or comes too late
+// (VISIT_EXPIRED, > 30 min) shows a localized error; the list is re-read so the
+// card reflects the real state.
 
 import { residentDecideVisit } from "@parisar/api-client";
 import { Check, DoorOpen, X } from "lucide-react";
@@ -10,49 +13,85 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState, PageHeader, PageShell, SurfaceCard } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "../shared/realtime";
 
 const DECIDED_CLS = {
   approved: "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]",
   denied: "bg-[#FCE9E6] text-[var(--color-danger)]",
   cancelled: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-500)]",
+  expired: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-500)]",
 };
 
-export function VisitorInbox() {
+const STATUS_KEY = {
+  approved: "visitor.statusApproved",
+  denied: "visitor.statusDenied",
+  cancelled: "visitor.statusCancelled",
+  expired: "visitor.statusExpired",
+  pending: "visitor.statusPending",
+};
+
+// resident_decide_visit error code → i18n key (contract-055).
+function decideErrorKey(code) {
+  const c = String(code ?? "");
+  if (c.includes("ALREADY_DECIDED")) return "visitor.alreadyDecided";
+  if (c.includes("VISIT_EXPIRED")) return "visitor.visitExpired";
+  return "visitor.decideError";
+}
+
+/**
+ * @param {{ societyId?: string|null }} props — when given, the realtime channel is
+ *   filtered to that society (RLS still scopes rows to the resident's flat).
+ */
+export function VisitorInbox({ societyId = null } = {}) {
   const { t } = useTranslation("auth");
   const { t: tNav } = useTranslation("dashboard");
 
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [errors, setErrors] = useState({}); // requestId -> i18n key
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("visitor_requests")
       .select("id, visitor_name, visitor_phone, purpose, status, created_at")
       .order("created_at", { ascending: false })
       .limit(40);
+    if (error) return; // keep what is on screen; the next event retries
     setRequests(Array.isArray(data) ? data : []);
   }, []);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     load();
+    const filter = societyId ? { filter: `society_id=eq.${societyId}` } : {};
     const channel = supabase
-      .channel("resident-visits")
-      .on("postgres_changes", { event: "*", schema: "public", table: "visitor_requests" }, () =>
-        load(),
+      .channel(uniqueChannelName(`resident-visits-${societyId ?? "mine"}`))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "visitor_requests", ...filter },
+        () => load(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, societyId]);
 
   async function decide(id, approve) {
+    if (busyId) return;
     setBusyId(id);
+    setErrors((prev) => ({ ...prev, [id]: null }));
+    let errorKey = null;
     try {
       const supabase = createSupabaseBrowserClient();
-      await residentDecideVisit(supabase, { requestId: id, approve });
+      const res = await residentDecideVisit(supabase, { requestId: id, approve });
+      if (res?.error) errorKey = decideErrorKey(res.error);
+    } catch (err) {
+      errorKey = decideErrorKey(err?.message);
+    }
+    if (errorKey) setErrors((prev) => ({ ...prev, [id]: errorKey }));
+    try {
       await load();
     } finally {
       setBusyId(null);
@@ -107,6 +146,14 @@ export function VisitorInbox() {
                   {t("visitor.deny")}
                 </button>
               </div>
+              {errors[r.id] ? (
+                <p
+                  role="alert"
+                  className="mt-3 text-[13px] font-semibold text-[var(--color-danger)]"
+                >
+                  {t(errors[r.id])}
+                </p>
+              ) : null}
             </SurfaceCard>
           ))
         )}
@@ -137,7 +184,7 @@ export function VisitorInbox() {
                     DECIDED_CLS[r.status] ?? DECIDED_CLS.cancelled
                   }`}
                 >
-                  {t(`visitor.status${r.status.charAt(0).toUpperCase()}${r.status.slice(1)}`)}
+                  {t(STATUS_KEY[r.status] ?? "visitor.statusCancelled")}
                 </span>
               </li>
             ))}

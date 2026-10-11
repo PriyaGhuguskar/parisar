@@ -15,7 +15,7 @@
 
 import { Image } from "expo-image";
 import { FileText, Paperclip, X } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActionSheetIOS,
@@ -24,12 +24,12 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { FormError } from "../auth/FormError";
-import { PollBuilder } from "../polls/PollBuilder";
+import { normalizePoll, PollBuilder } from "../polls/PollBuilder";
+import { Text } from "../ui/Text";
 
 const TITLE_MIN = 3;
 const TITLE_MAX = 120;
@@ -40,23 +40,27 @@ const BODY_MAX = 2000;
  * Ask the user whether to attach a PDF or a Photo.
  * Resolves with 'pdf' | 'photo' | null.
  */
-function showAttachChooser(label) {
+function showAttachChooser(t, label) {
+  const pdf = t("notice.attachPdfOption");
+  const photo = t("notice.attachPhotoOption");
+  const cancel = t("auth:common.cancel");
   return new Promise((resolve) => {
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ["Attach a PDF", "Attach a photo", "Cancel"], cancelButtonIndex: 2 },
-        (idx) => {
-          if (idx === 0) resolve("pdf");
-          else if (idx === 1) resolve("photo");
-          else resolve(null);
-        },
+        { title: label, options: [pdf, photo, cancel], cancelButtonIndex: 2 },
+        (idx) => resolve(idx === 0 ? "pdf" : idx === 1 ? "photo" : null),
       );
     } else {
-      Alert.alert(label, undefined, [
-        { text: "Attach a PDF", onPress: () => resolve("pdf") },
-        { text: "Attach a photo", onPress: () => resolve("photo") },
-        { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
-      ]);
+      Alert.alert(
+        label,
+        undefined,
+        [
+          { text: pdf, onPress: () => resolve("pdf") },
+          { text: photo, onPress: () => resolve("photo") },
+          { text: cancel, style: "cancel", onPress: () => resolve(null) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(null) },
+      );
     }
   });
 }
@@ -81,7 +85,7 @@ export function NoticeComposer({
   submitting = false,
   submitError = null,
 }) {
-  const { t } = useTranslation("notifications");
+  const { t } = useTranslation(["notifications", "polls", "auth"]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [poll, setPoll] = useState({ active: false, question: "", options: ["", ""] });
@@ -90,6 +94,19 @@ export function NoticeComposer({
   const [attachment, setAttachment] = useState(null);
   const [attachUploading, setAttachUploading] = useState(false);
   const [attachError, setAttachError] = useState(null);
+  const [pollError, setPollError] = useState(null);
+  // Local submit lock: set synchronously on the first tap, held after a
+  // successful onSubmit (the parent shows a success toast and navigates back a
+  // moment later), and released only when the parent reports an error.
+  const postLockRef = useRef(false);
+  const [posted, setPosted] = useState(false);
+
+  useEffect(() => {
+    if (submitError) {
+      postLockRef.current = false;
+      setPosted(false);
+    }
+  }, [submitError]);
 
   async function handleAttach() {
     if (attachUploading || attachment) return;
@@ -98,7 +115,7 @@ export function NoticeComposer({
       return;
     }
     setAttachError(null);
-    const source = await showAttachChooser(t("notice.attachLabel"));
+    const source = await showAttachChooser(t, t("notice.attachLabel"));
     if (!source) return;
 
     setAttachUploading(true);
@@ -124,28 +141,36 @@ export function NoticeComposer({
 
   const titleValid = title.trim().length >= TITLE_MIN && title.trim().length <= TITLE_MAX;
   const bodyValid = body.trim().length >= BODY_MIN && body.trim().length <= BODY_MAX;
-  const canSubmit = titleValid && bodyValid && !submitting && !attachUploading;
+  const canSubmit = titleValid && bodyValid && !submitting && !attachUploading && !posted;
 
   async function handlePost() {
-    if (!canSubmit) return;
+    if (!canSubmit || postLockRef.current) return;
     // Trim empty trailing poll options; null when poll inactive/invalid.
-    const { normalizePoll } = await import("../polls/PollBuilder");
     const { pollQuestion, pollOptions, valid } = normalizePoll(poll);
     if (poll.active && !valid) {
-      setAttachError(null);
-      // surface via the poll area: a minimal inline guard
-      Alert.alert("Poll incomplete", "Add a question and at least 2 options (max 4).");
+      setPollError(t("polls:poll.incomplete"));
       return;
     }
-    await onSubmit({
-      title: title.trim(),
-      body: body.trim(),
-      storageKey: attachment?.storageKey ?? null,
-      mimeType: attachment?.mimeType ?? null,
-      byteSize: attachment?.byteSize ?? null,
-      pollQuestion,
-      pollOptions,
-    });
+    setPollError(null);
+    postLockRef.current = true;
+    setPosted(true);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        body: body.trim(),
+        storageKey: attachment?.storageKey ?? null,
+        mimeType: attachment?.mimeType ?? null,
+        byteSize: attachment?.byteSize ?? null,
+        pollQuestion,
+        pollOptions,
+      });
+    } catch {
+      // onSubmit normally reports failures through `submitError`; a throw
+      // means it didn't, so unlock and show the generic error.
+      postLockRef.current = false;
+      setPosted(false);
+      setPollError(t("notice.postError"));
+    }
   }
 
   const titleCount = `${title.length}/${TITLE_MAX}`;
@@ -250,7 +275,7 @@ export function NoticeComposer({
                     setAttachError(null);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Remove attachment"
+                  accessibilityLabel={t("notice.removeAttachment")}
                   style={{
                     position: "absolute",
                     top: 8,
@@ -289,7 +314,14 @@ export function NoticeComposer({
           </View>
 
           {/* Poll builder */}
-          <PollBuilder value={poll} onChange={setPoll} />
+          <PollBuilder
+            value={poll}
+            onChange={(next) => {
+              setPoll(next);
+              setPollError(null);
+            }}
+          />
+          {pollError ? <FormError message={pollError} /> : null}
         </View>
 
         {/* Submit error */}
@@ -304,7 +336,7 @@ export function NoticeComposer({
           accessibilityRole="button"
           accessibilityLabel={t("notice.postCta")}
           accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-          className={`h-14 w-full rounded-xl items-center justify-center ${
+          className={`min-h-14 py-2 w-full rounded-xl items-center justify-center ${
             canSubmit ? "bg-brand-500 active:bg-brand-600" : "bg-neutral-200"
           }`}
         >

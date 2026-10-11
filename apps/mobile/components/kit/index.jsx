@@ -8,7 +8,9 @@
 
 import { useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { goBack } from "../../lib/navigation";
+import { Text } from "../ui/Text";
 
 // Same tones as the website's StatusPill.
 const TONES = {
@@ -53,7 +55,7 @@ export function PageHeader({ title, description, backLabel, backHref, action }) 
     <View className="gap-1.5 pb-4">
       {backLabel ? (
         <Pressable
-          onPress={() => (backHref ? router.replace(backHref) : router.back())}
+          onPress={() => (backHref ? router.replace(backHref) : goBack(router))}
           accessibilityRole="button"
           className="flex-row items-center gap-1 self-start py-1"
         >

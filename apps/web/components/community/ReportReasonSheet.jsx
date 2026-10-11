@@ -68,10 +68,20 @@ export function ReportReasonSheet({ open, onOpenChange, targetKind, targetId, on
         note: note.trim() ? note.trim() : null,
       });
       if (!res.ok) {
-        setError(t("community.reportError"));
+        // contract-055 error codes → localized copy.
+        setError(
+          res.error === "rate_limited"
+            ? t("community.reportRateLimited")
+            : res.error === "invalid_reason"
+              ? t("community.reportInvalidReason")
+              : t("community.reportError"),
+        );
         return;
       }
-      onReported?.();
+      // 055: a member's report usually does NOT hide the item (3 reporters, or a
+      // board report, do). Pass the real state so callers only swap in the
+      // "hidden" banner when the item really is hidden.
+      onReported?.({ hidden: res.result?.hidden === true });
       handleOpenChange(false);
     } catch {
       setError(t("community.reportError"));

@@ -12,16 +12,26 @@
 //       Member (non-board) → section not rendered (UI-SPEC D4)
 //   - Section 4: response trail (ResponseTrailItem, ordered created_at asc), Realtime appended
 //
-// Race-lost: claimComplaintAction returns { claimed: false } → inline banner.
+// Race-lost: claimComplaintAction returns { claimed: false } → banner rendered
+// OUTSIDE the action section (which unmounts once the owner is known), then the
+// real owner is re-read. Typed free text is kept.
+//
+// Realtime: complaint_responses INSERTs are re-read with their responder joins
+// before they are appended, and the complaints row UPDATE (status / owner) is
+// re-read with its joins so other board members' claims show live. Response
+// kinds (checking / will_resolve / need_info / resolved) are values of the
+// complaint_status enum, so a response kind is also the new status.
 
 import { subscribeToComplaintResponses } from "@parisar/api-client";
 import { format } from "date-fns";
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addComplaintResponseAction, claimComplaintAction } from "../../app/actions/complaints";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { fetchRowById, uniqueChannelName, upsertById } from "../shared/realtime";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "../ui/dialog";
 import { ResponseChip } from "./ResponseChip";
 import { ResponseTrailItem } from "./ResponseTrailItem";
@@ -29,6 +39,25 @@ import { StatusBadge } from "./StatusBadge";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 const MAX_FREE_TEXT = 500;
+const ANIMATION_MS = 300;
+
+// Same embeds as getComplaintDetail (packages/api-client/src/complaints.js).
+const COMPLAINT_SELECT = `
+  *,
+  reporter:reporter_id ( user_id, full_name ),
+  reporter_flat:reporter_flat_id ( number, wing:wing_id ( name ) ),
+  owner:owner_id ( user_id, full_name )
+`;
+const RESPONSE_SELECT = `
+  id,
+  response_kind,
+  free_text,
+  responder_id,
+  responder_flat_id,
+  created_at,
+  responder:responder_id ( user_id, full_name ),
+  responder_flat:responder_flat_id ( number, wing:wing_id ( name ) )
+`;
 
 function formatFlat(flatJoin) {
   if (!flatJoin) return "—";
@@ -63,6 +92,7 @@ export function ComplaintDetailClient({
   role,
 }) {
   const { t } = useTranslation("complaints");
+  const router = useRouter();
   const [complaint, setComplaint] = useState(initialComplaint);
   const [responses, setResponses] = useState(initialResponses ?? []);
   const [pendingKind, setPendingKind] = useState(null);
@@ -72,39 +102,75 @@ export function ComplaintDetailClient({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [animatedResponseIds, setAnimatedResponseIds] = useState(new Set());
 
-  const cleanupRef = useRef(null);
+  const animTimersRef = useRef(new Set());
 
   const isBoard = BOARD_ROLES.has(role);
+  const complaintId = complaint?.id;
 
-  // Realtime — append new responses as they arrive.
+  // Re-read the complaint row with its joins (owner name, reporter flat).
+  const refetchComplaint = useCallback(async () => {
+    if (!complaintId) return;
+    const supabase = createSupabaseBrowserClient();
+    const row = await fetchRowById(supabase, "complaints", COMPLAINT_SELECT, complaintId);
+    if (row) setComplaint((prev) => ({ ...prev, ...row }));
+  }, [complaintId]);
+
+  // Realtime — append new responses (with joins) and follow the complaint row.
   useEffect(() => {
-    const complaintId = complaint?.id;
     if (!complaintId) return undefined;
     const supabase = createSupabaseBrowserClient();
-    cleanupRef.current = subscribeToComplaintResponses(supabase, complaintId, (row) => {
-      setResponses((prev) => {
-        if (prev.some((r) => r.id === row.id)) return prev;
-        return [...prev, row];
-      });
-      setAnimatedResponseIds((prev) => {
-        const next = new Set(prev);
-        next.add(row.id);
-        return next;
-      });
-      setTimeout(() => {
-        setAnimatedResponseIds((prev) => {
-          if (!prev.has(row.id)) return prev;
-          const next = new Set(prev);
-          next.delete(row.id);
-          return next;
-        });
-      }, 300);
-    });
+    const timers = animTimersRef.current;
+    let active = true;
+
+    const unsubscribeResponses = subscribeToComplaintResponses(
+      supabase,
+      complaintId,
+      async (raw) => {
+        const fetched = await fetchRowById(
+          supabase,
+          "complaint_responses",
+          RESPONSE_SELECT,
+          raw?.id,
+        );
+        const row = fetched ?? raw;
+        if (!active || !row?.id) return;
+        setResponses((prev) => upsertById(prev, row, { append: true }));
+        setAnimatedResponseIds((prev) => new Set([...prev, row.id]));
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          setAnimatedResponseIds((prev) => {
+            if (!prev.has(row.id)) return prev;
+            const next = new Set(prev);
+            next.delete(row.id);
+            return next;
+          });
+        }, ANIMATION_MS);
+        timers.add(timer);
+      },
+    );
+
+    const channel = supabase
+      .channel(uniqueChannelName(`complaint-${complaintId}`))
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "complaints", filter: `id=eq.${complaintId}` },
+        async (payload) => {
+          const fresh = await fetchRowById(supabase, "complaints", COMPLAINT_SELECT, complaintId);
+          if (!active) return;
+          const next = fresh ?? payload?.new;
+          if (next) setComplaint((prev) => ({ ...prev, ...next }));
+        },
+      )
+      .subscribe();
+
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      active = false;
+      unsubscribeResponses?.();
+      supabase.removeChannel(channel);
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
     };
-  }, [complaint?.id]);
+  }, [complaintId]);
 
   async function handleChipClick(kind) {
     if (pendingKind) return;
@@ -125,21 +191,15 @@ export function ComplaintDetailClient({
         } else if (result.claimed) {
           setComplaint((prev) => ({ ...prev, ...result.complaint }));
           setFreeText("");
+          // The claim RPC returns the bare row — re-read for the owner join.
+          refetchComplaint();
           // Realtime will append the response row; avoid double-render here.
         } else {
-          // Race lost
-          setClaimLost({ name: "Another board member", flat: "—" });
-          // Refresh page to pick up the new owner — we don't have a refetch
-          // helper, so we trigger a route refresh via location.reload-light.
-          // Actually: simpler — surface the new owner via re-fetching the
-          // complaint row when the next Realtime UPDATE arrives. For now,
-          // mark complaint owner_id as non-null with placeholder so action
-          // row shifts to Case C.
-          setComplaint((prev) => ({
-            ...prev,
-            owner_id: "00000000-0000-0000-0000-000000000000",
-            owner: { full_name: "Another board member" },
-          }));
+          // Race lost — keep the typed text; the banner names the real owner
+          // once the re-read lands.
+          setClaimLost(true);
+          await refetchComplaint();
+          router.refresh();
         }
       } else if (ownerId === userId) {
         // Case B — owner adds another response
@@ -152,8 +212,7 @@ export function ComplaintDetailClient({
           // Realtime will deliver the response row.
         }
       }
-    } catch (err) {
-      console.warn("[ComplaintDetail] action failed:", err?.message ?? err);
+    } catch {
       setActionError(t("complaint.submitError"));
     } finally {
       setPendingKind(null);
@@ -184,7 +243,7 @@ export function ComplaintDetailClient({
     else actionCase = "c";
   }
 
-  const ownerName = complaint?.owner?.full_name ?? "—";
+  const ownerName = complaint?.owner?.full_name ?? t("complaint.anotherBoardMember");
   const ownerFlat = "—"; // owner's flat not joined on the detail query (matches mobile)
 
   const counterColor =
@@ -197,9 +256,9 @@ export function ComplaintDetailClient({
         <Link
           href="/complaints"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to complaints"
+          aria-label={t("complaint.backToList")}
         >
-          ← Back
+          ← {t("complaint.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("complaint.detailTitle")}
@@ -232,28 +291,24 @@ export function ComplaintDetailClient({
             <button
               type="button"
               onClick={() => setPhotoOpen(true)}
-              aria-label="Open complaint photo full size"
+              aria-label={t("complaint.photoOpen")}
               className="block w-full"
               style={{ aspectRatio: "4 / 3" }}
             >
               {/* biome-ignore lint/performance/noImgElement: signed Supabase URLs not compatible with next/image */}
               <img
                 src={signedPhotoUrl}
-                alt="Complaint attachment"
+                alt={t("complaint.photoAlt")}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
             </button>
             <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
               <DialogContent className="max-w-3xl p-0 bg-black">
-                <DialogTitle className="sr-only">Complaint photo</DialogTitle>
+                <DialogTitle className="sr-only">{t("complaint.photoAlt")}</DialogTitle>
                 {/* biome-ignore lint/performance/noImgElement: signed Supabase URLs not compatible with next/image */}
-                <img
-                  src={signedPhotoUrl}
-                  alt="Complaint attachment full size"
-                  className="w-full h-auto"
-                />
-                <DialogClose className="sr-only">Close</DialogClose>
+                <img src={signedPhotoUrl} alt={t("complaint.photoAlt")} className="w-full h-auto" />
+                <DialogClose className="sr-only">{t("complaint.close")}</DialogClose>
               </DialogContent>
             </Dialog>
           </section>
@@ -324,14 +379,15 @@ export function ComplaintDetailClient({
                 {actionError}
               </p>
             ) : null}
-            {claimLost ? (
-              <div role="alert" className="rounded-xl border border-[#12715A] bg-[#f5f7ff] p-4">
-                <p className="text-sm text-[#171717]">
-                  {t("complaint.claimLost", { name: claimLost.name, flat: claimLost.flat })}
-                </p>
-              </div>
-            ) : null}
           </section>
+        ) : null}
+
+        {claimLost ? (
+          <div role="alert" className="rounded-xl border border-[#12715A] bg-[#f5f7ff] p-4">
+            <p className="text-sm text-[#171717]">
+              {t("complaint.claimLost", { name: ownerName, flat: ownerFlat })}
+            </p>
+          </div>
         ) : null}
 
         {actionCase === "c" ? (

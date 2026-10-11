@@ -66,11 +66,12 @@ export default function DirectoryPage() {
       if (fetchErr) throw fetchErr;
       setMembers(data ?? []);
     } catch (err) {
-      setError(err?.message ?? "Failed to load directory");
+      console.error("[directory] load failed:", err?.message ?? err);
+      setError(t("common.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, t]);
 
   useEffect(() => {
     load();

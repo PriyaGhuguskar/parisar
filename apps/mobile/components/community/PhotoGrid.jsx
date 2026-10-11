@@ -18,6 +18,7 @@ import { COMMUNITY_BUCKET } from "@parisar/api-client";
 import { Image } from "expo-image";
 import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dimensions, Modal, Pressable, View } from "react-native";
 
 const GAP = 4;
@@ -27,41 +28,61 @@ const GAP = 4;
  * { [storageKey]: { thumb, full } }. Thumbnails are transformed to width 400 q80;
  * the lightbox uses an untransformed signed URL.
  */
+const SIGNED_URL_TTL_S = 3600;
+
+async function signThumb(bucket, key) {
+  try {
+    const { data } = await bucket.createSignedUrl(key, SIGNED_URL_TTL_S, {
+      transform: { width: 400, quality: 80 },
+    });
+    return data?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function signFullBatch(bucket, keys) {
+  try {
+    const { data } = await bucket.createSignedUrls(keys, SIGNED_URL_TTL_S);
+    return new Map((data ?? []).map((row) => [row.path, row.signedUrl ?? null]));
+  } catch {
+    return new Map();
+  }
+}
+
 function useSignedPhotoUrls(supabase, attachments) {
   const [urls, setUrls] = useState({});
+  // Re-sign only when the set of keys changes, not on every new array identity
+  // (feeds re-render rows on each realtime refresh).
+  const keysSig = (attachments ?? [])
+    .map((a) => a?.storage_key)
+    .filter(Boolean)
+    .join("|");
 
   useEffect(() => {
     let active = true;
-    if (!supabase || !attachments || attachments.length === 0) {
+    const keys = keysSig ? keysSig.split("|") : [];
+    if (!supabase || keys.length === 0) {
       setUrls({});
       return undefined;
     }
     (async () => {
+      const bucket = supabase.storage.from(COMMUNITY_BUCKET);
+      // Thumbnails need a per-file transform; full-size URLs go in one batch.
+      const [thumbs, fulls] = await Promise.all([
+        Promise.all(keys.map((key) => signThumb(bucket, key))),
+        signFullBatch(bucket, keys),
+      ]);
       const next = {};
-      for (const att of attachments) {
-        const key = att?.storage_key;
-        if (!key) continue;
-        try {
-          const { data: thumbData } = await supabase.storage
-            .from(COMMUNITY_BUCKET)
-            .createSignedUrl(key, 3600, { transform: { width: 400, quality: 80 } });
-          const { data: fullData } = await supabase.storage
-            .from(COMMUNITY_BUCKET)
-            .createSignedUrl(key, 3600);
-          next[key] = {
-            thumb: thumbData?.signedUrl ?? null,
-            full: fullData?.signedUrl ?? null,
-          };
-        } catch {
-          next[key] = { thumb: null, full: null };
-        }
-      }
+      keys.forEach((key, i) => {
+        next[key] = { thumb: thumbs[i], full: fulls.get(key) ?? null };
+      });
       if (active) setUrls(next);
     })();
     return () => {
       active = false;
     };
-  }, [supabase, attachments]);
+  }, [supabase, keysSig]);
 
   return urls;
 }
@@ -73,6 +94,7 @@ function useSignedPhotoUrls(supabase, attachments) {
  * }} props
  */
 export function PhotoGrid({ attachments = [], supabase }) {
+  const { t } = useTranslation(["community", "auth"]);
   const urls = useSignedPhotoUrls(supabase, attachments);
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
@@ -100,7 +122,7 @@ export function PhotoGrid({ attachments = [], supabase }) {
           style={{ backgroundColor: "rgba(0,0,0,0.92)" }}
           onPress={() => setLightboxUrl(null)}
           accessibilityRole="button"
-          accessibilityLabel="Close photo"
+          accessibilityLabel={t("auth:common.closePhoto")}
         >
           {lightboxUrl ? (
             <Image
@@ -134,13 +156,14 @@ export function PhotoGrid({ attachments = [], supabase }) {
 }
 
 function PhotoThumb({ attachment, urls, onPress, aspectRatio = 1 }) {
+  const { t } = useTranslation(["community", "auth"]);
   const key = attachment?.storage_key;
   const url = urls[key]?.thumb ?? null;
   return (
     <Pressable
       onPress={() => onPress(key)}
       accessibilityRole="button"
-      accessibilityLabel="Open photo"
+      accessibilityLabel={t("auth:common.openPhoto")}
       style={{
         flex: 1,
         aspectRatio,

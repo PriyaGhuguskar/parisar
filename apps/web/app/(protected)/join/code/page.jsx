@@ -1,24 +1,20 @@
-"use client";
+// /join/code — share-link landing (e.g. /join/code?code=PAR7-XKM2).
+//
+// The legacy code-entry form called validate_society_code / list_society_structure
+// and redeem_society_code, all revoked by migration 054. The live join flow is
+// the /onboarding wizard (onboard_flats_for_code → onboard_resident), which
+// takes the code as a prefill. A signed-out visitor is sent to sign in by the
+// (protected) layout first; anyone already in a society is sent on to the
+// dashboard by /onboarding.
+//
+// JavaScript only — no TypeScript per CLAUDE.md.
 
-import { useSearchParams } from "next/navigation";
-import CodeEntry from "../../../../components/join/CodeEntry";
+import { redirect } from "next/navigation";
+import { onboardingHrefForCode } from "../../../../lib/join-link";
 
-/**
- * /join/code — Society Code entry page.
- *
- * Supports deep-link pre-fill: /join/code?code=PAR7-XKM2 pre-fills the code input.
- *
- * Flow: code entry → (inline preview) → "Yes, join" → /join/profile
- */
-export default function JoinCodePage() {
-  const searchParams = useSearchParams();
-  const initialCode = searchParams.get("code") ?? "";
+export const dynamic = "force-dynamic";
 
-  return (
-    <div className="flex justify-center px-4 py-12">
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        <CodeEntry initialCode={initialCode} />
-      </div>
-    </div>
-  );
+export default async function JoinCodePage({ searchParams }) {
+  const query = (await searchParams) ?? {};
+  redirect(onboardingHrefForCode(query.code));
 }

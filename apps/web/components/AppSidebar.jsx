@@ -44,8 +44,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { resetDashboardSummary } from "../lib/dashboard-summary-store";
+import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { ProfileMenuDropdown } from "./dashboard/ProfileMenuDropdown";
 import { SocietySwitcherDropdown } from "./dashboard/SocietySwitcherDropdown";
 import { SosButton } from "./sos/SosButton";
@@ -67,15 +70,72 @@ import {
  * @param {string} props.fullName
  * @param {string|undefined} [props.flatLabel]
  * @param {Array<{society_id: string, society_name: string}>} [props.memberships]
+ * @param {boolean} [props.tokenStale]  my_active_society() says the access
+ *   token predates a switch / role change → refresh it once on mount.
  *
  * Note: the active society NAME is derived inside SocietySwitcherDropdown from
  * the memberships list, so AppSidebar does not need a societyName prop.
  */
-export function AppSidebar({ userId, societyId, role, fullName, flatLabel, memberships = [] }) {
+export function AppSidebar({
+  userId,
+  societyId,
+  role,
+  fullName,
+  flatLabel,
+  memberships = [],
+  tokenStale = false,
+}) {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useTranslation("dashboard");
   const { t: tv } = useTranslation("auth"); // visitor.* live in the flat "auth" file
   const p = pathname || "";
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState(null);
+  const refreshedStaleToken = useRef(false);
+
+  // The server resolved the active society from the database, but the cookie's
+  // JWT (which RLS reads) was issued before a switch / role change. Re-issue it
+  // once so RLS and the UI agree, then re-render the server tree.
+  useEffect(() => {
+    if (!tokenStale || refreshedStaleToken.current) return;
+    refreshedStaleToken.current = true;
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth
+      .refreshSession()
+      .then(({ error }) => {
+        if (!error) router.refresh();
+      })
+      .catch(() => {
+        // Non-fatal: the next natural token refresh picks up the new claims.
+      });
+  }, [tokenStale, router]);
+
+  // Society switch: persist the choice server-side (set_active_society), then
+  // refresh the session so the Auth Hook re-issues society_id/role in the JWT,
+  // drop cached per-society client state, and re-render the server tree.
+  async function handleSwitchSociety(nextSocietyId) {
+    if (!nextSocietyId || nextSocietyId === societyId || isSwitching) return;
+    setIsSwitching(true);
+    setSwitchError(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.rpc("set_active_society", {
+        p_society_id: nextSocietyId,
+      });
+      if (error) throw error;
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw refreshError;
+      resetDashboardSummary();
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      console.error("[AppSidebar] society switch failed:", err?.message ?? err);
+      setSwitchError(t("switcher.error"));
+    } finally {
+      setIsSwitching(false);
+    }
+  }
 
   // Built inside the component so locale changes refresh the labels (Plan 07-06).
   const SOCIETY_NAV = [
@@ -205,15 +265,18 @@ export function AppSidebar({ userId, societyId, role, fullName, flatLabel, membe
           </span>
         </span>
 
-        <SocietySwitcherDropdown
-          memberships={memberships}
-          activeSocietyId={societyId}
-          onSelect={() => {
-            // Visual-only stub per user decision #1 — Phase 8 wires the real
-            // switch (JWT refresh so society_id changes; threat T-04.1-01).
-            // PAR-100: removed console.log that leaked the society UUID.
-          }}
-        />
+        <div aria-busy={isSwitching || undefined}>
+          <SocietySwitcherDropdown
+            memberships={memberships}
+            activeSocietyId={societyId}
+            onSelect={handleSwitchSociety}
+          />
+          {switchError ? (
+            <p role="alert" className="mt-1 text-xs" style={{ color: "var(--color-danger)" }}>
+              {switchError}
+            </p>
+          ) : null}
+        </div>
 
         {/* Emergency SOS — reachable from every page, not just home. */}
         {societyId ? (

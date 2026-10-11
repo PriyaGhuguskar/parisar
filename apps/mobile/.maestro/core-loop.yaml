@@ -1,0 +1,89 @@
+# Core loop E2E — Member files a complaint → Board member responds → status
+# updates → Member sees it. (CLAUDE.md "if everything else fails, this loop must work".)
+#
+# NOT run in CI — needs a local Supabase stack + a dev build on an emulator.
+#
+# Prerequisites:
+#   - `supabase start` + `supabase db reset --local` (seed.sql) — the test_otp
+#     block in supabase/config.toml maps the +9190000000xx numbers to OTP 123456.
+#   - Dev build installed: appId app.parisar.mobile.
+#   - MEMBER_PHONE is an ACTIVE member and BOARD_PHONE a board_member / secretary of
+#     the SAME society (onboard them once by hand or via the isolation helpers).
+#     Defaults: 9000000003 (member) / 9000000005 (Phase 6 Society A secretary).
+#
+# Run:
+#   maestro test apps/mobile/.maestro/core-loop.yaml
+#   maestro test -e MEMBER_PHONE=9000000003 -e BOARD_PHONE=9000000005 apps/mobile/.maestro/core-loop.yaml
+#
+# Copy is the English locale (packages/i18n/locales/en) — run with the device in English.
+appId: app.parisar.mobile
+env:
+  MEMBER_PHONE: "9000000003"
+  BOARD_PHONE: "9000000005"
+  OTP: "123456"
+  COMPLAINT_TEXT: "Maestro core loop: lift on wing A stuck since morning"
+---
+# ---- 1. Member signs in and files a complaint ----------------------------
+- launchApp:
+    clearState: true
+- assertVisible: "Enter your mobile number"
+- tapOn: "Enter your mobile number"
+- inputText: ${MEMBER_PHONE}
+- tapOn: "Send OTP"
+- assertVisible: "Enter the OTP"
+- inputText: ${OTP}
+- tapOn: "Verify"
+- extendedWaitUntil:
+    visible: "My Complaints"
+    timeout: 20000
+- tapOn: "My Complaints"
+- tapOn: "File a Complaint"
+- tapOn: "Society Issue"
+- tapOn: "Describe the issue"
+- inputText: ${COMPLAINT_TEXT}
+- hideKeyboard
+- tapOn: "Submit Complaint"
+- extendedWaitUntil:
+    visible: ${COMPLAINT_TEXT}
+    timeout: 15000
+- tapOn: "Log out"
+
+# ---- 2. Board member claims it with a status response -------------------
+- launchApp:
+    clearState: true
+- tapOn: "Enter your mobile number"
+- inputText: ${BOARD_PHONE}
+- tapOn: "Send OTP"
+- inputText: ${OTP}
+- tapOn: "Verify"
+- extendedWaitUntil:
+    visible: "My Complaints"
+    timeout: 20000
+- tapOn: "My Complaints"
+- extendedWaitUntil:
+    visible: ${COMPLAINT_TEXT}
+    timeout: 15000
+- tapOn: ${COMPLAINT_TEXT}
+- assertVisible: "Respond"
+- tapOn: "Will resolve soon"
+- extendedWaitUntil:
+    visible: "You own this complaint."
+    timeout: 15000
+- tapOn: "Log out"
+
+# ---- 3. Member sees the attributed status update -------------------------
+- launchApp:
+    clearState: true
+- tapOn: "Enter your mobile number"
+- inputText: ${MEMBER_PHONE}
+- tapOn: "Send OTP"
+- inputText: ${OTP}
+- tapOn: "Verify"
+- extendedWaitUntil:
+    visible: "My Complaints"
+    timeout: 20000
+- tapOn: "My Complaints"
+- tapOn: ${COMPLAINT_TEXT}
+- assertVisible: "Updates"
+- assertVisible: "Will resolve soon"
+- assertVisible: "Owned by.*"

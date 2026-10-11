@@ -6,52 +6,84 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { residentDecideVisit } from "@parisar/api-client";
-import { Check, DoorOpen, X } from "lucide-react-native";
+import { Check, DoorOpen, WifiOff, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../../components/kit";
+import {
+  EmptyState,
+  PageHeader,
+  SmallButton,
+  StatusPill,
+  SurfaceCard,
+} from "../../../components/kit";
+import { Text } from "../../../components/ui/Text";
 import { getSupabase } from "../../../lib/supabase";
+import { useMyContext } from "../../../lib/use-my-context";
+import { useSocietyRealtime } from "../../../lib/use-society-realtime";
 
-const DECIDED_TONE = { approved: "done", denied: "danger", cancelled: "neutral" };
+const DECIDED_TONE = {
+  approved: "done",
+  denied: "danger",
+  cancelled: "neutral",
+  expired: "neutral",
+};
+
+function decidedLabel(t, status) {
+  if (status === "approved") return t("visitor.statusApproved");
+  if (status === "expired") return t("visitor.statusExpired");
+  return t("visitor.statusDenied");
+}
 
 export default function VisitorsScreen() {
   const { t } = useTranslation(["auth", "dashboard"]);
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const me = useMyContext();
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   const load = useCallback(async () => {
-    const { data } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from("visitor_requests")
       .select("id, visitor_name, visitor_phone, purpose, status, created_at")
       .order("created_at", { ascending: false })
       .limit(40);
+    setLoading(false);
+    if (error) {
+      console.warn("[visitors] load failed:", error.message ?? error);
+      setLoadError(true);
+      return;
+    }
+    setLoadError(false);
     setRequests(Array.isArray(data) ? data : []);
   }, []);
 
   useEffect(() => {
     load();
-    const supabase = getSupabase();
-    const channel = supabase
-      .channel(`resident-visits-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "visitor_requests" }, () =>
-        load(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [load]);
+
+  // Live while focused: only this flat's requests (RLS shows nothing else).
+  useSocietyRealtime("visitor_requests", me.flatId ?? null, load, { column: "flat_id" });
 
   async function decide(id, approve) {
     setBusyId(id);
+    setActionError(null);
     try {
-      await residentDecideVisit(getSupabase(), { requestId: id, approve });
-      await load();
+      const res = await residentDecideVisit(getSupabase(), { requestId: id, approve });
+      if (res?.error === "VISIT_EXPIRED") setActionError(t("visitor.expiredError"));
+      else if (res?.error === "ALREADY_DECIDED") setActionError(t("visitor.alreadyDecided"));
+      else if (res?.error) setActionError(t("common.loadError"));
+    } catch (err) {
+      console.warn("[visitors] decide failed:", err?.message ?? err);
+      setActionError(t("auth.obErr"));
     } finally {
       setBusyId(null);
+      await load();
     }
   }
 
@@ -83,7 +115,28 @@ export default function VisitorsScreen() {
         <Text className="pb-2 text-xs font-bold uppercase tracking-wide text-neutral-400">
           {t("visitor.atGate")}
         </Text>
-        {pending.length === 0 ? (
+        {actionError ? (
+          <Text className="pb-2 text-sm text-danger-500" accessibilityRole="alert">
+            {actionError}
+          </Text>
+        ) : null}
+        {loading ? (
+          <ActivityIndicator color="#12715A" style={{ marginTop: 16 }} />
+        ) : loadError ? (
+          <EmptyState
+            icon={WifiOff}
+            title={t("common.loadError")}
+            action={
+              <SmallButton
+                label={t("common.retry")}
+                onPress={() => {
+                  setLoading(true);
+                  load();
+                }}
+              />
+            }
+          />
+        ) : pending.length === 0 ? (
           <EmptyState icon={DoorOpen} title={t("visitor.noPending")} />
         ) : (
           <View className="gap-3">
@@ -139,9 +192,7 @@ export default function VisitorsScreen() {
                   {r.purpose ? <Text className="text-sm text-neutral-600">{r.purpose}</Text> : null}
                 </View>
                 <StatusPill tone={DECIDED_TONE[r.status] ?? "neutral"}>
-                  {r.status === "approved"
-                    ? t("visitor.statusApproved")
-                    : t("visitor.statusDenied")}
+                  {decidedLabel(t, r.status)}
                 </StatusPill>
               </SurfaceCard>
             ))}

@@ -22,10 +22,25 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { createClient } from "@supabase/supabase-js";
+import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cleanText, isUuid } from "@/lib/validation";
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const ROLES = new Set(["staff", "sales"]);
+const MAX_NAME = 80;
+
+/** The caller's cookie-bound client when they are a platform ADMIN, else an error. */
+async function adminClient() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "AUTH_REQUIRED" };
+  const { data: isAdmin, error } = await supabase.rpc("is_platform_admin");
+  if (error || isAdmin !== true) return { error: "NOT_PLATFORM_ADMIN" };
+  return { supabase, user };
+}
 
 function serviceRole() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,15 +79,13 @@ export async function createPlatformUser({ phone: rawPhone, name, role }) {
   // one value that must never get through.
   if (!ROLES.has(role)) return { error: "INVALID_ROLE" };
 
-  // ---- Gate FIRST. Nothing below runs for a non-admin. --------------------
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "AUTH_REQUIRED" };
+  const cleanName = cleanText(name, { max: MAX_NAME, optional: true });
+  if (!cleanName.ok) return { error: "INVALID_NAME" };
 
-  const { data: isAdmin } = await supabase.rpc("is_platform_admin");
-  if (!isAdmin) return { error: "NOT_PLATFORM_ADMIN" };
+  // ---- Gate FIRST. Nothing below runs for a non-admin. --------------------
+  const gate = await adminClient();
+  if (gate.error) return { error: gate.error };
+  const { supabase } = gate;
 
   // ---- Only now is it safe to hold the service role. ----------------------
   let sb;
@@ -86,13 +99,15 @@ export async function createPlatformUser({ phone: rawPhone, name, role }) {
 
   // Reuse an existing account if this number already has one — a resident being
   // hired should keep their identity rather than hit a duplicate-phone failure.
-  const { data: listed, error: listErr } = await sb.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
+  // Exact lookup by phone (migration 056, service role only). The old
+  // listUsers({perPage:1000}) + find silently missed everyone past user 1000
+  // and would then try to create a duplicate.
+  const { data: existingId, error: findErr } = await sb.rpc("find_user_id_by_phone", {
+    p_phone: e164,
   });
-  if (listErr) return { error: "SERVER_ERROR" };
+  if (findErr) return { error: "SERVER_ERROR" };
 
-  let targetId = (listed?.users ?? []).find((u) => u.phone === `91${phone}`)?.id ?? null;
+  let targetId = existingId ?? null;
 
   if (!targetId) {
     const { data: created, error: createErr } = await sb.auth.admin.createUser({
@@ -103,7 +118,7 @@ export async function createPlatformUser({ phone: rawPhone, name, role }) {
     targetId = created.user.id;
   }
 
-  const trimmed = String(name ?? "").trim();
+  const trimmed = cleanName.value ?? "";
   if (trimmed) {
     // Best-effort: a missing display name must not fail an appointment.
     await sb
@@ -130,14 +145,16 @@ export async function createPlatformUser({ phone: rawPhone, name, role }) {
  *
  * @returns {Promise<{ok: true} | {error: string}>}
  */
-export async function approveSalesApplication({ id, phone, name }) {
+export async function approveSalesApplication({ id, phone, name } = {}) {
+  if (!isUuid(id)) return { error: "INVALID_INPUT" };
   const appointed = await createPlatformUser({ phone, name, role: "sales" });
   if (appointed.error) return appointed;
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const gate = await adminClient();
+  if (gate.error) return { error: gate.error };
+  const { error } = await gate.supabase
     .from("sales_applications")
-    .update({ status: "approved", handled_by: (await supabase.auth.getUser()).data.user?.id })
+    .update({ status: "approved", handled_by: gate.user.id })
     .eq("id", id);
 
   // The appointment already succeeded — that is the part that matters. Report a
@@ -153,8 +170,9 @@ export async function approveSalesApplication({ id, phone, name }) {
  * @returns {Promise<{users: Array<object>} | {error: string}>}
  */
 export async function listPlatformUsers() {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("admin_list_platform_users");
+  const gate = await adminClient();
+  if (gate.error) return { error: gate.error };
+  const { data, error } = await gate.supabase.rpc("admin_list_platform_users");
   if (error) return { error: codeFrom(error) };
   return { users: data ?? [] };
 }
@@ -165,8 +183,10 @@ export async function listPlatformUsers() {
  * @returns {Promise<{ok: true} | {error: string}>}
  */
 export async function revokePlatformUser(userId) {
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("admin_revoke_platform_user", { p_user_id: userId });
+  if (!isUuid(userId)) return { error: "INVALID_USER" };
+  const gate = await adminClient();
+  if (gate.error) return { error: gate.error };
+  const { error } = await gate.supabase.rpc("admin_revoke_platform_user", { p_user_id: userId });
   if (error) return { error: codeFrom(error) };
   return { ok: true };
 }

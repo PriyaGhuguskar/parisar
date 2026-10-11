@@ -16,9 +16,14 @@
 //   8. pickAndUploadComplaintPhoto(supabase, societyId, complaintId)   ← mobile only
 //   9. uploadComplaintPhotoWeb(supabase, societyId, complaintId, file) ← web only
 //  10. registerPushToken(supabase, opts)
+//  11. unregisterPushToken(supabase, expoToken)
+//  12. fetchUnreadComplaintCount(supabase, { userId, since })
 
 import { COMPLAINT_KIND, COMPLAINT_STATUS, RESPONSE_LABELS } from "@parisar/shared-types";
+import { readNativeFileAsBytes } from "./native-file.js";
+import { applyNewestFirstCursor } from "./pagination.js";
 import { uniqueChannelName } from "./realtime-channel.js";
+import { cryptoRandomUUID } from "./uuid.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { fileComplaint, COMPLAINT_STATUS } from '@parisar/api-client';
@@ -35,19 +40,18 @@ export const COMPLAINTS_BUCKET = "parisar-attachments";
  * List complaints for the current society (RLS scopes server-side).
  *
  * Returns the complaint row plus joined reporter + flat + wing display fields.
- * Ordered by created_at desc.
+ * Ordered by (created_at desc, id desc).
  *
  * @param {object} supabase            - Authenticated supabase-js client
- * @param {{ limit?: number, cursor?: string|null }} [opts]
+ * @param {{ limit?: number, cursor?: string|{createdAt: string, id: string}|null }} [opts]
  *   - limit:  page size, default 30
- *   - cursor: ISO timestamp; when provided, returns rows created_at < cursor
+ *   - cursor: composite { createdAt, id } of the last row of the previous page
+ *             (see nextCursorFrom); a bare ISO timestamp is still accepted.
  * @returns {Promise<Array>} complaint rows with embedded reporter/flat/wing
  */
 export async function listComplaints(supabase, { limit = 30, cursor = null } = {}) {
-  let q = supabase
-    .from("complaints")
-    .select(
-      `
+  let q = supabase.from("complaints").select(
+    `
         id,
         society_id,
         reporter_id,
@@ -64,13 +68,8 @@ export async function listComplaints(supabase, { limit = 30, cursor = null } = {
         reporter_flat:reporter_flat_id ( number, wing:wing_id ( name ) ),
         owner:owner_id ( user_id, full_name )
       `,
-    )
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (cursor) {
-    q = q.lt("created_at", cursor);
-  }
+  );
+  q = applyNewestFirstCursor(q, cursor).limit(limit);
 
   const { data, error } = await q;
   if (error) throw error;
@@ -357,7 +356,6 @@ export async function pickAndUploadComplaintPhoto(supabase, societyId, complaint
   // resolution at build time — these only run on RN, where Metro handles them.
   const ImagePicker = await import(/* webpackIgnore: true */ "expo-image-picker");
   const ImageManipulator = await import(/* webpackIgnore: true */ "expo-image-manipulator");
-  const FileSystem = await import(/* webpackIgnore: true */ "expo-file-system");
 
   // 1. Permission gate.
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -379,19 +377,11 @@ export async function pickAndUploadComplaintPhoto(supabase, societyId, complaint
     format: ImageManipulator.SaveFormat.JPEG,
   });
 
-  // 4. Read the resized file as base64 — only way to get ArrayBuffer from file://.
-  const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  // 4. Read the resized file as base64 (expo-file-system/legacy) → Uint8Array —
+  //    the only way to get bytes from a file:// URI.
+  const bytes = await readNativeFileAsBytes(manipResult.uri);
 
-  // 5. base64 → binary string → Uint8Array.
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  // 6. Upload under the RLS-enforced society prefix.
+  // 5. Upload under the RLS-enforced society prefix.
   const photoId = cryptoRandomUUID();
   const storageKey = `${societyId}/complaints/${complaintId}/${photoId}.jpg`;
 
@@ -440,15 +430,20 @@ export async function uploadComplaintPhotoWeb(supabase, societyId, complaintId, 
 }
 
 // ---------------------------------------------------------------------------
-// Push token registration
+// Push token registration (contract-055: SECURITY DEFINER RPCs)
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert a push token row for the current user.
+ * Register (or re-claim) this device's push token for the current user.
  *
- * - user_id is fetched server-side via supabase.auth.getUser() — NEVER trust a
- *   client-supplied user_id (threat T-04-14).
- * - On conflict on expo_token (unique), updates last_seen_at + notifications_enabled.
+ * Calls `register_push_token(p_token, p_platform, p_device_label)`. The RPC takes
+ * user_id from auth.uid() (never client-supplied, threat T-04-14) and re-assigns a
+ * token that was previously registered by another account on the same device — a
+ * direct upsert cannot, because RLS hides the other user's row.
+ *
+ * Call after every sign-in.
+ *
+ * Errors: AUTH_REQUIRED, INVALID_TOKEN, INVALID_PLATFORM (thrown).
  *
  * @param {object} supabase
  * @param {{ expoToken: string, platform: 'ios'|'android'|'web', deviceLabel?: string|null }} opts
@@ -457,54 +452,80 @@ export async function uploadComplaintPhotoWeb(supabase, societyId, complaintId, 
 export async function registerPushToken(supabase, { expoToken, platform, deviceLabel = null }) {
   const { data: userRes, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw userErr;
-  const userId = userRes?.user?.id;
-  if (!userId) return null;
+  if (!userRes?.user?.id) return null;
 
-  const { error } = await supabase.from("push_tokens").upsert(
-    {
-      user_id: userId,
-      expo_token: expoToken,
-      platform,
-      device_label: deviceLabel,
-      last_seen_at: new Date().toISOString(),
-      notifications_enabled: true,
-    },
-    { onConflict: "expo_token" },
-  );
+  const { error } = await supabase.rpc("register_push_token", {
+    p_token: expoToken,
+    p_platform: platform,
+    p_device_label: deviceLabel,
+  });
   if (error) throw error;
   return expoToken;
+}
+
+/**
+ * Remove this device's push token for the current user. Call BEFORE signOut, while
+ * the session is still valid.
+ *
+ * Calls `unregister_push_token(p_token)`.
+ *
+ * @param {object} supabase
+ * @param {string} expoToken
+ * @returns {Promise<boolean>} true when a row owned by the caller was deleted.
+ * @throws on transport / AUTH_REQUIRED errors.
+ */
+export async function unregisterPushToken(supabase, expoToken) {
+  if (!expoToken) return false;
+  const { data, error } = await supabase.rpc("unregister_push_token", { p_token: expoToken });
+  if (error) throw error;
+  return data === true;
+}
+
+// ---------------------------------------------------------------------------
+// Unread complaint count (My Complaints red dot)
+// ---------------------------------------------------------------------------
+
+// Upper bound on response rows scanned for the badge (the dot only needs > 0; the
+// count is capped well beyond anything a single member realistically accumulates).
+const UNREAD_SCAN_LIMIT = 500;
+
+/**
+ * Count the caller's OWN complaints that received a response from someone else
+ * after `since`.
+ *
+ * There is no per-user read-marker table in the schema (complaints has no
+ * updated_at, and no complaint_reads table exists), so "seen" is a client-side
+ * timestamp: the caller persists `since` (e.g. AsyncStorage / localStorage) when
+ * the My Complaints screen is opened and passes it in here. Every status change is
+ * written as a complaint_responses row (claim_complaint / add_complaint_response),
+ * so a newer response by another person == an unseen update.
+ *
+ * @param {object} supabase
+ * @param {{ userId: string, since?: string|null }} opts
+ *   - userId: auth user id (reporter)
+ *   - since:  ISO timestamp of the last visit; null → nothing is unread yet
+ * @returns {Promise<number>} number of distinct complaints with unseen responses
+ * @throws on query errors
+ */
+export async function fetchUnreadComplaintCount(supabase, { userId, since = null } = {}) {
+  if (!userId || !since) return 0;
+  if (Number.isNaN(Date.parse(since))) throw new Error("INVALID_SINCE");
+
+  const { data, error } = await supabase
+    .from("complaint_responses")
+    .select("complaint_id, complaint:complaint_id!inner ( reporter_id )")
+    .eq("complaint.reporter_id", userId)
+    .neq("responder_id", userId)
+    .gt("created_at", since)
+    .limit(UNREAD_SCAN_LIMIT);
+  if (error) throw error;
+
+  return new Set((data ?? []).map((r) => r.complaint_id)).size;
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Cross-runtime UUID generator. `crypto.randomUUID` exists in:
- *   - Node 19+ (globalThis.crypto)
- *   - All modern browsers (web crypto)
- *   - React Native via `expo-crypto` polyfill (loaded by Expo Router setup)
- *
- * Falls back to a v4-shaped string built from getRandomValues if randomUUID
- * is unavailable (older RN runtimes).
- */
-function cryptoRandomUUID() {
-  const g = globalThis.crypto;
-  if (g && typeof g.randomUUID === "function") {
-    return g.randomUUID();
-  }
-  // Fallback: build RFC4122 v4 UUID from random bytes.
-  const bytes = new Uint8Array(16);
-  if (g && typeof g.getRandomValues === "function") {
-    g.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 function guessExtensionFromMime(mime) {
   if (!mime) return null;

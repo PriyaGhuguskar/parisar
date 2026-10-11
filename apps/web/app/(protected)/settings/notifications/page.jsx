@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NotificationSettingsPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["preferences"]);
+  const { t } = await initTranslations(lng, ["preferences", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -51,9 +51,9 @@ export default async function NotificationSettingsPage() {
         <Link
           href="/dashboard"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to dashboard"
+          aria-label={t("auth:common.backToDashboard")}
         >
-          ← Dashboard
+          ← {t("auth:common.dashboard")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">{t("prefs.title")}</h1>
       </header>

@@ -8,6 +8,7 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { GUARD_ROLE } from "@parisar/api-client";
+import { resolveActiveSociety } from "./activeSociety";
 
 /**
  * Resolve the caller's role by reading the tables, never the JWT claims.
@@ -21,10 +22,10 @@ import { GUARD_ROLE } from "@parisar/api-client";
  * membership first would fall through to `null` for them. Guard before
  * membership for the same reason — a guard deliberately has no membership row.
  *
- * The membership query orders by `joined_at desc` to match `inject_society_claims`
- * in the guard-visitor migration. If the two ever order differently, a
- * multi-society user routes to one society while their JWT scopes them to
- * another — silent, and painful to debug.
+ * The membership role comes from resolveActiveSociety (the `my_active_society()`
+ * RPC), which applies the same rule as `inject_society_claims`. Keeping ONE
+ * resolver means a multi-society user can never route to one society while
+ * their JWT scopes them to another.
  *
  * @returns {Promise<{role: string|null, guard: object|null}>}
  */
@@ -37,17 +38,12 @@ export async function resolveCallerRole(supabase, user) {
     .select("id, society_id, name, societies:society_id(name)")
     .eq("user_id", user.id)
     .eq("status", "active")
+    // A phone may guard several societies — same choice as the Auth Hook.
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (guard) return { role: GUARD_ROLE, guard };
 
-  const { data: membership } = await supabase
-    .from("society_memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .order("joined_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return { role: membership?.role ?? null, guard: null };
+  const active = await resolveActiveSociety(supabase, user);
+  return { role: active.societyId ? active.role : null, guard: null };
 }

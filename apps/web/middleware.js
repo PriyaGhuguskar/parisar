@@ -1,9 +1,10 @@
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
- * Next.js middleware — wires Supabase session refresh on every request.
- * Per @supabase/ssr: session must be refreshed in middleware so server components
- * receive the updated cookie without a round-trip.
+ * Next.js middleware — refreshes the Supabase session on every request and
+ * denies signed-out access to everything outside the public allowlist
+ * (lib/supabase/middleware.js isPublicPath). Per @supabase/ssr: the session must
+ * be refreshed in middleware so server components receive the updated cookie.
  *
  * @param {import("next/server").NextRequest} request
  */

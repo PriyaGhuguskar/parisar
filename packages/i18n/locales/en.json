@@ -5,7 +5,34 @@
     "direction": "ltr"
   },
   "common": {
-    "appName": "Parisar"
+    "appName": "Parisar",
+    "goBack": "Go back",
+    "done": "Done",
+    "cancel": "Cancel",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "takePhoto": "Take a photo",
+    "chooseFromGallery": "Choose from gallery",
+    "removePhoto": "Remove photo",
+    "loadError": "Couldn't load. Please try again.",
+    "retry": "Try again",
+    "closePhoto": "Close photo",
+    "openPhoto": "Open photo",
+    "loadFailed": "Couldn't load this. Check your connection and try again.",
+    "genericError": "Something went wrong. Please try again.",
+    "back": "Back",
+    "backToDashboard": "Back to dashboard",
+    "dashboard": "Dashboard",
+    "yourSociety": "Your Society",
+    "skipToContent": "Skip to content",
+    "openNavigation": "Open navigation",
+    "errorTitle": "Something went wrong",
+    "errorBody": "This screen hit an unexpected error. You can try again — nothing was lost.",
+    "errorBodyGlobal": "The app hit an unexpected error. You can try again — your data is safe.",
+    "tryAgain": "Try again",
+    "errorRef": "Ref: {{ref}}",
+    "loading": "Loading",
+    "working": "Working…"
   },
   "auth": {
     "sendOtp": "Send OTP",
@@ -122,7 +149,10 @@
     "structWingNamePh": "e.g. A",
     "structSharedTitle": "These floors apply to every wing",
     "structWingsDuplicate": "Each wing needs a different name.",
-    "structReviewSame": "{{wings}} wings × {{each}} flats · {{flats}} total"
+    "structReviewSame": "{{wings}} wings × {{each}} flats · {{flats}} total",
+    "retry": "Try again",
+    "pinLocked": "Too many wrong PINs. Try again in {{minutes}} minutes.",
+    "reauthRequired": "For your security, please verify your number again."
   },
   "dashboard": {
     "placeholder": {
@@ -132,12 +162,21 @@
     "joinedPercent": {
       "heading": "Members joined",
       "ofFlats": "{{joined}} of {{total}} flats joined",
-      "complete": "All flats joined!"
+      "complete": "All flats joined!",
+      "loading": "Loading join percentage"
     },
     "code": {
       "heading": "Society Code",
       "rotateLink": "Rotate code",
-      "pausedAlert": "Your code is paused due to suspicious activity."
+      "pausedAlert": "Your code is paused due to suspicious activity.",
+      "a11yCode": "Society code: {{code}}",
+      "copyA11y": "Copy society code",
+      "shareA11y": "Share society code",
+      "rotateA11y": "Rotate society code",
+      "codeLabel": "Society code: {{code}}",
+      "codeNotLoaded": "Society code not loaded",
+      "copyLabel": "Copy society code",
+      "shareLabel": "Share society code via WhatsApp"
     },
     "reviewQueue": {
       "heading": "Flat conflicts to review",
@@ -177,7 +216,9 @@
       "wingPlaceholder": "e.g. A, B, West Block",
       "noWings": "My society has no wings",
       "wingsRequired": "Please add at least one wing, or select 'no wings'.",
-      "wingDuplicate": "Wing {{name}} already added."
+      "wingDuplicate": "Wing {{name}} already added.",
+      "wingTooLong": "Wing name must be {{max}} characters or fewer.",
+      "singleBlockHint": "All flats will be under one block."
     },
     "step3": {
       "title": "Flats",
@@ -187,19 +228,51 @@
       "flatCount": "{{count}} flats added",
       "secretaryFlatLabel": "Which flat is yours?",
       "secretaryFlatHelper": "You'll be added to the member directory in this flat.",
-      "secretaryFlatRequired": "Please select your flat."
+      "secretaryFlatRequired": "Please select your flat.",
+      "wingHeading": "Wing {{wing}}",
+      "flatDuplicate": "Flat {{flat}} already added to Wing {{wing}}.",
+      "rangeInvalid": "Invalid range for Wing {{wing}}. From must be ≤ To.",
+      "flatNotFound": "Could not locate your flat. Please verify and try again.",
+      "addRange": "Add a range",
+      "hideRange": "Hide range entry",
+      "addAll": "Add All",
+      "noFlatsForWing": "No flats added for Wing {{wing}} yet."
     },
     "step4": {
       "title": "Board members",
       "subtitle": "You're already on the board as Secretary. Add co-secretary and other board members.",
       "duplicateMobile": "This mobile is already added.",
-      "skip": "Skip this step"
+      "skip": "Skip this step",
+      "youSecretary": "You (Secretary)",
+      "addHeading": "Add a board member",
+      "namePlaceholder": "Member's name",
+      "wingLabel": "Wing",
+      "phoneLabel": "Mobile number",
+      "addCta": "Add Member",
+      "removeMember": "Remove {{name}}",
+      "nameMin": "Name must be at least 2 characters.",
+      "flatRequired": "Please select a wing and flat.",
+      "coSecAutoElevated": "This number is your Co-Secretary — they will be auto-elevated on join. No need to add them here.",
+      "statusAdded": "Added to the board",
+      "statusAlreadyBoard": "Already on the board",
+      "statusNotRegistered": "Not registered on Parisar yet — they can join with the Society Code",
+      "notRegisteredNote": "Some numbers aren't registered on Parisar yet. Share the Society Code with them, then add them to the board once they join. Tap Continue to go on.",
+      "addFailed": "Could not add: {{names}}. Please try again.",
+      "errFlat": "That flat isn't in this society.",
+      "errSelf": "You can't change your own role.",
+      "errNotSecretary": "Only the Secretary can add board members.",
+      "errGeneric": "Couldn't add this member."
     },
     "step5": {
       "title": "Amenities",
       "subtitle": "Select the amenities available in your society.",
       "customPlaceholder": "Add a custom amenity",
-      "skip": "Skip this step"
+      "skip": "Skip this step",
+      "addCustom": "Add",
+      "customTooLong": "Custom amenity name must be {{max}} characters or fewer.",
+      "errNotSecretary": "Only the Secretary can add amenities.",
+      "errTooMany": "Too many amenities at once (max 50).",
+      "errInvalid": "Check the amenity names and try again."
     },
     "step6": {
       "heading": "Your society is ready!",
@@ -227,7 +300,15 @@
     "pausedHeading": "Your code is paused",
     "resume": "Resume Code",
     "rotateToNew": "Rotate to New Code",
-    "resumedSuccess": "Code is active again."
+    "resumedSuccess": "Code is active again.",
+    "noSociety": "Society not found. Please go back and try again.",
+    "loadError": "Couldn't load the society code. Please try again.",
+    "errNotAllowed": "Only the Secretary or Co-Secretary can change the society code.",
+    "codeAria": "Society code: {{code}}",
+    "codeMissing": "Society code not loaded",
+    "rotating": "Rotating…",
+    "resumeError": "Couldn't resume the code. Please try again.",
+    "resuming": "Resuming…"
   },
   "reviewQueue": {
     "heading": "Flat Conflicts",
@@ -237,7 +318,14 @@
     "removeBoth": "Remove both",
     "resolved": "All flat conflicts resolved.",
     "joinedAgo": "Joined {{time}}",
-    "vs": "vs"
+    "vs": "vs",
+    "loadError": "Couldn't load flat conflicts. Please try again.",
+    "errNotAllowed": "Only the Secretary or Co-Secretary can review flat conflicts.",
+    "errAlreadyResolved": "This claim was already resolved. The list has been refreshed.",
+    "statusActive": "Active",
+    "statusPending": "Pending",
+    "flatHeading": "Flat {{flat}}",
+    "joinedOn": "Joined {{date}}"
   },
   "directory": {
     "title": "Members",
@@ -250,7 +338,16 @@
     "phoneRevealYes": "Yes",
     "phoneRevealNo": "No",
     "owner": "Owner",
-    "tenant": "Tenant"
+    "tenant": "Tenant",
+    "pressToReveal": "Press to reveal.",
+    "revealing": "Revealing phone",
+    "notFound": "Member not found.",
+    "backToDirectory": "Back to members",
+    "residency": "Residency",
+    "joined": "Joined",
+    "familyMembers": "Family members",
+    "phoneRevealLabel": "Phone number hidden. Press to reveal.",
+    "phoneRevealFailed": "Couldn't reveal the number"
   },
   "removal": {
     "title": "Remove member",
@@ -271,7 +368,11 @@
     "typedSelfLabel": "Type your own name to confirm",
     "confirmCta": "Transfer role",
     "cancel": "Cancel",
-    "success": "Secretary role transferred. Your access has changed."
+    "success": "Secretary role transferred. Your access has changed.",
+    "loadError": "Couldn't load eligible members. Please try again.",
+    "errNotAllowed": "Only the current Secretary can transfer the role.",
+    "noEligible": "No eligible members found. Only Co-Secretary and Board Members can become Secretary.",
+    "mismatchError": "Name does not match. Type your own name to confirm."
   },
   "join": {
     "heading": "Join your society",
@@ -309,14 +410,20 @@
     "success": {
       "heading": "You're in!",
       "body": "Welcome to {{societyName}}, {{name}}. Your profile is visible to other residents.",
-      "cta": "Go to Dashboard"
+      "cta": "Go to Dashboard",
+      "coSecretaryChip": "You've been added as Co-Secretary."
     },
     "pending": {
       "heading": "Your join is under review",
       "body": "Flat {{flatNumber}} is already registered to another resident. Your join has been recorded and the Secretary will review your case within 24 hours.",
       "info": "You can see the society directory while your case is under review. Actions like filing complaints and booking amenities will be available after approval.",
       "cta": "Go to Society"
-    }
+    },
+    "nameMin": "Please enter your name (at least 2 characters).",
+    "membershipRemoved": "You were removed from this society. Ask the Secretary to add you back.",
+    "householdType": "Household type",
+    "removeFamilyMember": "Remove family member",
+    "familyMax": "Contact the Secretary to add more family members."
   },
   "profile": {
     "title": "Profile",
@@ -390,7 +497,12 @@
     "noAmenities": "No amenities added yet.",
     "amenityRemove": "Remove",
     "amenitySaveError": "Couldn't save. Please try again.",
-    "amenityNameRequired": "Enter a name."
+    "amenityNameRequired": "Enter a name.",
+    "emergencyInvalid": "Enter a valid emergency number (digits only, up to 40 characters).",
+    "editAmenity": "Edit amenity",
+    "closedTillPast": "Choose today or a later date.",
+    "amenitiesLoadError": "Couldn't load amenities.",
+    "invalidContact": "Enter a valid contact number (digits, spaces, brackets or dashes; up to 40 characters)."
   },
   "visitor": {
     "gateTitle": "Gate",
@@ -430,7 +542,14 @@
     "guardExists": "This number is already a guard here.",
     "guardInvalidPhone": "Enter a valid 10-digit number.",
     "guardAddError": "Couldn't add the guard. Please try again.",
-    "noGuards": "No guards yet."
+    "noGuards": "No guards yet.",
+    "statusExpired": "Expired",
+    "expiredError": "This request expired. Ask the guard to raise it again.",
+    "alreadyDecided": "This request was already answered.",
+    "rateLimited": "Too many requests in a short time. Please wait a few minutes.",
+    "statusCancelled": "Cancelled",
+    "visitExpired": "This request has expired. Ask the gate to raise a new one.",
+    "decideError": "Couldn't save your answer. Please try again."
   },
   "highlights": {
     "edit": "Edit",
@@ -516,7 +635,12 @@
     "bannerTitle": "Emergency",
     "raisedBy": "Raised by {{who}}",
     "resolve": "Mark resolved",
-    "justNow": "just now"
+    "justNow": "just now",
+    "resolveError": "Couldn't mark it resolved. Please try again.",
+    "rateLimited": "You've sent several alerts just now. Please wait a few minutes, or call for help directly.",
+    "sent": "Alert sent. The people you chose have been notified.",
+    "close": "Close",
+    "resolveNotAllowed": "Only the person who raised it or the Secretary can resolve this."
   },
   "landing": {
     "navSignIn": "Log in",
@@ -737,7 +861,8 @@
     "enrollTime": "Time",
     "enrollPastErr": "Choose a time in the future.",
     "enrollNeedWhen": "Choose when we should call.",
-    "enrollNowHint": "We'll ring you as soon as someone is free."
+    "enrollNowHint": "We'll ring you as soon as someone is free.",
+    "rateLimited": "Too many requests. Please try again later."
   },
   "authority": {
     "societyDashboard": "Society Dashboard",
@@ -795,5 +920,21 @@
     "since": "Since {{date}}",
     "help": "Please contact your society committee or Parisar support.",
     "blockedJoin": "This society is blocked on Parisar, so new residents can't join right now."
+  },
+  "memberDetail": {
+    "joined": "Joined",
+    "familyMembers": "Family members",
+    "errNotAllowed": "Only the Secretary or Co-Secretary can remove members."
+  },
+  "confirm": {
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "This can't be undone.",
+    "typeToConfirm": "Type \"{{name}}\" to confirm",
+    "removeCta": "Remove",
+    "cancel": "Cancel",
+    "mismatch": "That doesn't match.",
+    "removing": "Removing…",
+    "removeError": "Couldn't remove. Please try again.",
+    "notAllowed": "You don't have permission to remove this."
   }
 }

@@ -70,8 +70,8 @@ export const WATCHED_TABLES = [
  *   first SUBSCRIBED is treated as the initial connection and does NOT fire
  *   onReconnect — the caller already loaded its initial data via SSR or
  *   fetchSummary.
- * @returns {() => void}
- *   Idempotent unsubscribe. Tearing down a non-existent channel never throws.
+ * @returns {() => Promise<void>}
+ *   Idempotent unsubscribe (awaits removeChannel). Never throws / rejects.
  */
 export function subscribeDashboardRealtime(supabase, societyId, onPatch, onReconnect) {
   if (!supabase || !societyId) {
@@ -80,7 +80,12 @@ export function subscribeDashboardRealtime(supabase, societyId, onPatch, onRecon
     return () => {};
   }
 
-  const channelName = `dashboard:${societyId}`;
+  // Unique per mount: supabase.channel(name) RETURNS the existing channel when
+  // one with that name is still open, and adding .on() to an already-subscribed
+  // channel throws. StrictMode / fast remounts subscribe again before the old
+  // channel is removed. (Same scheme as api-client's uniqueChannelName, which
+  // the package does not export.)
+  const channelName = `dashboard:${societyId}:${Math.random().toString(36).slice(2)}`;
   const channel = supabase.channel(channelName);
   let armedOnce = false;
 
@@ -124,12 +129,19 @@ export function subscribeDashboardRealtime(supabase, societyId, onPatch, onRecon
     }
   });
 
+  let removed = null;
   return () => {
-    try {
-      supabase.removeChannel(channel);
-    } catch {
-      // Idempotent — Supabase removeChannel is safe to call twice; we eat the
-      // error so callers' cleanup paths stay quiet on hot reload / unmount.
-    }
+    // Idempotent: a second call returns the same in-flight removal.
+    if (removed) return removed;
+    removed = (async () => {
+      try {
+        await supabase.removeChannel(channel);
+      } catch (err) {
+        // Never throw out of a React cleanup; the channel is already being torn
+        // down by the socket on unmount / hot reload.
+        console.warn("[dashboard-realtime] removeChannel failed:", err?.message ?? err);
+      }
+    })();
+    return removed;
   };
 }

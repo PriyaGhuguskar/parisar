@@ -17,9 +17,12 @@
 import { fetchRecentJoiners } from "@parisar/api-client";
 import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 import { getAvatarColor, initials } from "../../lib/avatar";
 import { getSupabase } from "../../lib/supabase";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { Text } from "../ui/Text";
 
 /**
  * Derive a "B-203"-style flat label from the embedded flats/wings shape.
@@ -39,6 +42,8 @@ function flatLabel(flats) {
  * @param {string|null|undefined} props.societyId
  */
 export function RecentJoinersSection({ societyId }) {
+  const { t } = useTranslation("auth");
+  const dateLocale = useDateLocale();
   // null = loading; [] = empty; [...] = data
   const [joiners, setJoiners] = useState(null);
 
@@ -65,15 +70,17 @@ export function RecentJoinersSection({ societyId }) {
 
   return (
     <View className="mb-4">
-      <Text className="text-base font-semibold text-neutral-900 mb-2 px-4">Recently joined</Text>
+      <Text className="text-base font-semibold text-neutral-900 mb-2 px-4">
+        {t("dashboard.recentJoiners.heading")}
+      </Text>
       <View className="bg-white rounded-2xl mx-4 border border-neutral-200">
         {joiners.map((j, idx) => {
-          const name = j.profiles?.full_name ?? "Member";
+          const name = j.profiles?.full_name ?? t("profile.roleMember");
           const flat = flatLabel(j.flats);
           const joinedAt = j.joined_at ? new Date(j.joined_at) : null;
           const timeAgo =
             joinedAt && !Number.isNaN(joinedAt.getTime())
-              ? formatDistanceToNow(joinedAt, { addSuffix: true })
+              ? formatDistanceToNow(joinedAt, { addSuffix: true, locale: dateLocale })
               : "";
           const color = getAvatarColor(name);
           const isLast = idx === joiners.length - 1;

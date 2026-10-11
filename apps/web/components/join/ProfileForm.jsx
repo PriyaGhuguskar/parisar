@@ -1,9 +1,9 @@
 "use client";
 
-import { joinBySocietyCode, mapSocietyCodeError } from "@parisar/api-client";
+import { mapSocietyCodeError } from "@parisar/api-client";
 import { ChevronDown, LockKeyhole, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useJoinState } from "../../lib/join-state";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
@@ -14,7 +14,6 @@ const MAX_FAMILY_MEMBERS = 5;
  * Segmented control (2 options) — web version.
  */
 function SegmentedControl({ options, value, onChange }) {
-  const { t } = useTranslation("auth");
   return (
     <div className="flex h-11 rounded-xl overflow-hidden border border-[var(--color-neutral-200)]">
       {options.map(({ key, label }, idx) => (
@@ -128,11 +127,11 @@ export default function ProfileForm({ userProfile }) {
 
     if (!canSubmit) {
       if (fullName.trim().length < 2) {
-        setError("Please enter your name (at least 2 characters).");
+        setError(t("auth.obNeedName"));
         return;
       }
       if (!selectedFlatId) {
-        setError("Please select your flat.");
+        setError(t("auth.obNeedFlat"));
         return;
       }
       return;
@@ -144,50 +143,53 @@ export default function ProfileForm({ userProfile }) {
     try {
       const supabase = createSupabaseBrowserClient();
 
-      // 1. Redeem the society code (refreshSession called inside joinBySocietyCode on success)
-      const result = await joinBySocietyCode(supabase, {
-        code,
-        flatId: selectedFlatId,
-        residency,
-        household,
-        emergencyContact: emergencyContact.trim() || null,
+      // contract-054: redeem_society_code, family_members inserts and profile
+      // phone writes are revoked. onboard_resident does join + name + family in
+      // one call (the api-client has no wrapper yet, so it is called directly).
+      const validFamilyMembers = familyMembers.filter((fm) => fm.name.trim().length >= 2);
+      const { data: result, error: rpcError } = await supabase.rpc("onboard_resident", {
+        p_code: code,
+        p_flat_id: selectedFlatId,
+        p_full_name: fullName.trim(),
+        p_residency: residency,
+        p_alt_phone: null,
+        p_family: validFamilyMembers.map((fm) => ({
+          name: fm.name.trim(),
+          phone: fm.phone.trim() || null,
+        })),
       });
 
-      if (result.error) {
+      if (rpcError) {
+        const tooMany = String(rpcError.message ?? "").includes("TOO_MANY_CODE_ATTEMPTS");
+        setError(tooMany ? t("join.rateLimited") : t("auth.networkError"));
+        return;
+      }
+      if (result?.error) {
         setError(resolveI18nKey(mapSocietyCodeError(result)));
         return;
       }
 
-      // 2. Insert family members (JWT now has society_id from refreshSession)
-      const validFamilyMembers = familyMembers.filter((fm) => fm.name.trim().length >= 2);
-      if (validFamilyMembers.length > 0) {
-        // PAR-106: never discard the {error} — silently dropping family members is
-        // data loss on the core join loop. The membership RPC upserts on conflict,
-        // so surfacing the failure lets the user safely retry rather than lose rows.
-        const { error: familyError } = await supabase.from("family_members").insert(
-          validFamilyMembers.map((fm) => ({
-            society_id: result.societyId,
-            membership_id: result.membershipId,
-            full_name: fm.name.trim(),
-            phone: fm.phone.trim() || null,
-          })),
-        );
-        if (familyError) {
-          setError(t("auth.networkError"));
-          return;
-        }
-      }
+      // The JWT must carry the new society before any RLS-scoped read.
+      await supabase.auth.refreshSession();
 
-      // 3. Update profiles.full_name if changed
-      if (userProfile?.userId && fullName.trim() !== (userProfile.full_name ?? "")) {
-        // PAR-106: same — a failed name update must not be silently swallowed.
-        const { error: nameError } = await supabase
-          .from("profiles")
-          .update({ full_name: fullName.trim() })
-          .eq("user_id", userProfile.userId);
-        if (nameError) {
-          setError(t("auth.networkError"));
-          return;
+      // Emergency contact is per-membership and goes through its own RPC.
+      if (emergencyContact.trim() && userProfile?.userId) {
+        const { data: membership } = await supabase
+          .from("society_memberships")
+          .select("id")
+          .eq("user_id", userProfile.userId)
+          .eq("society_id", result.society_id)
+          .eq("flat_id", selectedFlatId)
+          .maybeSingle();
+        if (membership?.id) {
+          const { error: ecError } = await supabase.rpc("update_my_emergency_contact", {
+            p_membership_id: membership.id,
+            p_emergency_contact: emergencyContact.trim(),
+          });
+          if (ecError) {
+            setError(t("profile.invalidContact"));
+            return;
+          }
         }
       }
 
@@ -197,7 +199,7 @@ export default function ProfileForm({ userProfile }) {
         joinResult: {
           status: result.status,
           flatNumber: flatObj?.number ?? selectedFlatId,
-          autoElevatedToCoSecretary: result.autoElevatedToCoSecretary,
+          autoElevatedToCoSecretary: false,
           societyName: society?.name ?? "",
         },
       });
@@ -238,7 +240,7 @@ export default function ProfileForm({ userProfile }) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           maxLength={60}
-          placeholder="Full name"
+          placeholder={t("auth.namePlaceholder")}
           autoCapitalize="words"
           className="h-12 px-3 rounded-lg border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] text-base text-[var(--color-neutral-900)] placeholder:text-[var(--color-neutral-400)] outline-none focus:border-[var(--color-brand-700)] focus:ring-2 focus:ring-[var(--color-brand-700)]/20 transition-colors"
         />
@@ -246,7 +248,7 @@ export default function ProfileForm({ userProfile }) {
 
       {/* Mobile — locked */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm text-[var(--color-neutral-600)]">Mobile</label>
+        <span className="text-sm text-[var(--color-neutral-600)]">{t("auth.obYourMobile")}</span>
         <div className="h-12 px-3 rounded-lg border border-[var(--color-neutral-200)] bg-[var(--color-neutral-100)] flex items-center gap-2">
           <span className="text-base text-[var(--color-neutral-600)] flex-1">
             {userProfile?.phone ?? ""}

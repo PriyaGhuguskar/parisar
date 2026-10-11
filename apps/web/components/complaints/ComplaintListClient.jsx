@@ -20,10 +20,32 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
+import { fetchRowById, upsertById } from "../shared/realtime";
 import { ComplaintCard } from "./ComplaintCard";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 const STATUS_OPEN_SET = new Set(["open", "checking", "will_resolve", "need_info"]);
+const ANIMATION_MS = 300;
+
+// Same embeds as listComplaints (packages/api-client/src/complaints.js) so a
+// Realtime INSERT renders with reporter name + flat instead of "—".
+const COMPLAINT_LIST_SELECT = `
+  id,
+  society_id,
+  reporter_id,
+  reporter_flat_id,
+  kind,
+  description,
+  status,
+  owner_id,
+  claimed_at,
+  resolved_at,
+  language_code,
+  created_at,
+  reporter:reporter_id ( user_id, full_name ),
+  reporter_flat:reporter_flat_id ( number, wing:wing_id ( name ) ),
+  owner:owner_id ( user_id, full_name )
+`;
 
 /**
  * @param {{
@@ -50,49 +72,49 @@ export function ComplaintListClient({
   // Track ids of rows that just arrived via Realtime so we can animate them once.
   const [animatedIds, setAnimatedIds] = useState(new Set());
 
-  const cleanupRef = useRef(null);
+  const animTimersRef = useRef(new Set());
 
   // Realtime subscription — uses the browser client (cookie session shared).
   useEffect(() => {
     if (!societyId) return undefined;
     const supabase = createSupabaseBrowserClient();
+    const timers = animTimersRef.current;
+    let active = true;
 
-    cleanupRef.current = subscribeToComplaints(supabase, societyId, {
-      onInsert: (row) => {
+    const unsubscribe = subscribeToComplaints(supabase, societyId, {
+      onInsert: async (raw) => {
         // Member view: defensive client filter (RLS already handles this).
-        if (!isBoard && row?.reporter_id !== userId) return;
-        setComplaints((prev) => {
-          if (prev.some((c) => c.id === row.id)) return prev;
-          return [row, ...prev];
-        });
-        setAnimatedIds((prev) => {
-          const next = new Set(prev);
-          next.add(row.id);
-          return next;
-        });
+        if (!isBoard && raw?.reporter_id !== userId) return;
+        const row = await fetchRowById(supabase, "complaints", COMPLAINT_LIST_SELECT, raw?.id);
+        if (!active || !row) return;
+        setComplaints((prev) => upsertById(prev, row));
+        setAnimatedIds((prev) => new Set([...prev, row.id]));
         // Clear the animate flag after the animation duration so re-renders
         // don't keep replaying the slide-in.
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          timers.delete(timer);
           setAnimatedIds((prev) => {
             if (!prev.has(row.id)) return prev;
             const next = new Set(prev);
             next.delete(row.id);
             return next;
           });
-        }, 300);
+        }, ANIMATION_MS);
+        timers.add(timer);
       },
-      onUpdate: (row) => {
-        setComplaints((prev) => prev.map((c) => (c.id === row.id ? { ...c, ...row } : c)));
-      },
-      onConnected: () => {
-        // Optional reconnect refetch — left for the page's manual refresh; we
-        // rely on the next route navigation to re-hydrate from SSR.
+      onUpdate: async (raw) => {
+        const row = await fetchRowById(supabase, "complaints", COMPLAINT_LIST_SELECT, raw?.id);
+        if (!active) return;
+        const next = row ?? raw;
+        setComplaints((prev) => prev.map((c) => (c.id === next?.id ? { ...c, ...next } : c)));
       },
     });
 
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      active = false;
+      unsubscribe?.();
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
     };
   }, [societyId, isBoard, userId]);
 
@@ -118,12 +140,12 @@ export function ComplaintListClient({
           <Link
             href="/dashboard"
             className="text-sm text-[#0E5A48] hover:underline"
-            aria-label="Back to dashboard"
+            aria-label={t("complaint.backToDashboard")}
           >
-            ← Dashboard
+            ← {t("complaint.dashboardLink")}
           </Link>
           <h1 className="text-xl font-semibold text-[#171717] truncate">
-            {isBoard ? "Complaints" : "My Complaints"}
+            {isBoard ? t("complaint.listTitleBoard") : t("complaint.listTitleMine")}
           </h1>
         </div>
         <Link
@@ -141,12 +163,12 @@ export function ComplaintListClient({
         <div className="bg-white border-b border-neutral-100 px-4">
           <div className="flex gap-6 max-w-3xl mx-auto">
             <TabButton
-              label="Open"
+              label={t("complaint.tabOpen")}
               active={activeTab === "open"}
               onClick={() => setActiveTab("open")}
             />
             <TabButton
-              label="Resolved"
+              label={t("complaint.tabResolved")}
               active={activeTab === "resolved"}
               onClick={() => setActiveTab("resolved")}
             />
@@ -235,7 +257,7 @@ function ErrorState() {
         onClick={() => window.location.reload()}
         className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
       >
-        Try again
+        {t("complaint.tryAgain")}
       </button>
     </div>
   );

@@ -13,7 +13,6 @@
 //
 // listFlatActions returns exactly what RLS allows — the client never filters by flat.
 
-import { subscribeFlatActions } from "@parisar/api-client";
 import { formatDistanceToNow } from "date-fns";
 import { Lock, Plus, ShieldCheck, WifiOff } from "lucide-react";
 import Link from "next/link";
@@ -22,12 +21,32 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 import { OwnerChip } from "../complaints/OwnerChip";
+import { fetchRowById, uniqueChannelName, upsertById } from "../shared/realtime";
 import { FineStatusBadge } from "./FineStatusBadge";
 import { FlatActionKindBadge, KIND_ACCENT } from "./FlatActionKindBadge";
 import { FlatPicker, formatFlatLabel } from "./FlatPicker";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
+const ANIMATION_MS = 300;
+
+// Same embeds as listFlatActions (packages/api-client/src/flat-actions.js).
+const FLAT_ACTION_SELECT = `
+  id,
+  society_id,
+  flat_id,
+  issuer_id,
+  issuer_flat_id,
+  kind,
+  body,
+  amount,
+  due_date,
+  fine_status,
+  created_at,
+  issuer:issuer_id ( user_id, full_name ),
+  issuer_flat:issuer_flat_id ( number, wing:wing_id ( name ) ),
+  flat:flat_id ( number, wing:wing_id ( name ) )
+`;
 
 function safeAge(iso) {
   if (!iso) return "";
@@ -67,33 +86,66 @@ export function FlatActionsClient({
   const [filterFlatId, setFilterFlatId] = useState(null);
   const [activeTab, setActiveTab] = useState("all"); // 'all' | 'fines'
   const [animatedIds, setAnimatedIds] = useState(new Set());
-  const cleanupRef = useRef(null);
+  const animTimersRef = useRef(new Set());
 
+  // Realtime: INSERT (re-read with issuer/flat joins) + UPDATE (fine status —
+  // acknowledge / waive). Subscribed here rather than via subscribeFlatActions,
+  // which uses a static channel name and has no UPDATE handler.
   useEffect(() => {
     if (!societyId) return undefined;
     const supabase = createSupabaseBrowserClient();
-    cleanupRef.current = subscribeFlatActions(supabase, {
-      societyId,
-      flatId: isBoard ? null : memberFlatId,
-      onInsert: (row) => {
-        setActions((prev) => {
-          if (prev.some((a) => a.id === row.id)) return prev;
-          return [row, ...prev];
+    const timers = animTimersRef.current;
+    const flatId = isBoard ? null : memberFlatId;
+    const filter = flatId ? `flat_id=eq.${flatId}` : `society_id=eq.${societyId}`;
+    let active = true;
+
+    async function handleInsert(payload) {
+      const row = await fetchRowById(
+        supabase,
+        "flat_actions",
+        FLAT_ACTION_SELECT,
+        payload?.new?.id,
+      );
+      if (!active || !row) return;
+      setActions((prev) => upsertById(prev, row));
+      setAnimatedIds((prev) => new Set(prev).add(row.id));
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        setAnimatedIds((prev) => {
+          if (!prev.has(row.id)) return prev;
+          const next = new Set(prev);
+          next.delete(row.id);
+          return next;
         });
-        setAnimatedIds((prev) => new Set(prev).add(row.id));
-        setTimeout(() => {
-          setAnimatedIds((prev) => {
-            if (!prev.has(row.id)) return prev;
-            const next = new Set(prev);
-            next.delete(row.id);
-            return next;
-          });
-        }, 300);
-      },
-    });
+      }, ANIMATION_MS);
+      timers.add(timer);
+    }
+
+    function handleUpdate(payload) {
+      const row = payload?.new;
+      if (!row?.id) return;
+      setActions((prev) => prev.map((a) => (a.id === row.id ? { ...a, ...row } : a)));
+    }
+
+    const channel = supabase
+      .channel(uniqueChannelName(`flat-actions-${societyId}-${flatId ?? "all"}`))
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "flat_actions", filter },
+        handleInsert,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "flat_actions", filter },
+        handleUpdate,
+      )
+      .subscribe();
+
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      active = false;
+      supabase.removeChannel(channel);
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
     };
   }, [societyId, isBoard, memberFlatId]);
 
@@ -119,12 +171,12 @@ export function FlatActionsClient({
           <Link
             href="/dashboard"
             className="text-sm text-[#0E5A48] hover:underline"
-            aria-label="Back to dashboard"
+            aria-label={t("flatAction.backToDashboard")}
           >
-            ← Dashboard
+            ← {t("flatAction.dashboardLink")}
           </Link>
           <h1 className="text-xl font-semibold text-[#171717] truncate">
-            {isBoard ? t("flatAction.memberTitle") : t("flatAction.memberTitle")}
+            {isBoard ? t("flatAction.boardTitle") : t("flatAction.memberTitle")}
           </h1>
         </div>
         {isAdmin ? (
@@ -165,7 +217,7 @@ export function FlatActionsClient({
             />
             <div className="flex gap-6">
               <TabButton
-                label="All"
+                label={t("flatAction.tabAll")}
                 active={activeTab === "all"}
                 onClick={() => setActiveTab("all")}
               />
@@ -228,7 +280,7 @@ function FlatActionCard({ action, showFlatPill, onClick }) {
       tabIndex={0}
       onClick={() => onClick?.(action)}
       onKeyDown={handleKeyDown}
-      aria-label={`Flat action: ${(action?.body ?? "").slice(0, 60)}`}
+      aria-label={t("flatAction.openActionLabel", { excerpt: (action?.body ?? "").slice(0, 60) })}
       className="flex gap-2 bg-white rounded-xl shadow-sm border border-neutral-200 p-4 cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
     >
       <span
@@ -322,7 +374,7 @@ function ErrorState() {
         onClick={() => window.location.reload()}
         className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
       >
-        Try again
+        {t("flatAction.tryAgain")}
       </button>
     </div>
   );

@@ -20,7 +20,7 @@ const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
 
 export default async function NewFlatActionPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["flat-actions"]);
+  const { t } = await initTranslations(lng, ["flat-actions", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -52,9 +52,9 @@ export default async function NewFlatActionPage() {
         <Link
           href="/flat-actions"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to flat actions"
+          aria-label={t("flatAction.backToList")}
         >
-          ← Back
+          ← {t("auth:common.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("flatAction.issueTitle")}

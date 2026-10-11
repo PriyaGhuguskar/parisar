@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAvatarColor, initials } from "@/lib/avatar";
+import { resetDashboardSummary } from "@/lib/dashboard-summary-store";
 import { fetchFlatLabel } from "@/lib/flat-label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -170,7 +171,7 @@ export function ProfileMenuDropdown({
 
         {/* Sign Out — POST to server action so the cookie clear lands properly */}
         <DropdownMenuItem
-          render={<form action={signOutAction} />}
+          render={<form action={signOutAction} onSubmit={() => resetDashboardSummary()} />}
           className="text-[#c81e1e] focus:text-[#c81e1e]"
         >
           <button type="submit" className="w-full flex items-center text-left">

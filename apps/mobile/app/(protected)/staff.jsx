@@ -11,9 +11,10 @@
 
 import { Building2, Users } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LogoutButton } from "../../components/LogoutButton";
+import { Text } from "../../components/ui/Text";
 import { getSupabase } from "../../lib/supabase";
 
 const STATUS = {

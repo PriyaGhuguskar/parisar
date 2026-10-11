@@ -1,12 +1,13 @@
 import "../global.css";
 import { ensureNotificationPreferences } from "@parisar/api-client";
 import * as Notifications from "expo-notifications";
-import { router, Stack } from "expo-router";
+import { router, Stack, useRootNavigationState, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { useAuthStore } from "../lib/auth-store";
 import { getI18n, initI18n } from "../lib/i18n";
-import { registerForPushNotifications } from "../lib/push-registration";
+import { routeForNotification } from "../lib/notification-route";
+import { registerForPushNotifications, shouldShowPushExplainer } from "../lib/push-registration";
 import { getSupabase } from "../lib/supabase";
 
 /**
@@ -24,29 +25,127 @@ import { getSupabase } from "../lib/supabase";
  *
  * Push:
  *   - setNotificationHandler controls in-foreground display.
- *   - addNotificationResponseReceivedListener catches taps (app in background or killed)
- *     and deep-links to /complaints/{complaintId} via Expo Router.
- *   - registerForPushNotifications is invoked once a live session is detected
- *     (it self-guards if no projectId or no auth user; non-fatal on failure).
+ *   - useLastNotificationResponse catches taps — including the one that cold-
+ *     started the app — and, once the user is signed in and inside the app
+ *     tabs (past the splash / PIN / onboarding), opens the validated route
+ *     (lib/notification-route.js). Each response is handled once.
+ *   - registerForPushNotifications runs once per signed-in user and only
+ *     registers when the OS permission is ALREADY granted; the permission
+ *     prompt itself lives on notifications/permission. Signing out clears the
+ *     guard so the next sign-in registers again.
+ *   - usePushExplainer opens notifications/permission once for a user whose
+ *     OS permission is still undetermined.
  */
 
 // Foreground display rules — apply immediately at module load.
-// shouldShowAlert: true keeps the banner visible even when the app is open
+// Banner + list keep the notification visible even when the app is open
 // (the user files a complaint and the board responds while they're still on screen).
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
+/** Stable id for a notification response so a tap is only handled once. */
+function responseKey(response) {
+  const n = response?.notification;
+  return `${n?.request?.identifier ?? ""}:${n?.date ?? ""}:${response?.actionIdentifier ?? ""}`;
+}
+
+/**
+ * Open the screen a tapped notification points to — once the navigator is
+ * mounted, auth has hydrated and the user is inside the app tabs.
+ */
+function useNotificationTapRouting({ loading, session }) {
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const navState = useRootNavigationState();
+  const segments = useSegments();
+  const handledRef = useRef(null);
+  const inApp = segments[0] === "(protected)" && segments[1] === "(tabs)";
+  const navReady = Boolean(navState?.key);
+
+  useEffect(() => {
+    if (!lastResponse || loading || !session || !navReady || !inApp) return;
+    if (lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const key = responseKey(lastResponse);
+    if (handledRef.current === key) return;
+    handledRef.current = key;
+    const route = routeForNotification(lastResponse.notification?.request?.content?.data);
+    if (route) router.push(route);
+  }, [lastResponse, loading, session, navReady, inApp]);
+}
+
+/**
+ * Register this device's push token once per signed-in user (silently — only
+ * when permission is already granted) and provision notification preferences.
+ */
+function usePushRegistration(session) {
+  const registeredForUserRef = useRef(null);
+  const userId = session?.user?.id ?? null;
+  const societyId = session?.user?.app_metadata?.society_id ?? null;
+
+  useEffect(() => {
+    if (!userId) {
+      // Signed out: the next sign-in (same or another user) registers again.
+      registeredForUserRef.current = null;
+      return;
+    }
+    if (registeredForUserRef.current === userId) return;
+    registeredForUserRef.current = userId;
+
+    const supabase = getSupabase();
+    // Fire-and-forget — never blocks UI; the helper handles its own errors.
+    registerForPushNotifications(supabase);
+
+    // D-05 — idempotently provision the notification_preferences row for this
+    // user + active society. The preferences screen also calls this on mount.
+    if (societyId) {
+      ensureNotificationPreferences(supabase, societyId).catch((err) => {
+        console.warn("[root-layout] ensureNotificationPreferences failed:", err?.message ?? err);
+      });
+    }
+  }, [userId, societyId]);
+}
+
+const PUSH_EXPLAINER_ROUTE = "/(protected)/(tabs)/notifications/permission";
+
+/**
+ * Once per signed-in user, when they reach the app tabs and the OS has never
+ * been asked, open the notifications explainer (the only place the OS prompt
+ * is shown). "Not now" / "Enable" there mark it seen for good.
+ */
+function usePushExplainer(session) {
+  const segments = useSegments();
+  const navState = useRootNavigationState();
+  const checkedForUserRef = useRef(null);
+  const userId = session?.user?.id ?? null;
+  const inApp = segments[0] === "(protected)" && segments[1] === "(tabs)";
+  const navReady = Boolean(navState?.key);
+
+  useEffect(() => {
+    if (!userId) {
+      checkedForUserRef.current = null;
+      return undefined;
+    }
+    if (!inApp || !navReady || checkedForUserRef.current === userId) return undefined;
+    checkedForUserRef.current = userId;
+    let alive = true;
+    shouldShowPushExplainer().then((show) => {
+      if (alive && show) router.push(PUSH_EXPLAINER_ROUTE);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId, inApp, navReady]);
+}
+
 export default function RootLayout() {
   const session = useAuthStore((s) => s.session);
   const loading = useAuthStore((s) => s.loading);
   const initialize = useAuthStore((s) => s.initialize);
-
-  const pushRegisteredForUserRef = useRef(null);
 
   // Phase 7 Plan 07-03: i18n runtime readiness.
   // Holds the Stack from mounting until i18next has its default-namespace
@@ -76,48 +175,9 @@ export default function RootLayout() {
     return unsubscribe;
   }, [initialize]);
 
-  // Notification tap → deep-link to the originating screen.
-  // Phase 5 fan-out functions (notification-fanout, booking-ack-fanout) put a
-  // ready-to-use absolute `screen` path in the payload (notices/polls/bookings).
-  // Phase 4's push-fanout predates that and only carries `complaintId`.
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response?.notification?.request?.content?.data;
-      if (data?.screen) {
-        router.push(data.screen);
-      } else if (data?.complaintId) {
-        // Legacy Phase 4 payload — absolute path resolves inside the (protected) group.
-        router.push(`/(protected)/(tabs)/complaints/${data.complaintId}`);
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  // Register push token once a session is confirmed.
-  // Guard with a ref so we don't re-register on every auth state event
-  // (e.g. token refresh fires onAuthStateChange).
-  useEffect(() => {
-    const userId = session?.user?.id ?? null;
-    if (!userId) return;
-    if (pushRegisteredForUserRef.current === userId) return;
-
-    pushRegisteredForUserRef.current = userId;
-    const supabase = getSupabase();
-    // Fire-and-forget — never blocks UI; helper handles its own errors.
-    registerForPushNotifications(supabase);
-
-    // D-05 — idempotently provision the notification_preferences row for this
-    // user + active society on first login. Fire-and-forget: the UPSERT uses
-    // ignoreDuplicates so a re-login is a true no-op, and the preferences screen
-    // also calls this on mount as a backstop. Guarded behind the same ref so it
-    // only runs once per signed-in user.
-    const societyId = session?.user?.app_metadata?.society_id ?? null;
-    if (societyId) {
-      ensureNotificationPreferences(supabase, societyId).catch((err) => {
-        console.warn("[root-layout] ensureNotificationPreferences failed:", err?.message ?? err);
-      });
-    }
-  }, [session]);
+  useNotificationTapRouting({ loading, session });
+  usePushRegistration(session);
+  usePushExplainer(session);
 
   const isSignedIn = !!session;
 

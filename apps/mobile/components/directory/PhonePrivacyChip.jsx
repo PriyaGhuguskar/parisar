@@ -2,8 +2,9 @@ import { revealPhone } from "@parisar/api-client";
 import { Eye, EyeOff } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
+import { Text } from "../ui/Text";
 
 /**
  * PhonePrivacyChip — inline phone reveal with audit logging on every reveal (mobile).
@@ -74,7 +75,7 @@ export function PhonePrivacyChip({ targetUserId, mode = "member" }) {
         onPress={tapHidden}
         className="flex-row items-center gap-1 rounded-full bg-neutral-100 px-3 py-1"
         accessibilityRole="button"
-        accessibilityLabel={`${t("directory.phoneHidden")}. Press to reveal.`}
+        accessibilityLabel={`${t("directory.phoneHidden")}. ${t("directory.pressToReveal")}`}
       >
         <EyeOff size={16} color="#64748B" />
         <Text className="text-sm text-neutral-400">{t("directory.phoneHidden")}</Text>
@@ -107,7 +108,13 @@ export function PhonePrivacyChip({ targetUserId, mode = "member" }) {
   }
 
   if (state === "revealing") {
-    return <ActivityIndicator size="small" color="#12715A" accessibilityLabel="Revealing phone" />;
+    return (
+      <ActivityIndicator
+        size="small"
+        color="#12715A"
+        accessibilityLabel={t("directory.revealing")}
+      />
+    );
   }
 
   if (state === "revealed") {

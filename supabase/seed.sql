@@ -104,3 +104,25 @@ values
 -- creates auth.users via supabase.auth.admin.createUser. We deliberately do NOT
 -- ship a separate cross_tenant_isolation_setup.sql helper — keeping setup in the
 -- test file makes it self-contained, idempotent, and easier to maintain.
+
+-- ============================================================================
+-- LOCAL DEVELOPMENT ONLY — everything below exists so the local stack works.
+-- seed.sql runs ONLY on `supabase db reset` / first `supabase start` against
+-- the LOCAL database. `supabase db push` never runs it, so none of this can
+-- reach a deployed project. Do NOT copy these statements into a migration.
+-- ============================================================================
+
+-- 1. Dev OTP on screen (migration 20261011000055 §1). Turns on the inert
+--    dev_send_sms hook + dev_peek_otp, and lets the login screen (anon) call it.
+insert into app_private.dev_flags (key, enabled)
+values ('dev_otp', true)
+on conflict (key) do update set enabled = excluded.enabled, updated_at = now();
+
+grant execute on function public.dev_peek_otp(text) to anon, authenticated;
+
+-- 2. Push fan-out shared secret (migration 20261011000055 §2). Must equal
+--    FANOUT_WEBHOOK_SECRET in [edge_runtime.secrets] of supabase/config.toml.
+--    LOCAL VALUE — production uses a random secret (see supabase/DEPLOY.md).
+insert into app_private.runtime_config (key, value)
+values ('fanout_webhook_secret', 'local-dev-fanout-secret-not-for-production')
+on conflict (key) do update set value = excluded.value;

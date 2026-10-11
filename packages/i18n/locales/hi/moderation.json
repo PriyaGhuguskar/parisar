@@ -23,7 +23,9 @@
     "eventTarget": "{{target}} · {{reason}}",
     "emptyHeading": "समीक्षा के लिए कुछ नहीं",
     "emptyBody": "रिपोर्ट की गई पोस्ट और टिप्पणियां यहां दिखाई देंगी।",
-    "auditEmpty": "अभी तक कोई मॉडरेशन घटना नहीं।"
+    "auditEmpty": "अभी तक कोई मॉडरेशन घटना नहीं।",
+    "back": "वापस",
+    "tryAgain": "फिर से कोशिश करें"
   },
   "grievance": {
     "settingsTitle": "शिकायत अधिकारी",

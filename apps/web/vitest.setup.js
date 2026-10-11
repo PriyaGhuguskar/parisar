@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 
 // Phase 7 Plan 07-06: Global react-i18next mock for the web Vitest suite.
 // Mirror of apps/mobile/jest.setup.js (Plan 07-05). The web retrofit converts
@@ -18,6 +18,10 @@ import { vi } from "vitest";
 //
 // Interpolation: `{{name}}` → params.name; absent params fall back to literal token.
 // Missing key → returns the key itself (matches i18next default behavior).
+//
+// STRICT MODE (I18N_STRICT=1, set in CI): a key that resolves in no shard and has
+// no defaultValue is recorded, and the afterEach hook below FAILS the test that
+// rendered it — so a typo'd or un-merged key cannot ship silently as raw key text.
 //
 // Individual tests can still override with their own vi.mock("react-i18next", ...).
 vi.mock("react-i18next", async () => {
@@ -85,6 +89,12 @@ vi.mock("react-i18next", async () => {
         if (params && typeof params.defaultValue === "string") {
           return interpolate(params.defaultValue, params);
         }
+        if (process.env.I18N_STRICT === "1") {
+          globalThis.__i18nMissingKeys = [
+            ...(globalThis.__i18nMissingKeys ?? []),
+            `${ns.join(",")} → ${String(key)}`,
+          ];
+        }
         return key;
       }
       return interpolate(resolved, params);
@@ -106,4 +116,16 @@ vi.mock("react-i18next", async () => {
     Trans: ({ children, i18nKey }) => children ?? i18nKey ?? null,
     I18nextProvider: ({ children }) => children,
   };
+});
+
+// I18N_STRICT=1: fail the current test if it looked up any key missing from the
+// English shards (collected by the react-i18next mock above).
+afterEach(() => {
+  const missing = globalThis.__i18nMissingKeys ?? [];
+  globalThis.__i18nMissingKeys = [];
+  if (missing.length > 0) {
+    throw new Error(
+      `I18N_STRICT: missing i18n key(s) (namespaces → key):\n  ${[...new Set(missing)].join("\n  ")}`,
+    );
+  }
 });

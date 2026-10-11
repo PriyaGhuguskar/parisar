@@ -16,8 +16,8 @@
     },
     "dev": { "cache": false, "persistent": true },
     "lint": { "outputs": [] },
-    "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
-    "test:isolation": { "dependsOn": ["^build"], "cache": false, "outputs": [] },
+    "test": { "outputs": ["coverage/**"], "env": ["I18N_STRICT"] },
+    "test:isolation": { "cache": false, "outputs": [] },
     "clean": { "cache": false }
   }
 }

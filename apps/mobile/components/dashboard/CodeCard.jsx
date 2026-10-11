@@ -5,8 +5,9 @@ import { useRouter } from "expo-router";
 import { AlertTriangle, Copy, RotateCcw, Share2 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Platform, Pressable, Share, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Share, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
+import { Text } from "../ui/Text";
 
 /**
  * CodeCard — Society Code display card for the Secretary dashboard.
@@ -57,8 +58,8 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
       const supabase = getSupabase();
       await resumeSocietyCode(supabase, { societyId });
       if (onResume) onResume();
-    } catch (err) {
-      setResumeError(err.message ?? "Failed to resume code.");
+    } catch {
+      setResumeError(t("auth.networkError"));
     } finally {
       setResuming(false);
     }
@@ -119,7 +120,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
             textAlign: "center",
           }}
           selectable
-          accessibilityLabel={`Society code: ${code}`}
+          accessibilityLabel={t("dashboard.code.a11yCode", { code })}
         >
           {code ?? "—"}
         </Text>
@@ -132,7 +133,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           onPress={handleCopy}
           className="flex-1 h-9 rounded-lg border border-neutral-200 flex-row items-center justify-center gap-1"
           accessibilityRole="button"
-          accessibilityLabel="Copy society code"
+          accessibilityLabel={t("dashboard.code.copyA11y")}
         >
           <Copy size={16} color={copied ? "#047857" : "#64748B"} />
           <Text
@@ -147,7 +148,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
           onPress={handleShare}
           className="flex-1 h-9 rounded-lg border border-neutral-200 flex-row items-center justify-center gap-1"
           accessibilityRole="button"
-          accessibilityLabel="Share society code"
+          accessibilityLabel={t("dashboard.code.shareA11y")}
         >
           <Share2 size={16} color="#64748B" />
           <Text className="text-sm font-medium text-neutral-600">
@@ -160,7 +161,7 @@ export function CodeCard({ code, societyId, paused = false, onResume }) {
       <Pressable
         onPress={() => router.push("/(protected)/(tabs)/code-rotation")}
         accessibilityRole="button"
-        accessibilityLabel="Rotate society code"
+        accessibilityLabel={t("dashboard.code.rotateA11y")}
         className="items-center"
       >
         <Text className="text-sm font-medium text-danger-500 flex-row items-center">

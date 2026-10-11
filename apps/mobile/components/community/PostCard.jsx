@@ -8,8 +8,10 @@ import { formatDistanceToNow } from "date-fns";
 import { Flag, MessageCircle, MoreVertical, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { OwnerChip } from "../complaints/OwnerChip";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { Text } from "../ui/Text";
 import { PhotoGrid } from "./PhotoGrid";
 import { PostTypeChip } from "./PostTypeChip";
 
@@ -23,10 +25,10 @@ function formatFlat(flatJoin) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeAge(iso) {
+function safeAge(iso, locale) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
   } catch {
     return "";
   }
@@ -54,7 +56,8 @@ export function PostCard({
   attachments = [],
   numberOfBodyLines = 3,
 }) {
-  const { t } = useTranslation("community");
+  const { t } = useTranslation(["community", "auth"]);
+  const dateLocale = useDateLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -63,7 +66,7 @@ export function PostCard({
   const authorFlat = formatFlat(post?.author_flat);
   const postedByLabel = t("community.postedBy", { name: authorName, flat: authorFlat });
 
-  const age = safeAge(post?.created_at);
+  const age = safeAge(post?.created_at, dateLocale);
   const isAuthor = !!currentUserId && post?.author_id === currentUserId;
 
   // comment_count comes back as [{ count }] from the embed.
@@ -90,7 +93,7 @@ export function PostCard({
           <Pressable
             onPress={() => setMenuOpen((v) => !v)}
             accessibilityRole="button"
-            accessibilityLabel="Post options"
+            accessibilityLabel={t("community.postOptions")}
             className="p-1"
           >
             <MoreVertical size={18} color={NEUTRAL_400} />
@@ -160,7 +163,7 @@ export function PostCard({
                 <Pressable
                   onPress={() => setConfirmingDelete(false)}
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel"
+                  accessibilityLabel={t("auth:common.cancel")}
                   className="flex-1 h-10 rounded-lg items-center justify-center border border-neutral-200"
                 >
                   <Text className="text-base text-neutral-600">Cancel</Text>
@@ -171,7 +174,7 @@ export function PostCard({
             <Pressable
               onPress={() => setConfirmingDelete(true)}
               accessibilityRole="button"
-              accessibilityLabel="Delete post"
+              accessibilityLabel={t("community.deletePost")}
               className="flex-row items-center gap-2 py-1"
             >
               <Trash2 size={16} color={DANGER_500} />

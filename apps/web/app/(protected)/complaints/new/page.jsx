@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewComplaintPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["complaints"]);
+  const { t } = await initTranslations(lng, ["complaints", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -53,7 +53,7 @@ export default async function NewComplaintPage() {
           href="/complaints"
           className="inline-flex items-center justify-center h-10 px-4 rounded-lg border border-neutral-200 text-sm font-semibold text-[#171717] hover:bg-neutral-50 transition-colors mt-2"
         >
-          Back to complaints
+          {t("complaint.backToList")}
         </Link>
       </div>
     );
@@ -65,9 +65,9 @@ export default async function NewComplaintPage() {
         <Link
           href="/complaints"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to complaints"
+          aria-label={t("complaint.backToList")}
         >
-          ← Back
+          ← {t("auth:common.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("complaint.fileTitle")}

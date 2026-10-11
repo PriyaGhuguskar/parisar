@@ -10,11 +10,13 @@ import { getGrievanceOfficer, setGrievanceOfficer } from "@parisar/api-client";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { authorityOnly } from "../../../../components/AuthorityOnly";
 import { GrievanceOfficerForm } from "../../../../components/community/GrievanceOfficerForm";
 import { BackArrow } from "../../../../components/kit";
+import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
@@ -56,10 +58,10 @@ function GrievanceOfficerSettingsScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("community.back")}
         >
           <BackArrow />
         </Pressable>
@@ -86,7 +88,7 @@ function GrievanceOfficerSettingsScreen() {
             initialContact={officer?.is_default ? "" : (officer?.contact ?? "")}
             isDefault={!!officer?.is_default}
             onSubmit={setGrievanceOfficer}
-            onSaved={() => router.back()}
+            onSaved={() => goBack(router)}
           />
         </ScrollView>
       )}

@@ -1,5 +1,6 @@
 import { Check } from "lucide-react-native";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { Text } from "../ui/Text";
 
 /**
  * WizardProgress — horizontal step indicator for the Secretary setup wizard.

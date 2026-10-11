@@ -52,6 +52,21 @@
     "emptyHeadingBoard": "अद्याप कोणतीही फ्लॅट कारवाई नाही",
     "emptyBodyBoard": "जारी केलेले इशारे, दंड आणि सूचना येथे दिसतील.",
     "loadError": "फ्लॅट कारवाई लोड करता आली नाही",
-    "push": { "body": "Your flat has a new notice" }
+    "push": { "body": "Your flat has a new notice" },
+    "back": "मागे",
+    "pdfAttachedName": "उपविधी / AGM ठराव (PDF)",
+    "removePdf": "PDF काढून टाका",
+    "allFlats": "सर्व फ्लॅट",
+    "notFoundTitle": "कारवाई सापडली नाही",
+    "notFoundBody": "ही कारवाई काढून टाकली गेली असू शकते, किंवा ती पाहण्याची तुम्हाला परवानगी नाही.",
+    "backToList": "फ्लॅट कारवायांकडे परत जा",
+    "amountInvalid": "1 ते 10,00,000 दरम्यान पूर्ण रुपयांची रक्कम टाका (पैसे नाहीत).",
+    "backToDashboard": "डॅशबोर्डवर परत जा",
+    "dashboardLink": "डॅशबोर्ड",
+    "boardTitle": "फ्लॅट कारवाई — सोसायटी",
+    "tabAll": "सर्व",
+    "openActionLabel": "फ्लॅट कारवाई उघडा: {{excerpt}}",
+    "tryAgain": "पुन्हा प्रयत्न करा",
+    "cancel": "रद्द करा"
   }
 }

@@ -4,6 +4,7 @@
 // Uses @supabase/ssr's createBrowserClient (NOT createClient) so cookies stay in sync.
 
 import { createBrowserClient } from "@supabase/ssr";
+import { AUTH_COOKIE_OPTIONS } from "./cookieOptions";
 
 /**
  * Create a Supabase client for browser-side usage (client components).
@@ -13,5 +14,6 @@ export function createSupabaseBrowserClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { cookieOptions: AUTH_COOKIE_OPTIONS },
   );
 }

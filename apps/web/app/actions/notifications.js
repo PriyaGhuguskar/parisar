@@ -2,11 +2,11 @@
 
 // Server actions for Phase 5 society-notice + poll mutations (web).
 //
-// Each action creates a cookie-bound @supabase/ssr server client and delegates to
-// the shared api-client function. The cookie session is validated by middleware +
-// (protected)/layout.jsx upstream; the RLS/RPC guards do the real enforcement. We
-// ALSO re-check the session role for the board-gated post (defense in depth,
-// T-05-02) so a non-board caller never even reaches file_notification.
+// Each action reads the caller from the cookie session (getUser), validates its
+// arguments, and delegates to the shared api-client function. The RLS/RPC guards
+// do the real enforcement. We ALSO re-check the session role for the board-gated
+// post (defense in depth, T-05-02) so a non-board caller never even reaches
+// file_notification.
 //
 // Returns plain objects (never Error instances) so they cross the RSC ↔ client
 // boundary cleanly. Poll/booking business outcomes (race, slot-taken) are returned
@@ -14,21 +14,35 @@
 
 import { closePoll, fileNotification, voteOnPoll } from "@parisar/api-client";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { signedInClient } from "../../lib/auth/actionSession";
+import { isBoardRole, resolveActiveSociety } from "../../lib/auth/activeSociety";
+import { cleanAttachment, cleanText, isToken, isUuid } from "../../lib/validation";
 
-const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
+// Mirrors NoticeComposer maxLength.
+const MAX_TITLE = 120;
+const MAX_BODY = 2000;
+const MAX_QUESTION = 200;
+const MAX_OPTION = 200;
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 4;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
-/**
- * Read the server-validated session role from the JWT app_metadata.
- * @param {object} supabase
- * @returns {Promise<{ user: object|null, role: string }>}
- */
-async function sessionRole(supabase) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const meta = user?.app_metadata ?? user?.user_metadata ?? {};
-  return { user: user ?? null, role: meta.role ?? "member" };
+/** Validate the optional poll; returns null when invalid. */
+function cleanPoll(pollQuestion, pollOptions) {
+  if (pollOptions == null) {
+    const q = cleanText(pollQuestion, { max: MAX_QUESTION, optional: true });
+    return q.ok ? { pollQuestion: q.value, pollOptions: null } : null;
+  }
+  if (!Array.isArray(pollOptions)) return null;
+  if (pollOptions.length < MIN_OPTIONS || pollOptions.length > MAX_OPTIONS) return null;
+  const options = [];
+  for (const raw of pollOptions) {
+    const o = cleanText(raw, { min: 1, max: MAX_OPTION });
+    if (!o.ok) return null;
+    options.push(o.value);
+  }
+  const q = cleanText(pollQuestion, { min: 1, max: MAX_QUESTION });
+  return q.ok ? { pollQuestion: q.value, pollOptions: options } : null;
 }
 
 /**
@@ -52,26 +66,37 @@ async function sessionRole(supabase) {
  * @returns {Promise<{ ok: boolean, notificationId?: string, societyId?: string, pollId?: string|null, error?: string }>}
  */
 export async function postNoticeAction(input) {
-  const supabase = await createSupabaseServerClient();
+  const title = cleanText(input?.title, { min: 1, max: MAX_TITLE });
+  const body = cleanText(input?.body, { min: 1, max: MAX_BODY, multiline: true });
+  if (!title.ok || !body.ok) return { ok: false, error: "invalid_input" };
+  if (input?.category != null && !isToken(input.category)) {
+    return { ok: false, error: "invalid_input" };
+  }
+  if (input?.noticeId != null && !isUuid(input.noticeId)) {
+    return { ok: false, error: "invalid_input" };
+  }
+  const attachment = cleanAttachment(input, { maxBytes: MAX_ATTACHMENT_BYTES });
+  if (!attachment.ok) return { ok: false, error: "invalid_input" };
+  const poll = cleanPoll(input?.pollQuestion, input?.pollOptions);
+  if (!poll) return { ok: false, error: "invalid_input" };
 
-  const { user, role } = await sessionRole(supabase);
-  if (!user) return { ok: false, error: "not_authenticated" };
-  if (!BOARD_ROLES.has(role)) return { ok: false, error: "not_authorized" };
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  // Live role — NOT app_metadata (getUser() never carries the Auth Hook claims).
+  const { role } = await resolveActiveSociety(ctx.supabase, ctx.user);
+  if (!isBoardRole(role)) return { ok: false, error: "not_authorized" };
 
   try {
-    const result = await fileNotification(supabase, {
-      title: input.title,
-      body: input.body,
+    const result = await fileNotification(ctx.supabase, {
+      title: title.value,
+      body: body.value,
       category: input.category ?? undefined,
       noticeId: input.noticeId,
-      storageKey: input.storageKey ?? null,
-      mimeType: input.mimeType ?? null,
-      byteSize: input.byteSize ?? null,
-      pollQuestion: input.pollQuestion ?? null,
-      pollOptions: input.pollOptions ?? null,
+      ...attachment.value,
+      ...poll,
     });
     revalidatePath("/notices");
-    if (input.pollOptions) revalidatePath("/polls");
+    if (poll.pollOptions) revalidatePath("/polls");
     return {
       ok: true,
       notificationId: result.notificationId,
@@ -94,9 +119,11 @@ export async function postNoticeAction(input) {
  * @returns {Promise<{ ok: boolean, tally?: object, error?: string }>}
  */
 export async function votePollAction(pollId, optionId) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(pollId) || !isUuid(optionId)) return { ok: false, error: "invalid_input" };
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    const tally = await voteOnPoll(supabase, { pollId, optionId });
+    const tally = await voteOnPoll(ctx.supabase, { pollId, optionId });
     return { ok: true, tally };
   } catch (err) {
     return { ok: false, error: err?.message ?? "vote_failed" };
@@ -110,9 +137,11 @@ export async function votePollAction(pollId, optionId) {
  * @returns {Promise<{ ok: boolean, status?: string, error?: string }>}
  */
 export async function closePollAction(pollId) {
-  const supabase = await createSupabaseServerClient();
+  if (!isUuid(pollId)) return { ok: false, error: "invalid_input" };
+  const ctx = await signedInClient();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
   try {
-    const result = await closePoll(supabase, { pollId });
+    const result = await closePoll(ctx.supabase, { pollId });
     return { ok: true, status: result?.status ?? "closed" };
   } catch (err) {
     return { ok: false, error: err?.message ?? "close_failed" };

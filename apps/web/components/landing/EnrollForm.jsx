@@ -132,7 +132,9 @@ export function EnrollForm() {
             ? t("landing.enrollDupe")
             : msg.includes("SLOT_IN_PAST") || msg.includes("SLOT_TOO_FAR")
               ? t("landing.enrollPastErr")
-              : t("landing.enrollError"),
+              : msg.includes("RATE_LIMITED")
+                ? t("landing.rateLimited")
+                : t("landing.enrollError"),
         );
         setStatus("idle");
         return;

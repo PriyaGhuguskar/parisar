@@ -7,13 +7,37 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { FormError } from "../auth/FormError";
+import { Text } from "../ui/Text";
 import { WizardProgress } from "./WizardProgress";
+
+// secretary_add_board_member (migration 054) result statuses that mean "this
+// member is on the board now" — a retry never calls the RPC for them again.
+const DONE_STATUSES = new Set(["added", "promoted", "already_board"]);
+
+const RPC_ERROR_KEYS = [
+  ["INVALID_PHONE", "auth.invalidPhone"],
+  ["FLAT_NOT_IN_SOCIETY", "setup.step4.errFlat"],
+  ["CANNOT_CHANGE_OWN_ROLE", "setup.step4.errSelf"],
+  ["ONLY_SECRETARY_CAN_SET_ROLE", "setup.step4.errNotSecretary"],
+];
+
+function rpcErrorKey(error) {
+  const msg = String(error?.message ?? "");
+  const hit = RPC_ERROR_KEYS.find(([code]) => msg.includes(code));
+  return hit ? hit[1] : "setup.step4.errGeneric";
+}
+
+const STATUS_LABEL_KEYS = {
+  added: "setup.step4.statusAdded",
+  promoted: "setup.step4.statusAdded",
+  already_board: "setup.step4.statusAlreadyBoard",
+  not_registered: "setup.step4.statusNotRegistered",
+};
 
 /**
  * BoardForm — Step 4 of the Secretary wizard.
@@ -42,6 +66,11 @@ export function BoardForm({
   const [boardMembers, setBoardMembers] = useState([]);
   const [submitError, setSubmitError] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Per-member RPC outcome, keyed by phone: { status } | { errorKey }.
+  const [results, setResults] = useState({});
+  // Set once the Secretary has been told some numbers aren't registered yet;
+  // the next Continue proceeds (they'll join with the Society Code later).
+  const [notRegisteredAcknowledged, setNotRegisteredAcknowledged] = useState(false);
 
   // Check if entered phone matches co-sec phone
   const isCoSecPhone =
@@ -54,17 +83,16 @@ export function BoardForm({
     const errs = {};
 
     if (!memberName.trim() || memberName.trim().length < 2) {
-      errs.name = "Name must be at least 2 characters.";
+      errs.name = t("setup.step4.nameMin");
     }
     if (!memberWing || !memberFlatId) {
-      errs.flat = "Please select a wing and flat.";
+      errs.flat = t("setup.step4.flatRequired");
     }
     if (!/^[6-9]\d{9}$/.test(memberPhone)) {
-      errs.phone = "Please enter a valid 10-digit mobile number.";
+      errs.phone = t("auth.invalidPhone");
     }
     if (isCoSecPhone) {
-      errs.phone =
-        "This number is your Co-Secretary — they will be auto-elevated on join. No need to add them here.";
+      errs.phone = t("setup.step4.coSecAutoElevated");
     }
 
     const duplicate = boardMembers.some((m) => m.phone === memberPhone);
@@ -98,60 +126,69 @@ export function BoardForm({
   }
 
   function removeBoardMember(index) {
+    const removed = boardMembers[index];
     setBoardMembers((prev) => prev.filter((_, i) => i !== index));
+    if (removed) {
+      setResults((prev) => {
+        const { [removed.phone]: _dropped, ...rest } = prev;
+        return rest;
+      });
+    }
+  }
+
+  async function addOne(member) {
+    try {
+      const { data, error } = await supabase.rpc("secretary_add_board_member", {
+        p_society_id: societyId,
+        p_phone: member.phone,
+        p_flat_id: member.flatId,
+      });
+      if (error) return { errorKey: rpcErrorKey(error) };
+      return { status: data?.status ?? "added" };
+    } catch {
+      return { errorKey: "auth.networkError" };
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Submit — INSERT board members into society_memberships
+  // Submit — secretary_add_board_member per member (migration 054 revoked the
+  // direct society_memberships insert). Members already on the board from a
+  // previous attempt are skipped, so a retry is idempotent.
   // ---------------------------------------------------------------------------
   async function handleNext() {
+    if (loading) return;
     setSubmitError(null);
     setLoading(true);
 
     try {
-      // PAR-107: a real insert failure is NOT success. Previously the {error} was
-      // discarded entirely, so a partially-configured board advanced the wizard
-      // as if every member had been added. Skips (unregistered member) stay benign.
-      const failures = [];
-
+      const next = { ...results };
       for (const member of boardMembers) {
-        // Look up the user by phone to get their user_id
-        const { data: profileRows } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("phone", `+91${member.phone}`)
-          .maybeSingle();
+        if (DONE_STATUSES.has(next[member.phone]?.status)) continue;
+        next[member.phone] = await addOne(member);
+      }
+      setResults(next);
 
-        if (!profileRows?.user_id) {
-          // User not yet registered — skip (they'll join via code later)
-          continue;
-        }
-
-        const { error: insErr } = await supabase.from("society_memberships").insert({
-          society_id: societyId,
-          user_id: profileRows.user_id,
-          flat_id: member.flatId,
-          role: "board_member",
-          status: "active",
-        });
-
-        if (insErr) failures.push(member.name);
+      const failed = boardMembers.filter((m) => next[m.phone]?.errorKey);
+      if (failed.length > 0) {
+        // Stay on this step so the Secretary can fix/retry instead of
+        // continuing with a partially-configured board.
+        setSubmitError(t("setup.step4.addFailed", { names: failed.map((m) => m.name).join(", ") }));
+        return;
       }
 
-      if (failures.length > 0) {
-        // Stay on this step so the Secretary can retry instead of continuing with
-        // a partially-configured board.
-        setSubmitError(`Could not add: ${failures.join(", ")}. Please try again.`);
+      const notRegistered = boardMembers.filter((m) => next[m.phone]?.status === "not_registered");
+      if (notRegistered.length > 0 && !notRegisteredAcknowledged) {
+        setNotRegisteredAcknowledged(true);
         return;
       }
 
       onNext(boardMembers);
-    } catch (err) {
-      setSubmitError(err?.message ?? t("auth.networkError"));
     } finally {
       setLoading(false);
     }
   }
+
+  const hasNotRegistered = boardMembers.some((m) => results[m.phone]?.status === "not_registered");
 
   return (
     <KeyboardAvoidingView
@@ -184,10 +221,12 @@ export function BoardForm({
               <Text className="text-sm font-semibold text-brand-500">SC</Text>
             </View>
             <View className="flex-1">
-              <Text className="text-base text-neutral-900 font-medium">You (Secretary)</Text>
+              <Text className="text-base text-neutral-900 font-medium">
+                {t("setup.step4.youSecretary")}
+              </Text>
               <View className="mt-1">
                 <View className="bg-brand-50 border border-brand-200 rounded-full px-2 py-0.5 self-start">
-                  <Text className="text-xs text-brand-500">Secretary</Text>
+                  <Text className="text-xs text-brand-500">{t("profile.roleSecretary")}</Text>
                 </View>
               </View>
             </View>
@@ -196,10 +235,15 @@ export function BoardForm({
           {/* Added board members */}
           {boardMembers.map((member, idx) => {
             const initials = member.name.slice(0, 2).toUpperCase();
-            const maskedPhone = member.phone.slice(0, 3) + "XXXX" + member.phone.slice(-2);
+            const maskedPhone = `${member.phone.slice(0, 3)}XXXX${member.phone.slice(-2)}`;
+            const result = results[member.phone];
+            let resultLabel = null;
+            if (result?.errorKey) resultLabel = t(result.errorKey);
+            else if (result?.status)
+              resultLabel = t(STATUS_LABEL_KEYS[result.status] ?? "setup.step4.statusAdded");
             return (
               <View
-                key={idx}
+                key={member.phone}
                 className="flex-row items-center p-3 bg-neutral-50 rounded-xl mb-3 border border-neutral-100"
               >
                 <View className="w-9 h-9 rounded-full bg-brand-50 items-center justify-center mr-3">
@@ -211,15 +255,22 @@ export function BoardForm({
                   <Text className="text-sm text-neutral-400">{maskedPhone}</Text>
                   <View className="mt-1">
                     <View className="bg-neutral-100 rounded-full px-2 py-0.5 self-start">
-                      <Text className="text-xs text-neutral-600">Board Member</Text>
+                      <Text className="text-xs text-neutral-600">{t("profile.roleBoard")}</Text>
                     </View>
                   </View>
+                  {resultLabel ? (
+                    <Text
+                      className={`text-sm mt-1 ${result?.errorKey ? "text-danger-500" : "text-neutral-600"}`}
+                    >
+                      {resultLabel}
+                    </Text>
+                  ) : null}
                 </View>
                 <Pressable
                   onPress={() => removeBoardMember(idx)}
                   className="p-2"
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${member.name}`}
+                  accessibilityLabel={t("setup.step4.removeMember", { name: member.name })}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Trash2 size={20} color="#c81e1e" />
@@ -231,20 +282,20 @@ export function BoardForm({
           {/* Add member form */}
           <View className="mt-2">
             <Text className="text-base font-semibold text-neutral-900 mb-3">
-              Add a board member
+              {t("setup.step4.addHeading")}
             </Text>
 
             {/* Name */}
             <View className="mb-3">
-              <Text className="text-sm text-neutral-700 mb-1">Full name</Text>
+              <Text className="text-sm text-neutral-700 mb-1">{t("profile.fullName")}</Text>
               <TextInput
                 className={[
-                  "h-12 rounded-lg bg-neutral-50 border px-3 text-base text-neutral-900",
+                  "min-h-12 py-2 rounded-lg bg-neutral-50 border px-3 text-base text-neutral-900",
                   fieldErrors.name ? "border-danger-500" : "border-neutral-200",
                 ].join(" ")}
                 value={memberName}
                 onChangeText={setMemberName}
-                placeholder="Member's name"
+                placeholder={t("setup.step4.namePlaceholder")}
                 placeholderTextColor="#64748B"
                 maxLength={60}
                 autoCapitalize="words"
@@ -256,7 +307,7 @@ export function BoardForm({
 
             {/* Wing picker */}
             <View className="mb-3">
-              <Text className="text-sm text-neutral-700 mb-1">Wing</Text>
+              <Text className="text-sm text-neutral-700 mb-1">{t("setup.step4.wingLabel")}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {wings.map((w) => (
                   <TouchableOpacity
@@ -289,7 +340,7 @@ export function BoardForm({
             {/* Flat picker (chained on wing) */}
             {memberWing ? (
               <View className="mb-3">
-                <Text className="text-sm text-neutral-700 mb-1">Flat</Text>
+                <Text className="text-sm text-neutral-700 mb-1">{t("profile.flat")}</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {(flatsByWing[memberWing] ?? []).map((flat) => {
                     const display = `${memberWing}-${flat.number}`;
@@ -326,15 +377,15 @@ export function BoardForm({
                 )}
               </View>
             ) : (
-              <Text className="text-sm text-neutral-400 mb-3">Select a wing first.</Text>
+              <Text className="text-sm text-neutral-400 mb-3">{t("join.wingFirst")}</Text>
             )}
 
             {/* Mobile */}
             <View className="mb-3">
-              <Text className="text-sm text-neutral-700 mb-1">Mobile number</Text>
+              <Text className="text-sm text-neutral-700 mb-1">{t("setup.step4.phoneLabel")}</Text>
               <TextInput
                 className={[
-                  "h-12 rounded-lg bg-neutral-50 border px-3 text-base text-neutral-900",
+                  "min-h-12 py-2 rounded-lg bg-neutral-50 border px-3 text-base text-neutral-900",
                   fieldErrors.phone || isCoSecPhone ? "border-danger-500" : "border-neutral-200",
                 ].join(" ")}
                 value={memberPhone}
@@ -346,7 +397,7 @@ export function BoardForm({
               />
               {isCoSecPhone && (
                 <Text className="text-sm text-warning-500 mt-1">
-                  This number is your Co-Secretary — they will be auto-elevated on join.
+                  {t("setup.step4.coSecAutoElevated")}
                 </Text>
               )}
               {!isCoSecPhone && fieldErrors.phone && (
@@ -359,7 +410,7 @@ export function BoardForm({
               onPress={handleAddMember}
               disabled={isCoSecPhone}
               className={[
-                "h-12 rounded-xl border items-center justify-center",
+                "min-h-12 py-2 rounded-xl border items-center justify-center",
                 isCoSecPhone ? "border-neutral-200 bg-neutral-100" : "border-brand-500",
               ].join(" ")}
               accessibilityRole="button"
@@ -371,10 +422,17 @@ export function BoardForm({
                     : "text-base text-brand-500 font-medium"
                 }
               >
-                Add Member
+                {t("setup.step4.addCta")}
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Unregistered numbers are benign — they join with the Society Code later. */}
+          {hasNotRegistered && notRegisteredAcknowledged && !submitError ? (
+            <View className="bg-brand-50 border border-brand-200 rounded-xl p-3 mt-4">
+              <Text className="text-sm text-neutral-700">{t("setup.step4.notRegisteredNote")}</Text>
+            </View>
+          ) : null}
 
           {/* Submit error */}
           {submitError && <FormError message={submitError} />}
@@ -383,10 +441,10 @@ export function BoardForm({
           <View className="flex-row gap-3 mt-6">
             <TouchableOpacity
               onPress={onBack}
-              className="flex-1 h-14 rounded-xl border border-neutral-200 items-center justify-center"
+              className="flex-1 min-h-14 py-2 rounded-xl border border-neutral-200 items-center justify-center"
               accessibilityRole="button"
             >
-              <Text className="text-base font-medium text-neutral-900">Back</Text>
+              <Text className="text-base font-medium text-neutral-900">{t("auth.obBack")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -394,7 +452,7 @@ export function BoardForm({
               disabled={loading}
               activeOpacity={0.8}
               className={[
-                "flex-1 h-14 rounded-xl items-center justify-center",
+                "flex-1 min-h-14 py-2 rounded-xl items-center justify-center",
                 loading ? "bg-neutral-200" : "bg-brand-500",
               ].join(" ")}
               accessibilityRole="button"

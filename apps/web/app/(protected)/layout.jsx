@@ -16,6 +16,10 @@ import { redirect } from "next/navigation";
 import { AppSidebar } from "../../components/AppSidebar";
 import { ServiceStatusScreen } from "../../components/society/ServiceStatusScreen";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "../../components/ui/sidebar";
+import { isManagerRole } from "../../lib/auth/activeSociety";
+import { loadSocietyContext } from "../../lib/auth/societyContext";
+import { devRoutesEnabled } from "../../lib/devRoutes";
+import { getServerT } from "../../lib/i18n/server";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 export default async function ProtectedLayout({ children }) {
@@ -28,9 +32,10 @@ export default async function ProtectedLayout({ children }) {
     // DEV-ONLY convenience: opening a protected screen locally auto-signs-in as a
     // seeded test resident instead of bouncing to the OTP screen. The guard itself
     // is UNCHANGED — an unauthenticated user still never reaches protected content;
-    // they are redirected, just to /dev-login (which 404s outside development).
+    // they are redirected, just to /dev-login (which 404s unless dev routes are
+    // enabled — NODE_ENV=development AND ENABLE_DEV_ROUTES=1).
     // Remove alongside app/dev-login/route.js in the Phase 8 production OTP swap.
-    if (process.env.NODE_ENV === "development") {
+    if (devRoutesEnabled()) {
       redirect("/dev-login?next=/dashboard");
     }
     redirect("/login");
@@ -51,56 +56,37 @@ export default async function ProtectedLayout({ children }) {
     );
   }
 
-  // Identity bits for the sidebar's society switcher + profile menu (Wave 3).
-  // JWT shape (04.1-00-JWT-SHAPE.md): app_metadata carries ONLY society_id + role.
-  // society_name / full_name / flat_label are NOT in the JWT — society_name is
-  // resolved from the memberships fetch, full_name falls back to user_metadata,
-  // and flat_label is left undefined so ProfileMenuDropdown fetches it client-side.
+  // Identity bits for the sidebar's society switcher + profile menu.
+  // society_id + role come from resolveActiveSociety (the my_active_society()
+  // RPC) — the SINGLE source of truth shared with every page. NOT
+  // user.app_metadata: getUser() returns the stored user record, where the Auth
+  // Hook's claims are absent, and NOT memberships[0] (unordered — it diverged
+  // from the society the JWT is scoped to). full_name falls back to
+  // user_metadata; flat_label is fetched client-side by ProfileMenuDropdown.
+  const { t } = await getServerT(["auth"]);
   const meta = user.app_metadata ?? {};
-  const role = meta.role ?? "member";
-  const fullName = meta.full_name ?? user.user_metadata?.full_name ?? "Member";
+  const fullName = meta.full_name ?? user.user_metadata?.full_name ?? t("profile.roleMember");
   const flatLabel = meta.flat_label ?? undefined;
 
   // Memberships — RLS + explicit user_id filter scope this to the calling user's
   // societies (threat T-04.1-01). Single-society users see no switcher chevron.
-  let memberships = [];
-  if (user.id) {
-    const { data } = await supabase
-      .from("society_memberships")
-      .select("society_id, role, flat_id, societies:society_id(name)")
-      .eq("user_id", user.id)
-      .eq("status", "active");
-    if (Array.isArray(data)) {
-      memberships = data.map((r) => ({
-        society_id: r.society_id,
-        role: r.role,
-        flat_id: r.flat_id,
-        society_name: r.societies?.name ?? "Society",
-      }));
-    }
-  }
-
-  // SOURCE OF TRUTH for "does this user belong to a society".
-  //
-  // app_metadata.society_id is NOT reliable here: the Custom Access Token Hook
-  // injects society_id/role into the JWT, but getUser() returns the stored user
-  // record, where those claims are absent. Gating the sidebar on
-  // meta.society_id alone therefore hid the nav for every real member.
-  //
-  // An active membership row is the fact we actually care about, and this layout
-  // already fetches it, so we prefer the JWT claim when present and fall back to
-  // the membership that RLS just confirmed.
-  const societyId = meta.society_id ?? memberships[0]?.society_id ?? null;
+  const {
+    active,
+    memberships: rawMemberships,
+    activeMembership,
+  } = await loadSocietyContext(supabase, user);
+  const memberships = rawMemberships.map((m) => ({
+    ...m,
+    society_name: m.society_name ?? t("profile.society"),
+  }));
+  const societyId = active.societyId;
+  const activeRole = active.role;
 
   // A secretary/co-secretary who hasn't finished setup (their society has no
   // flats yet) must complete it before the app opens up. Render bare — with no
   // sidebar to escape through — so an incomplete society can't be left half-built.
-  // The flats query is RLS-scoped by the cookie JWT's society claim (reliable
-  // here even though getUser()'s app_metadata lacks it).
-  const activeRole =
-    memberships.find((m) => m.society_id === societyId)?.role ?? meta.role ?? "member";
   let setupIncomplete = false;
-  if (societyId && (activeRole === "secretary" || activeRole === "co_secretary")) {
+  if (societyId && isManagerRole(activeRole)) {
     const { count } = await supabase
       .from("flats")
       .select("id", { count: "exact", head: true })
@@ -117,21 +103,15 @@ export default async function ProtectedLayout({ children }) {
   // A society authority who hasn't finished PERSONAL onboarding yet (their
   // authority membership has no flat) is in the same state: the app opens only
   // after they have joined as a resident. /dashboard sends them to /onboarding.
-  const activeMembership = memberships.find((m) => m.society_id === societyId);
   const onboardingIncomplete =
-    (activeRole === "secretary" || activeRole === "co_secretary") &&
-    Boolean(activeMembership) &&
-    !activeMembership.flat_id;
+    isManagerRole(activeRole) && Boolean(activeMembership) && !activeMembership.flat_id;
 
   if (!societyId || setupIncomplete || onboardingIncomplete) {
     return <main id="main-content">{children}</main>;
   }
 
   const resolvedSocietyName =
-    meta.society_name ??
-    activeMembership?.society_name ??
-    memberships[0]?.society_name ??
-    "Your Society";
+    active.societyName ?? activeMembership?.society_name ?? t("common.yourSociety");
 
   // Pitfall 4 — cookie-driven default open state to prevent layout shift on
   // hydration. shadcn's Sidebar writes "sidebar_state" ("true"/"false") on toggle.
@@ -149,6 +129,7 @@ export default async function ProtectedLayout({ children }) {
         fullName={fullName}
         flatLabel={flatLabel}
         memberships={memberships}
+        tokenStale={active.tokenStale}
       />
       {/* PAR-071: skip-to-content link. Visually hidden until focused, so a
           keyboard user can jump past the whole sidebar nav on every page.
@@ -159,13 +140,13 @@ export default async function ProtectedLayout({ children }) {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:h-11 focus:px-4 focus:inline-flex focus:items-center focus:rounded-lg focus:bg-[#0E5A48] focus:text-white focus:text-sm focus:font-semibold"
       >
-        Skip to content
+        {t("common.skipToContent")}
       </a>
       <SidebarInset id="main-content">
         {/* Narrow-viewport hamburger trigger — the sidebar collapses to an
             offcanvas sheet below the md breakpoint, opened via this button. */}
         <div className="md:hidden p-2">
-          <SidebarTrigger aria-label="Open navigation" />
+          <SidebarTrigger aria-label={t("common.openNavigation")} />
         </div>
         {children}
       </SidebarInset>

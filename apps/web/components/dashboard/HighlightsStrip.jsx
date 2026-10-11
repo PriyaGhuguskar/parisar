@@ -10,6 +10,7 @@ import { CalendarClock, Pin, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "../shared/realtime";
 
 const MANAGER_ROLES = new Set(["secretary", "co_secretary"]);
 const MAX = 4;
@@ -224,13 +225,18 @@ export function HighlightsStrip({ societyId, role }) {
     if (!societyId) return undefined;
     load();
     const supabase = createSupabaseBrowserClient();
+    const filter = `society_id=eq.${societyId}`;
     const channel = supabase
-      .channel("highlights")
-      .on("postgres_changes", { event: "*", schema: "public", table: "society_highlights" }, () =>
-        load(),
+      .channel(uniqueChannelName(`highlights-${societyId}`))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "society_highlights", filter },
+        () => load(),
       )
-      .on("postgres_changes", { event: "*", schema: "public", table: "facility_events" }, () =>
-        load(),
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "facility_events", filter },
+        () => load(),
       )
       .subscribe();
     return () => {

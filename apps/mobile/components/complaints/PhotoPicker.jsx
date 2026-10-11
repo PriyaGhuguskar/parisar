@@ -24,92 +24,25 @@ import { Image } from "expo-image";
 import { Camera, Image as ImageIcon, X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActionSheetIOS,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { pickAndCompressImage, showPhotoSourceChooser } from "../shared/image-capture";
+import { cryptoRandomUUID } from "../shared/uuid";
+import { Text } from "../ui/Text";
 
 /**
- * Open the action sheet (iOS) or Alert (Android) to choose camera vs gallery.
- * Resolves with 'camera' | 'gallery' | null (cancelled).
- */
-function showSourceChooser(label) {
-  return new Promise((resolve) => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Take a photo", "Choose from gallery", "Cancel"],
-          cancelButtonIndex: 2,
-        },
-        (idx) => {
-          if (idx === 0) resolve("camera");
-          else if (idx === 1) resolve("gallery");
-          else resolve(null);
-        },
-      );
-    } else {
-      // Android: native ActionSheet isn't built-in; Alert with 3 buttons is the
-      // platform-idiomatic choice without pulling react-native-action-sheet.
-      Alert.alert(label, undefined, [
-        { text: "Take a photo", onPress: () => resolve("camera") },
-        { text: "Choose from gallery", onPress: () => resolve("gallery") },
-        { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
-      ]);
-    }
-  });
-}
-
-/**
- * Run the same compress + base64 + upload chain as pickAndUploadComplaintPhoto,
- * but starting from a camera capture instead of a gallery pick. Returns the
- * same shape (or null on cancel/deny).
+ * Capture from the camera, then compress + upload with the same storage
+ * layout as pickAndUploadComplaintPhoto. Returns the same shape (or null on
+ * cancel/deny).
  */
 async function captureAndUploadFromCamera(supabase, societyId, complaintId) {
-  const ImagePicker = await import("expo-image-picker");
-  const ImageManipulator = await import("expo-image-manipulator");
-  const FileSystem = await import("expo-file-system");
-
-  const perm = await ImagePicker.requestCameraPermissionsAsync();
-  if (!perm.granted) return null;
-
-  const shot = await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 1,
-  });
-  if (shot.canceled || !shot.assets?.[0]) return null;
-  const asset = shot.assets[0];
-
-  const resize = asset.width > asset.height ? { width: 1600 } : { height: 1600 };
-  const manipResult = await ImageManipulator.manipulateAsync(asset.uri, [{ resize }], {
-    compress: 0.7,
-    format: ImageManipulator.SaveFormat.JPEG,
-  });
-
-  const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
+  const picked = await pickAndCompressImage("camera");
+  if (!picked) return null;
 
   // Same storage prefix layout as pickAndUploadComplaintPhoto.
-  const photoId =
-    globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const storageKey = `${societyId}/complaints/${complaintId}/${photoId}.jpg`;
-
+  const storageKey = `${societyId}/complaints/${complaintId}/${cryptoRandomUUID()}.jpg`;
   const { error: uploadError } = await supabase.storage
     .from(COMPLAINTS_BUCKET)
-    .upload(storageKey, bytes.buffer, {
+    .upload(storageKey, picked.bytes, {
       contentType: "image/jpeg",
       upsert: false,
     });
@@ -118,8 +51,8 @@ async function captureAndUploadFromCamera(supabase, societyId, complaintId) {
   return {
     storageKey,
     mimeType: "image/jpeg",
-    byteSize: bytes.length,
-    previewUri: manipResult.uri,
+    byteSize: picked.byteSize,
+    previewUri: picked.uri,
   };
 }
 
@@ -141,7 +74,7 @@ export function PhotoPicker({
   onPhotoSelected,
   onRemove,
 }) {
-  const { t } = useTranslation("complaints");
+  const { t } = useTranslation(["complaints", "auth"]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -153,7 +86,7 @@ export function PhotoPicker({
     }
     setError(null);
 
-    const source = await showSourceChooser(t("complaint.photoLabel"));
+    const source = await showPhotoSourceChooser(t, t("complaint.photoLabel"));
     if (!source) return;
 
     setUploading(true);
@@ -210,7 +143,7 @@ export function PhotoPicker({
                 setError(null);
               }}
               accessibilityRole="button"
-              accessibilityLabel="Remove photo"
+              accessibilityLabel={t("auth:common.removePhoto")}
               style={{
                 position: "absolute",
                 top: 8,

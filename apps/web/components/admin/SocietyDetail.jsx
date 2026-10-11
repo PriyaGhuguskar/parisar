@@ -8,75 +8,21 @@
 // write "chased twice, still unresponsive" without it becoming a customer-facing
 // document.
 
-import {
-  Building2,
-  CalendarRange,
-  Check,
-  ClipboardList,
-  Copy,
-  CreditCard,
-  History,
-  IndianRupee,
-  Loader2,
-  MapPin,
-  MessageSquare,
-  Pencil,
-  Phone,
-  Plus,
-  Power,
-  Send,
-  Trash2,
-  Users,
-  X,
-} from "lucide-react";
+// Each pane lives in ./society-detail/*; this file owns the data, the state and
+// the RPC handlers.
+
+import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { AdminAuthorities } from "./AdminAuthorities";
-import { AdminService } from "./AdminService";
 import { AdminFeatureRequests } from "./insights/AdminFeatureRequests";
 import { AdminHistory } from "./insights/AdminHistory";
 import { AdminMonthly } from "./insights/AdminMonthly";
-
-const ALL_PANES = [
-  { id: "overview", label: "Overview", icon: Building2 },
-  { id: "features", label: "Features", icon: Check },
-  { id: "requests", label: "Requests", icon: ClipboardList },
-  { id: "monthly", label: "Monthly", icon: CalendarRange },
-  { id: "history", label: "History", icon: History },
-  { id: "billing", label: "Billing", icon: CreditCard, adminOnly: true },
-  { id: "payments", label: "Payments", icon: IndianRupee, adminOnly: true },
-  { id: "notes", label: "Notes", icon: MessageSquare },
-];
-
-const PLANS = ["sprout", "neighbourhood", "township"];
-const STATUSES = ["trial", "active", "past_due", "cancelled"];
-
-const STATUS_TONE = {
-  active: { bg: "var(--color-brand-50)", fg: "var(--color-brand-700)" },
-  trial: { bg: "#E7F0FB", fg: "#1F5FA0" },
-  past_due: { bg: "#FCE9E6", fg: "#94291A" },
-  cancelled: { bg: "var(--color-neutral-100)", fg: "var(--color-neutral-600)" },
-};
-
-const field =
-  "h-11 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3 text-[14px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
-
-function Row({ icon: Icon, label, children }) {
-  return (
-    <div className="flex items-start gap-3 py-2.5">
-      <Icon
-        size={15}
-        strokeWidth={2.2}
-        aria-hidden="true"
-        className="mt-0.5 shrink-0 text-[var(--color-neutral-400)]"
-      />
-      <div className="min-w-0">
-        <p className="text-[12px] font-semibold text-[var(--color-neutral-400)]">{label}</p>
-        <div className="mt-0.5 text-[14px] text-[var(--color-neutral-900)]">{children}</div>
-      </div>
-    </div>
-  );
-}
+import { BillingPane } from "./society-detail/BillingPane";
+import { ALL_PANES } from "./society-detail/constants";
+import { FeaturesPane } from "./society-detail/FeaturesPane";
+import { NotesPane } from "./society-detail/NotesPane";
+import { OverviewPane } from "./society-detail/OverviewPane";
+import { PaymentsPane } from "./society-detail/PaymentsPane";
 
 export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }) {
   // Billing & payments are admin-only. The RPC already omits that data for
@@ -311,231 +257,34 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
         <div className="min-w-0 flex-1 overflow-y-auto p-5 lg:p-7">
           {/* ---------------- overview ---------------- */}
           {pane === "overview" ? (
-            <div className="divide-y divide-[var(--color-neutral-200)]">
-              <Row icon={Power} label="Service">
-                <AdminService societyId={societyId} onChanged={onChanged} />
-              </Row>
-              <Row icon={MapPin} label="Address">
-                {s.address ?? "—"}
-                {s.landmark ? (
-                  <span className="block text-[13px] text-[var(--color-neutral-600)]">
-                    Landmark: {s.landmark}
-                  </span>
-                ) : null}
-              </Row>
-              <Row icon={Phone} label="Society Authorities">
-                <AdminAuthorities societyId={societyId} onChanged={onChanged} />
-              </Row>
-              <Row icon={Building2} label="Join code">
-                <span className="inline-flex items-center gap-2">
-                  <span className="font-mono text-[15px] font-bold tracking-[0.1em]">
-                    {s.code ?? "—"}
-                  </span>
-                  {s.code ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(s.code);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 1800);
-                        } catch {
-                          /* clipboard blocked — the code is on screen anyway */
-                        }
-                      }}
-                      className="pk-press rounded-md p-1 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)]"
-                      aria-label="Copy join code"
-                    >
-                      {copied ? (
-                        <Check
-                          size={13}
-                          strokeWidth={3}
-                          className="text-[var(--color-brand-600)]"
-                        />
-                      ) : (
-                        <Copy size={13} strokeWidth={2.4} />
-                      )}
-                    </button>
-                  ) : null}
-                </span>
-              </Row>
-              <Row icon={Users} label="Residents">
-                <span className="tabular-nums font-semibold">{s.member_count}</span> active
-                {Number(s.pending_count) > 0 ? (
-                  <span className="ml-2 rounded-full bg-[#FDF0DF] px-2 py-0.5 text-[12px] font-bold text-[#8A4708]">
-                    {s.pending_count} pending approval
-                  </span>
-                ) : null}
-              </Row>
-              <Row icon={IndianRupee} label="Monthly fee (paid add-ons)">
-                <span className="font-semibold tabular-nums">
-                  ₹{featureTotal.toLocaleString("en-IN")}/mo
-                </span>
-                <span className="ml-2 text-[13px] text-[var(--color-neutral-600)]">
-                  {features.filter((f) => f.enabled && !f.is_core).length} add-on(s) on ·{" "}
-                  <button
-                    type="button"
-                    onClick={() => setPane("monthly")}
-                    className="font-semibold text-[var(--color-brand-600)] hover:underline"
-                  >
-                    month by month
-                  </button>
-                </span>
-              </Row>
-              {pendingRequests > 0 ? (
-                <Row icon={ClipboardList} label="Feature requests">
-                  <button
-                    type="button"
-                    onClick={() => setPane("requests")}
-                    className="rounded-full bg-[#FDF0DF] px-2 py-0.5 text-[12px] font-bold text-[#8A4708] hover:underline"
-                  >
-                    {pendingRequests} waiting for a decision
-                  </button>
-                </Row>
-              ) : null}
-              <Row icon={MessageSquare} label="Created">
-                {new Date(s.created_at).toLocaleString(undefined, {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Row>
-            </div>
+            <OverviewPane
+              societyId={societyId}
+              onChanged={onChanged}
+              s={s}
+              features={features}
+              featureTotal={featureTotal}
+              pendingRequests={pendingRequests}
+              copied={copied}
+              setCopied={setCopied}
+              setPane={setPane}
+            />
           ) : null}
 
           {/* ---------------- features ---------------- */}
           {pane === "features" ? (
-            <div>
-              <div className="mb-4 flex items-center justify-between rounded-xl bg-[var(--color-neutral-50)] px-4 py-3">
-                <span className="text-[13px] text-[var(--color-neutral-600)]">Add-ons enabled</span>
-                <span className="text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
-                  ₹{featureTotal.toLocaleString("en-IN")}/mo
-                </span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {features.map((f) => (
-                  <div
-                    key={f.key}
-                    className="flex items-start justify-between gap-4 rounded-xl border border-[var(--color-neutral-200)] bg-white p-3.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-[14px] font-bold text-[var(--color-neutral-900)]">
-                        {f.name}
-                        {f.is_core ? (
-                          <span className="rounded-full bg-[var(--color-brand-50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--color-brand-700)]">
-                            Core
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-neutral-600)]">
-                        {f.description}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      {f.is_core ? (
-                        <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
-                          Included
-                        </span>
-                      ) : editKey === f.key ? (
-                        <span className="flex flex-col items-end gap-1">
-                          <span className="flex items-center gap-1">
-                            <span className="text-[13px] font-bold text-[var(--color-neutral-400)]">
-                              ₹
-                            </span>
-                            <input
-                              // biome-ignore lint/a11y/noAutofocus: intentional — the field opened on click
-                              autoFocus
-                              inputMode="numeric"
-                              value={editVal}
-                              onChange={(e) => {
-                                setEditVal(e.target.value.replace(/\D/g, "").slice(0, 6));
-                                setPriceErr(null);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") setSocietyPrice(f.key, Number(editVal) || 0);
-                                if (e.key === "Escape") {
-                                  setEditKey(null);
-                                  setPriceErr(null);
-                                }
-                              }}
-                              className="h-8 w-16 rounded-lg border border-[var(--color-brand-500)] px-2 text-right text-[13px] font-bold tabular-nums outline-none"
-                            />
-                            <button
-                              type="button"
-                              aria-label="Save price"
-                              onClick={() => setSocietyPrice(f.key, Number(editVal) || 0)}
-                              className="pk-press rounded-md p-1 text-[var(--color-brand-600)] hover:bg-[var(--color-brand-50)]"
-                            >
-                              <Check size={14} strokeWidth={3} />
-                            </button>
-                          </span>
-                          <span
-                            className="text-[11px] font-medium"
-                            style={{
-                              color: priceErr ? "#C0341B" : "var(--color-neutral-400)",
-                            }}
-                          >
-                            {priceErr ?? `Min ₹${f.floor ?? f.list_price}`}
-                          </span>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditKey(f.key);
-                            setEditVal(String(f.price ?? f.list_price ?? 0));
-                            setPriceErr(null);
-                          }}
-                          className="pk-press group/price flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] font-bold tabular-nums text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-100)]"
-                          title="Set this society's price"
-                        >
-                          ₹{f.price ?? f.list_price}
-                          {f.price_override != null &&
-                          f.price_override > (f.floor ?? f.list_price) ? (
-                            <span className="text-[10px] font-normal text-[var(--color-neutral-400)]">
-                              floor ₹{f.floor ?? f.list_price}
-                            </span>
-                          ) : null}
-                          <Pencil
-                            size={11}
-                            strokeWidth={2.2}
-                            aria-hidden="true"
-                            className="text-[var(--color-neutral-400)] opacity-0 transition-opacity group-hover/price:opacity-100"
-                          />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={f.is_core || busy === f.key}
-                        onClick={() => toggleFeature(f.key, !f.enabled, f.price_override)}
-                        role="switch"
-                        aria-checked={f.enabled}
-                        aria-label={`${f.name} ${f.enabled ? "enabled" : "disabled"}`}
-                        className="pk-press relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
-                        style={{
-                          backgroundColor: f.enabled
-                            ? "var(--color-brand-500)"
-                            : "var(--color-neutral-200)",
-                        }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-[left] duration-200"
-                          style={{ left: f.enabled ? "22px" : "2px" }}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
-                Tap a price to set this society's rate. The catalogue price is the floor — you can
-                charge that or more, never less. Core features cannot be switched off — a society
-                without a notice board is a support ticket, not a saving.
-              </p>
-            </div>
+            <FeaturesPane
+              features={features}
+              featureTotal={featureTotal}
+              busy={busy}
+              editKey={editKey}
+              setEditKey={setEditKey}
+              editVal={editVal}
+              setEditVal={setEditVal}
+              priceErr={priceErr}
+              setPriceErr={setPriceErr}
+              setSocietyPrice={setSocietyPrice}
+              toggleFeature={toggleFeature}
+            />
           ) : null}
 
           {/* ---------------- billing ---------------- */}
@@ -551,300 +300,33 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
           {pane === "history" ? <AdminHistory societyId={societyId} /> : null}
 
           {pane === "billing" ? (
-            <form onSubmit={saveBilling} className="flex flex-col gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                    Plan
-                  </span>
-                  <select
-                    className={field}
-                    value={bill.plan ?? "sprout"}
-                    onChange={(e) => setBill({ ...bill, plan: e.target.value })}
-                  >
-                    {PLANS.map((p) => (
-                      <option key={p} value={p}>
-                        {p[0].toUpperCase() + p.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                    Status
-                  </span>
-                  <select
-                    className={field}
-                    value={bill.status ?? "trial"}
-                    onChange={(e) => setBill({ ...bill, status: e.target.value })}
-                  >
-                    {STATUSES.map((p) => (
-                      <option key={p} value={p}>
-                        {p.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                    Monthly amount (₹)
-                  </span>
-                  <input
-                    className={field}
-                    inputMode="numeric"
-                    value={bill.monthly_amount ?? 0}
-                    onChange={(e) =>
-                      setBill({ ...bill, monthly_amount: e.target.value.replace(/\D/g, "") })
-                    }
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                    Next due
-                  </span>
-                  <input
-                    type="date"
-                    className={field}
-                    value={bill.next_due_on ?? ""}
-                    onChange={(e) => setBill({ ...bill, next_due_on: e.target.value })}
-                  />
-                </label>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                    Last paid
-                  </span>
-                  <p className="flex h-11 items-center px-1 text-[14px] font-semibold tabular-nums text-[var(--color-neutral-900)]">
-                    {bill.last_paid_on
-                      ? new Date(bill.last_paid_on).toLocaleDateString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "—"}
-                    <span className="ml-2 text-[11px] font-normal text-[var(--color-neutral-400)]">
-                      from ledger
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              {featureTotal !== Number(bill.monthly_amount) ? (
-                <p className="rounded-xl bg-[#FDF0DF] px-3.5 py-2.5 text-[13px] text-[#8A4708]">
-                  Enabled add-ons total ₹{featureTotal.toLocaleString("en-IN")} but the agreed
-                  amount is ₹{Number(bill.monthly_amount || 0).toLocaleString("en-IN")}. Fine if it
-                  is a negotiated rate — worth a look if not.
-                </p>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={busy === "billing"}
-                className="pk-press inline-flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-                style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
-              >
-                {busy === "billing" ? <Loader2 size={15} className="animate-spin" /> : null}
-                {saved ? "Saved" : "Save billing"}
-              </button>
-              <p className="text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
-                This is a record of what was agreed, not a payment gateway. Parisar never touches a
-                society's or a resident's money.
-              </p>
-            </form>
+            <BillingPane
+              bill={bill}
+              setBill={setBill}
+              saveBilling={saveBilling}
+              featureTotal={featureTotal}
+              busy={busy}
+              saved={saved}
+            />
           ) : null}
 
           {/* ---------------- payments (manual ledger) ---------------- */}
           {pane === "payments" ? (
-            <div>
-              <div className="mb-4 flex items-center justify-between rounded-xl bg-[var(--color-neutral-50)] px-4 py-3">
-                <span className="text-[13px] text-[var(--color-neutral-600)]">Total collected</span>
-                <span className="text-[17px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
-                  ₹{Number(totalCollected).toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <form
-                onSubmit={recordPayment}
-                className="rounded-xl border border-[var(--color-neutral-200)] p-4"
-              >
-                <p className="mb-3 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--color-brand-600)]">
-                  <Plus size={13} strokeWidth={2.6} aria-hidden="true" />
-                  Record a payment
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                      Amount (₹)
-                    </span>
-                    <input
-                      className={field}
-                      inputMode="numeric"
-                      placeholder="1499"
-                      value={pay.amount}
-                      onChange={(e) =>
-                        setPay({ ...pay, amount: e.target.value.replace(/\D/g, "").slice(0, 7) })
-                      }
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                      Paid on
-                    </span>
-                    <input
-                      type="date"
-                      className={field}
-                      max={new Date().toISOString().slice(0, 10)}
-                      value={pay.paid_on}
-                      onChange={(e) => setPay({ ...pay, paid_on: e.target.value })}
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                      Method
-                    </span>
-                    <select
-                      className={field}
-                      value={pay.method}
-                      onChange={(e) => setPay({ ...pay, method: e.target.value })}
-                    >
-                      {["upi", "bank_transfer", "cash", "cheque", "card", "other"].map((m) => (
-                        <option key={m} value={m}>
-                          {m.replace("_", " ")}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] font-bold text-[var(--color-neutral-600)]">
-                      Reference <span className="font-normal opacity-60">(optional)</span>
-                    </span>
-                    <input
-                      className={field}
-                      placeholder="UPI ref / cheque no"
-                      value={pay.reference}
-                      onChange={(e) => setPay({ ...pay, reference: e.target.value.slice(0, 120) })}
-                    />
-                  </label>
-                </div>
-                {payErr ? (
-                  <p
-                    role="alert"
-                    className="mt-3 rounded-lg px-3 py-2 text-[13px] font-medium"
-                    style={{ backgroundColor: "#FCE9E6", color: "#94291A" }}
-                  >
-                    {payErr}
-                  </p>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={busy === "pay"}
-                  className="pk-press mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-xl px-5 text-[14px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-                  style={{ backgroundColor: "var(--color-brand-500)" }}
-                >
-                  {busy === "pay" ? <Loader2 size={15} className="animate-spin" /> : null}
-                  Record payment
-                </button>
-              </form>
-
-              <div className="mt-5 flex flex-col gap-2">
-                {payments.length === 0 ? (
-                  <p className="py-8 text-center text-[13px] text-[var(--color-neutral-400)]">
-                    No payments recorded yet.
-                  </p>
-                ) : (
-                  payments.map((p) => (
-                    <div
-                      key={p.id}
-                      className="group/pay flex items-center justify-between gap-3 rounded-xl border border-[var(--color-neutral-200)] bg-white p-3.5"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
-                          ₹{Number(p.amount).toLocaleString("en-IN")}
-                          <span className="ml-2 rounded-full bg-[var(--color-neutral-100)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[var(--color-neutral-600)]">
-                            {p.method.replace("_", " ")}
-                          </span>
-                        </p>
-                        <p className="mt-1 text-[12.5px] text-[var(--color-neutral-500)]">
-                          {new Date(p.paid_on).toLocaleDateString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                          {p.reference ? ` · ${p.reference}` : ""}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => deletePayment(p.id)}
-                        aria-label="Delete payment"
-                        className="pk-press shrink-0 rounded-lg p-2 text-[var(--color-neutral-400)] opacity-0 transition-opacity hover:bg-[#FCE9E6] hover:text-[#94291A] focus-visible:opacity-100 group-hover/pay:opacity-100"
-                      >
-                        <Trash2 size={15} strokeWidth={2.2} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-              <p className="mt-4 text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
-                A manual record of what a society paid us — not a gateway. "Last paid" on the
-                Billing tab is derived from the newest entry here.
-              </p>
-            </div>
+            <PaymentsPane
+              payments={payments}
+              totalCollected={totalCollected}
+              pay={pay}
+              setPay={setPay}
+              payErr={payErr}
+              busy={busy}
+              recordPayment={recordPayment}
+              deletePayment={deletePayment}
+            />
           ) : null}
 
           {/* ---------------- notes ---------------- */}
           {pane === "notes" ? (
-            <div>
-              <form onSubmit={addNote} className="flex gap-2">
-                <input
-                  className={field}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="What happened on the call?"
-                  maxLength={2000}
-                />
-                <button
-                  type="submit"
-                  disabled={!note.trim() || busy === "note"}
-                  aria-label="Add note"
-                  className="pk-press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2 disabled:opacity-45"
-                  style={{ backgroundColor: "var(--color-brand-500)", color: "#fff" }}
-                >
-                  {busy === "note" ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Send size={15} strokeWidth={2.4} />
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-5 flex flex-col gap-3">
-                {notes.length === 0 ? (
-                  <p className="py-8 text-center text-[13px] text-[var(--color-neutral-400)]">
-                    No notes yet. Anything recorded here stays internal — the society cannot read
-                    it.
-                  </p>
-                ) : (
-                  notes.map((n) => (
-                    <div
-                      key={n.id}
-                      className="rounded-xl border border-[var(--color-neutral-200)] bg-white p-3.5"
-                    >
-                      <p className="text-[14px] leading-relaxed text-[var(--color-neutral-900)]">
-                        {n.body}
-                      </p>
-                      <p className="mt-2 text-[12px] text-[var(--color-neutral-400)]">
-                        {new Date(n.created_at).toLocaleString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <NotesPane notes={notes} note={note} setNote={setNote} busy={busy} addNote={addNote} />
           ) : null}
         </div>
       </div>

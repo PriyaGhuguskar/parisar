@@ -28,7 +28,15 @@
     "emptyBodyBoard": "अपनी सोसायटी के लिए पहली सूचना पोस्ट करें।",
     "postedBy": "{{name}} ({{flat}}) द्वारा पोस्ट किया गया",
     "postedByAt": "{{name}} ({{flat}}) द्वारा {{time}} पर पोस्ट किया गया",
-    "openAttachment": "खोलने के लिए टैप करें"
+    "openAttachment": "खोलने के लिए टैप करें",
+    "back": "वापस",
+    "tryAgain": "फिर से कोशिश करें",
+    "attachPdfOption": "PDF जोड़ें",
+    "attachPhotoOption": "फ़ोटो जोड़ें",
+    "removeAttachment": "अटैचमेंट हटाएँ",
+    "notFoundTitle": "सूचना नहीं मिली",
+    "notFoundBody": "यह सूचना हटा दी गई हो सकती है, या आपको इसे देखने की अनुमति नहीं है।",
+    "backToList": "सूचनाओं पर वापस जाएं"
   },
   "push": {
     "body": {

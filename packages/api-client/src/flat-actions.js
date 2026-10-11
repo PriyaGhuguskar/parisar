@@ -32,7 +32,10 @@ import {
   FLAT_ACTION_KIND,
   FLAT_ACTION_KIND_LABELS,
 } from "@parisar/shared-types";
+import { readNativeFileAsBytes } from "./native-file.js";
+import { applyNewestFirstCursor } from "./pagination.js";
 import { uniqueChannelName } from "./realtime-channel.js";
+import { cryptoRandomUUID } from "./uuid.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { issueFlatAction, FLAT_ACTION_KIND } from '@parisar/api-client';
@@ -61,14 +64,14 @@ export const FINE_PDF_MAX_BYTES = 10 * 1024 * 1024;
  * (FLAT-02), plus the target flat for the board's multi-flat list.
  *
  * @param {object} supabase
- * @param {{ flatId?: string|null, limit?: number, cursor?: string|null }} [opts]
+ * @param {{ flatId?: string|null, limit?: number, cursor?: string|{createdAt: string, id: string}|null }} [opts]
+ *   - cursor: composite { createdAt, id } of the previous page's last row
+ *             (see nextCursorFrom); a bare ISO timestamp is still accepted
  * @returns {Promise<Array>} flat_action rows with embedded issuer/issuer_flat/flat
  */
 export async function listFlatActions(supabase, { flatId = null, limit = 30, cursor = null } = {}) {
-  let q = supabase
-    .from("flat_actions")
-    .select(
-      `
+  let q = supabase.from("flat_actions").select(
+    `
         id,
         society_id,
         flat_id,
@@ -84,16 +87,12 @@ export async function listFlatActions(supabase, { flatId = null, limit = 30, cur
         issuer_flat:issuer_flat_id ( number, wing:wing_id ( name ) ),
         flat:flat_id ( number, wing:wing_id ( name ) )
       `,
-    )
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  );
 
   if (flatId) {
     q = q.eq("flat_id", flatId);
   }
-  if (cursor) {
-    q = q.lt("created_at", cursor);
-  }
+  q = applyNewestFirstCursor(q, cursor).limit(limit);
 
   const { data, error } = await q;
   if (error) throw error;
@@ -235,13 +234,20 @@ export async function acknowledgeFine(supabase, id) {
  *
  * @param {object} supabase
  * @param {string} id - flat_action UUID
- * @returns {Promise<object>} the RPC jsonb result, or {ok:false, reason:'insufficient_role'}
+ * Since migration 054 an id outside the caller's society raises
+ * FLAT_ACTION_NOT_FOUND (it used to return `{ ok:false, reason:'not_waivable' }`);
+ * that is mapped back to the typed result `{ ok:false, reason:'not_found' }`.
+ *
+ * @returns {Promise<object>} the RPC jsonb result, or {ok:false, reason:'insufficient_role'|'not_found'}
  */
 export async function waiveFine(supabase, id) {
   const { data, error } = await supabase.rpc("waive_fine", { p_action_id: id });
   if (error) {
     if (isRoleError(error)) {
       return { ok: false, reason: "insufficient_role" };
+    }
+    if (errorText(error).includes("FLAT_ACTION_NOT_FOUND")) {
+      return { ok: false, reason: "not_found" };
     }
     throw error;
   }
@@ -271,7 +277,6 @@ export async function waiveFine(supabase, id) {
  */
 export async function uploadFinePdf(supabase, { societyId, actionId }) {
   const DocumentPicker = await import(/* webpackIgnore: true */ "expo-document-picker");
-  const FileSystem = await import(/* webpackIgnore: true */ "expo-file-system");
 
   const picked = await DocumentPicker.getDocumentAsync({
     type: "application/pdf",
@@ -286,14 +291,8 @@ export async function uploadFinePdf(supabase, { societyId, actionId }) {
     throw new Error("PDF_TOO_LARGE");
   }
 
-  const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
+  // expo-file-system/legacy read → base64 → Uint8Array (file:// URIs can't be uploaded).
+  const bytes = await readNativeFileAsBytes(asset.uri);
 
   const fileId = cryptoRandomUUID();
   const storageKey = `${societyId}/flat_actions/${actionId}/${fileId}.pdf`;
@@ -351,22 +350,28 @@ export async function uploadFinePdfWeb(supabase, { societyId, actionId, file }) 
  * - Board view: omit `flatId` → INSERT scoped to the whole society.
  *
  * @param {object} supabase
- * @param {{ societyId: string, flatId?: string|null, onInsert?: Function, onConnected?: Function }} opts
+ * @param {{ societyId: string, flatId?: string|null, onInsert?: Function, onUpdate?: Function, onConnected?: Function }} opts
  * @returns {Function} cleanup — call on unmount/blur
  */
 export function subscribeFlatActions(
   supabase,
-  { societyId, flatId = null, onInsert, onConnected },
+  { societyId, flatId = null, onInsert, onUpdate, onConnected },
 ) {
   const channelName = flatId ? `flat-actions-${societyId}-${flatId}` : `flat-actions-${societyId}`;
   const filter = flatId ? `flat_id=eq.${flatId}` : `society_id=eq.${societyId}`;
 
   const channel = supabase
-    .channel(channelName)
+    .channel(uniqueChannelName(channelName))
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "flat_actions", filter },
       (payload) => onInsert?.(payload.new),
+    )
+    // Status changes (acknowledge / waive) so list screens update in place.
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "flat_actions", filter },
+      (payload) => onUpdate?.(payload.new),
     )
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
@@ -408,27 +413,9 @@ export function subscribeFlatAction(supabase, { id, onUpdate }) {
 
 /** True when a Supabase RPC error is the admin-only role gate (INSUFFICIENT_ROLE). */
 function isRoleError(error) {
-  const msg = (error && (error.message || error.code || "")).toString();
-  return msg.includes("INSUFFICIENT_ROLE");
+  return errorText(error).includes("INSUFFICIENT_ROLE");
 }
 
-/**
- * Cross-runtime UUID generator (Node 19+, browsers, RN via expo-crypto polyfill).
- * Falls back to a v4-shaped string built from getRandomValues.
- */
-function cryptoRandomUUID() {
-  const g = globalThis.crypto;
-  if (g && typeof g.randomUUID === "function") {
-    return g.randomUUID();
-  }
-  const bytes = new Uint8Array(16);
-  if (g && typeof g.getRandomValues === "function") {
-    g.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+function errorText(error) {
+  return (error && (error.message || error.code || "")).toString();
 }

@@ -2,7 +2,7 @@
 //
 // Visual contract per 06-UI-SPEC.md Screen 1.
 //
-// FLAT-05: the LOCKED no-payment footer is rendered via t("fine.noPaymentFooter")
+// FLAT-05: the LOCKED no-payment footer is rendered via t("flatAction.noPaymentFooter")
 // (Plan 07-01 locked-verbatim snapshot suite guards byte-exact preservation).
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
@@ -11,17 +11,12 @@ import { issueFlatAction, uploadFinePdf } from "@parisar/api-client";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
 import { CalendarDays, FileText, Info, X } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { cryptoRandomUUID } from "../shared/uuid";
+import { Text } from "../ui/Text";
 import { FlatPicker } from "./FlatPicker";
 
 const BRAND_500 = "#12715A";
@@ -31,19 +26,6 @@ const DANGER_500 = "#c81e1e";
 const REASON_MAX = 1000;
 const MESSAGE_MAX = 2000;
 const AMOUNT_MAX = 1000000; // ₹10,00,000 defensive cap (FLAT-01)
-
-// Cross-runtime UUID — mirrors api-client cryptoRandomUUID / complaints/new.jsx.
-function cryptoRandomUUID() {
-  const g = globalThis.crypto;
-  if (g && typeof g.randomUUID === "function") return g.randomUUID();
-  const bytes = new Uint8Array(16);
-  if (g && typeof g.getRandomValues === "function") g.getRandomValues(bytes);
-  else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 function startOfToday() {
   const d = new Date();
@@ -61,7 +43,10 @@ function startOfToday() {
  */
 export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) {
   const { t } = useTranslation("flat-actions");
+  const dateLocale = useDateLocale();
   const actionId = useMemo(() => cryptoRandomUUID(), []);
+  // Synchronous double-tap guard (state updates land a render later).
+  const submitLockRef = useRef(false);
 
   const [flatId, setFlatId] = useState(null);
   const [kind, setKind] = useState("warning"); // default Warning (least severe)
@@ -90,17 +75,25 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
     return false;
   }, [flatId, kind, reason, message, amountValid, dueDate]);
 
-  // LOCKED no-payment footer — rendered via t("fine.noPaymentFooter") (FLAT-05).
-  const noPaymentFooter = t("fine.noPaymentFooter", {
-    defaultValue: t("flatAction.noPaymentFooter"),
-  });
+  // LOCKED no-payment footer (FLAT-05) — verbatim key, never re-worded here.
+  const noPaymentFooter = t("flatAction.noPaymentFooter");
+
+  function selectKind(nextKind) {
+    setKind(nextKind);
+    // The PDF only belongs to a fine; drop it when switching away so a stale
+    // attachment is never submitted (or shown) with a warning/notify.
+    if (nextKind !== "fine") {
+      setPdf(null);
+      setPdfError(null);
+    }
+  }
 
   async function handlePickPdf() {
     setPdfError(null);
     try {
       const result = await uploadFinePdf(supabase, { societyId, actionId });
       if (result) {
-        setPdf({ ...result, name: "Bylaw / AGM resolution.pdf" });
+        setPdf({ ...result, name: t("flatAction.pdfAttachedName") });
       }
     } catch (err) {
       const code = err?.message ?? "";
@@ -113,9 +106,11 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
   }
 
   async function handleSubmit() {
-    if (submitting || !valid) return;
+    if (submitting || showSuccess || !valid || submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
+    let issued = false;
     try {
       const body = kind === "notify" ? message.trim() : reason.trim();
       await issueFlatAction(supabase, {
@@ -130,6 +125,9 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
         mimeType: kind === "fine" ? (pdf?.mimeType ?? null) : null,
         byteSize: kind === "fine" ? (pdf?.byteSize ?? null) : null,
       });
+      // Keep the form locked after success — the 1s toast must not be
+      // tappable into a second issue_flat_action call.
+      issued = true;
       setShowSuccess(true);
       setTimeout(() => {
         onSuccess?.();
@@ -142,7 +140,10 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
         setSubmitError(t("flatAction.issueError"));
       }
     } finally {
-      setSubmitting(false);
+      if (!issued) {
+        submitLockRef.current = false;
+        setSubmitting(false);
+      }
     }
   }
 
@@ -169,17 +170,17 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
             <KindSegment
               label={t("flatAction.kindWarning")}
               active={kind === "warning"}
-              onPress={() => setKind("warning")}
+              onPress={() => selectKind("warning")}
             />
             <KindSegment
               label={t("flatAction.kindFine")}
               active={kind === "fine"}
-              onPress={() => setKind("fine")}
+              onPress={() => selectKind("fine")}
             />
             <KindSegment
               label={t("flatAction.kindNotify")}
               active={kind === "notify"}
-              onPress={() => setKind("notify")}
+              onPress={() => selectKind("notify")}
             />
           </View>
         </View>
@@ -248,14 +249,16 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
               <Text className="text-sm text-neutral-600">{t("flatAction.dueDateLabel")}</Text>
               <Pressable
                 onPress={() => setShowDatePicker(true)}
-                className="flex-row items-center justify-between h-12 px-3 rounded-xl border border-neutral-200 bg-white"
+                className="flex-row items-center justify-between min-h-12 py-2 px-3 rounded-xl border border-neutral-200 bg-white"
                 accessibilityRole="button"
                 accessibilityLabel={t("flatAction.dueDateLabel")}
               >
                 <Text
                   className={dueDate ? "text-base text-neutral-900" : "text-base text-neutral-400"}
                 >
-                  {dueDate ? format(dueDate, "dd MMM yyyy") : t("flatAction.dueDateLabel")}
+                  {dueDate
+                    ? format(dueDate, "dd MMM yyyy", { locale: dateLocale })
+                    : t("flatAction.dueDateLabel")}
                 </Text>
                 <CalendarDays size={20} color={BRAND_500} />
               </Pressable>
@@ -285,7 +288,7 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
                   <Pressable
                     onPress={() => setPdf(null)}
                     accessibilityRole="button"
-                    accessibilityLabel="Remove PDF"
+                    accessibilityLabel={t("flatAction.removePdf")}
                     className="p-1"
                   >
                     <X size={18} color={NEUTRAL_600} />
@@ -333,13 +336,15 @@ export function IssueActionForm({ supabase, societyId, flats = [], onSuccess }) 
       {/* Submit */}
       <Pressable
         onPress={handleSubmit}
-        disabled={submitting || !valid}
+        disabled={submitting || showSuccess || !valid}
         accessibilityRole="button"
         accessibilityLabel={t("flatAction.issueCta")}
-        accessibilityState={{ disabled: submitting || !valid, busy: submitting }}
+        accessibilityState={{ disabled: submitting || showSuccess || !valid, busy: submitting }}
         className={[
-          "h-14 w-full rounded-xl items-center justify-center",
-          submitting || !valid ? "bg-neutral-200" : "bg-brand-500 active:bg-brand-600",
+          "min-h-14 py-2 w-full rounded-xl items-center justify-center",
+          submitting || showSuccess || !valid
+            ? "bg-neutral-200"
+            : "bg-brand-500 active:bg-brand-600",
         ].join(" ")}
       >
         {submitting ? (
@@ -377,8 +382,8 @@ function KindSegment({ label, active, onPress }) {
       accessibilityState={{ selected: active }}
     >
       <Text
-        className={`text-sm font-semibold ${active ? "text-white" : "text-neutral-600"}`}
-        numberOfLines={1}
+        className={`text-sm font-semibold text-center ${active ? "text-white" : "text-neutral-600"}`}
+        numberOfLines={2}
       >
         {label}
       </Text>

@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewBookingPage() {
   const lng = await readLocaleFromCookies();
-  const { t } = await initTranslations(lng, ["bookings"]);
+  const { t } = await initTranslations(lng, ["bookings", "auth"]);
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -41,9 +41,9 @@ export default async function NewBookingPage() {
         <Link
           href="/bookings"
           className="text-sm text-[#0E5A48] hover:underline"
-          aria-label="Back to bookings"
+          aria-label={t("booking.backToList")}
         >
-          ← Back
+          ← {t("auth:common.back")}
         </Link>
         <h1 className="text-xl font-semibold text-[#171717] truncate">
           {t("booking.requestTitle")}

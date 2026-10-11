@@ -7,6 +7,7 @@
 
 import { redirect } from "next/navigation";
 import { VisitorInbox } from "../../../components/visitors/VisitorInbox";
+import { resolveActiveSociety } from "../../../lib/auth/activeSociety";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -17,5 +18,8 @@ export default async function VisitorsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  return <VisitorInbox />;
+  // Scope the realtime channel to the active society (RLS still filters rows).
+  const { societyId } = await resolveActiveSociety(supabase, user);
+  if (!societyId) redirect("/onboarding");
+  return <VisitorInbox societyId={societyId} />;
 }

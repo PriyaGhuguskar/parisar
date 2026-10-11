@@ -16,8 +16,10 @@
 //   8. uploadNoticeAttachmentWeb(supabase, societyId, noticeId, file) ← web only
 
 import { NOTIFICATION_CATEGORY, NOTIFICATION_KIND } from "@parisar/shared-types";
-import { cryptoRandomUUID } from "./uuid.js";
+import { readNativeFileAsBytes } from "./native-file.js";
+import { applyNewestFirstCursor } from "./pagination.js";
 import { uniqueChannelName } from "./realtime-channel.js";
+import { cryptoRandomUUID } from "./uuid.js";
 
 // Re-export enum constants alongside the API so callers can do:
 //   import { fileNotification, NOTIFICATION_CATEGORY } from '@parisar/api-client';
@@ -41,17 +43,16 @@ export const NOTICES_BUCKET = "parisar-attachments";
  * `polls` existence flag (left-joined so the card can render the PollPill).
  *
  * @param {object} supabase
- * @param {{ limit?: number, cursor?: string|null, pollsOnly?: boolean }} [opts]
+ * @param {{ limit?: number, cursor?: string|{createdAt: string, id: string}|null, pollsOnly?: boolean }} [opts]
  *   - limit:     page size, default 30
- *   - cursor:    ISO timestamp; when provided, returns rows created_at < cursor
+ *   - cursor:    composite { createdAt, id } of the previous page's last row
+ *                (see nextCursorFrom); a bare ISO timestamp is still accepted
  *   - pollsOnly: when true, restrict to kind='poll' (the Polls tile filtered view, DD-1)
  * @returns {Promise<Array>} notice rows with embedded author/flat + poll marker
  */
 export async function listNotices(supabase, { limit = 30, cursor = null, pollsOnly = false } = {}) {
-  let q = supabase
-    .from("notifications")
-    .select(
-      `
+  let q = supabase.from("notifications").select(
+    `
         id,
         society_id,
         author_id,
@@ -65,16 +66,12 @@ export async function listNotices(supabase, { limit = 30, cursor = null, pollsOn
         author_flat:author_flat_id ( number, wing:wing_id ( name ) ),
         polls ( id, question, status )
       `,
-    )
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  );
 
   if (pollsOnly) {
     q = q.eq("kind", NOTIFICATION_KIND.POLL);
   }
-  if (cursor) {
-    q = q.lt("created_at", cursor);
-  }
+  q = applyNewestFirstCursor(q, cursor).limit(limit);
 
   const { data, error } = await q;
   if (error) throw error;
@@ -231,9 +228,10 @@ export async function fileNotification(
  * FAST-FOLLOW STUB. The UI-SPEC (§Read/Unread Tracking) explicitly allows
  * read-tracking to ship as a fast-follow: until a per-user read marker exists in
  * the DB, the NoticeCard degrades gracefully (renders all notices as "unread" and
- * the tile shows no badge). Plan 05-01's migration intentionally does NOT add a
- * `notification_reads` table, so this is a no-op returning true rather than
- * inventing new DB surface here. Wire the real marker in a future plan.
+ * the tile shows no badge). As of migration 056 there is still NO
+ * `notification_reads` (or equivalent) table, so this remains a no-op returning
+ * true rather than inventing new DB surface from the client package. Wire the real
+ * marker once a migration adds one.
  *
  * @param {object} _supabase
  * @param {string} _noticeId
@@ -317,7 +315,6 @@ export async function pickAndUploadNoticeAttachment(
 ) {
   const ImagePicker = await import(/* webpackIgnore: true */ "expo-image-picker");
   const ImageManipulator = await import(/* webpackIgnore: true */ "expo-image-manipulator");
-  const FileSystem = await import(/* webpackIgnore: true */ "expo-file-system");
 
   // Offer the PDF branch first (document picker), falling back to the gallery.
   if (allowPdf) {
@@ -330,10 +327,7 @@ export async function pickAndUploadNoticeAttachment(
     // A user who picked a PDF: upload it verbatim (no resize).
     if (!doc.canceled && doc.assets?.[0]) {
       const asset = doc.assets[0];
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const bytes = base64ToBytes(base64);
+      const bytes = await readNativeFileAsBytes(asset.uri);
       const attId = cryptoRandomUUID();
       const storageKey = `${societyId}/notifications/${noticeId}/${attId}.pdf`;
       const { error: upErr } = await supabase.storage
@@ -364,10 +358,7 @@ export async function pickAndUploadNoticeAttachment(
     format: ImageManipulator.SaveFormat.JPEG,
   });
 
-  const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const bytes = base64ToBytes(base64);
+  const bytes = await readNativeFileAsBytes(manipResult.uri);
 
   const attId = cryptoRandomUUID();
   const storageKey = `${societyId}/notifications/${noticeId}/${attId}.jpg`;
@@ -410,15 +401,6 @@ export async function uploadNoticeAttachmentWeb(supabase, societyId, noticeId, f
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-function base64ToBytes(base64) {
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  return bytes;
-}
 
 function extensionForNoticeMime(mime) {
   if (!mime) return null;

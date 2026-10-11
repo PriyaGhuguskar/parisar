@@ -23,7 +23,9 @@
     "eventTarget": "{{target}} · {{reason}}",
     "emptyHeading": "Nothing to review",
     "emptyBody": "Reported posts and comments will appear here.",
-    "auditEmpty": "No moderation events yet."
+    "auditEmpty": "No moderation events yet.",
+    "back": "Back",
+    "tryAgain": "Try again"
   },
   "grievance": {
     "settingsTitle": "Grievance Officer",

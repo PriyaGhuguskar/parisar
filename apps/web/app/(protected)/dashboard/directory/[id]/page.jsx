@@ -10,14 +10,19 @@
 import { removeMember } from "@parisar/api-client";
 import { ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PhonePrivacyChip } from "@/components/directory/PhonePrivacyChip";
 import { DestructiveConfirmDialog } from "@/components/shared/DestructiveConfirmDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { isManagerRole, resolveActiveSociety } from "@/lib/auth/activeSociety";
+import { formatDate } from "@/lib/i18n/date-locale";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+// How long the "Member removed" toast shows before returning to the directory.
+const REMOVED_REDIRECT_MS = 1200;
 
 // ---------------------------------------------------------------------------
 // Avatar helpers
@@ -45,10 +50,14 @@ function initials(name = "") {
 // ---------------------------------------------------------------------------
 // MemberDetailPage
 // ---------------------------------------------------------------------------
-export default function MemberDetailPage({ params }) {
-  const { t } = useTranslation("auth");
-  const membershipId = params?.id ?? null;
+export default function MemberDetailPage() {
+  const { t, i18n } = useTranslation("auth");
+  // Next 15: a client page's `params` prop is a Promise — read the segment via
+  // useParams() instead of synchronously off the prop.
+  const routeParams = useParams();
+  const membershipId = routeParams?.id ?? null;
   const router = useRouter();
+  const redirectTimer = useRef(null);
 
   const [membership, setMembership] = useState(null);
   const [familyCount, setFamilyCount] = useState(0);
@@ -69,8 +78,13 @@ export default function MemberDetailPage({ params }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const meta = user?.app_metadata ?? user?.user_metadata ?? {};
-      setCurrentUserRole(meta.role ?? "member");
+      // Live role + society — NOT user.app_metadata (absent on getUser()).
+      const { societyId, role } = await resolveActiveSociety(supabase, user);
+      setCurrentUserRole(role);
+      if (!societyId) {
+        setMembership(null);
+        return;
+      }
 
       const [memberRes, familyRes] = await Promise.all([
         supabase
@@ -79,6 +93,7 @@ export default function MemberDetailPage({ params }) {
             "id, user_id, flat_id, joined_at, residency, status, profiles:user_id(full_name), flats:flat_id(number, wings:wing_id(name))",
           )
           .eq("id", membershipId)
+          .eq("society_id", societyId)
           .maybeSingle(),
         supabase
           .from("family_members")
@@ -88,19 +103,23 @@ export default function MemberDetailPage({ params }) {
 
       if (memberRes.error) throw memberRes.error;
       setMembership(memberRes.data);
-      setFamilyCount(familyRes.count ?? 0);
+      setFamilyCount(familyRes.error ? 0 : (familyRes.count ?? 0));
     } catch (err) {
-      setError(err?.message ?? "Failed to load member");
+      console.error("[member-detail] load failed:", err?.message ?? err);
+      setError(t("common.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [membershipId, supabase]);
+  }, [membershipId, supabase, t]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const isAdmin = currentUserRole === "secretary" || currentUserRole === "co_secretary";
+  // Never navigate after unmount (the toast timer outlives a fast Back click).
+  useEffect(() => () => clearTimeout(redirectTimer.current), []);
+
+  const isAdmin = isManagerRole(currentUserRole);
 
   async function handleRemoveConfirm() {
     setIsRemoving(true);
@@ -108,11 +127,13 @@ export default function MemberDetailPage({ params }) {
       await removeMember(supabase, membershipId);
       setShowRemoveDialog(false);
       setSuccessToast(true);
-      setTimeout(() => {
+      clearTimeout(redirectTimer.current);
+      redirectTimer.current = setTimeout(() => {
         router.push("/dashboard/directory");
-      }, 1200);
+      }, REMOVED_REDIRECT_MS);
     } catch (err) {
-      setError(err?.message ?? "Remove failed");
+      console.error("[member-detail] remove failed:", err?.message ?? err);
+      setError(t("common.genericError"));
       setIsRemoving(false);
     }
   }
@@ -124,7 +145,7 @@ export default function MemberDetailPage({ params }) {
           <Link
             href="/dashboard/directory"
             className="text-[var(--color-neutral-600)] hover:text-[var(--color-neutral-900)]"
-            aria-label="Back"
+            aria-label={t("common.back")}
           >
             <ArrowLeft size={20} />
           </Link>
@@ -140,32 +161,35 @@ export default function MemberDetailPage({ params }) {
     return (
       <div className="min-h-screen bg-[var(--color-neutral-50)]">
         <header className="bg-white border-b border-[var(--color-neutral-200)] px-4 h-14 flex items-center gap-3">
-          <Link href="/dashboard/directory" className="text-[var(--color-neutral-600)]">
+          <Link
+            href="/dashboard/directory"
+            className="text-[var(--color-neutral-600)]"
+            aria-label={t("common.back")}
+          >
             <ArrowLeft size={20} />
           </Link>
         </header>
         <div className="max-w-lg mx-auto px-4 py-8 flex flex-col items-center gap-4">
           <Users size={48} className="text-[var(--color-neutral-200)]" aria-hidden="true" />
           <p className="text-base text-[var(--color-neutral-600)] text-center">
-            {error ?? "Member not found."}
+            {error ?? t("directory.notFound")}
           </p>
         </div>
       </div>
     );
   }
 
-  const name = membership?.profiles?.full_name ?? "Member";
+  const name = membership?.profiles?.full_name ?? t("profile.roleMember");
   const flatNum = membership?.flats?.number ?? "";
   const wing = membership?.flats?.wings?.name ?? "";
   const flatLabel = [wing, flatNum].filter(Boolean).join("-");
   const residency = membership?.residency ?? membership?.residency_type ?? null;
-  const joinedAt = membership?.joined_at
-    ? new Date(membership.joined_at).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : null;
+  const joinedAt =
+    formatDate(membership?.joined_at, i18n.language, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }) || null;
   const colors = getAvatarColor(name);
 
   return (
@@ -175,7 +199,7 @@ export default function MemberDetailPage({ params }) {
         <Link
           href="/dashboard/directory"
           className="flex items-center gap-1 text-[var(--color-neutral-600)] hover:text-[var(--color-neutral-900)] transition-colors"
-          aria-label="Back to directory"
+          aria-label={t("directory.backToDirectory")}
         >
           <ArrowLeft size={20} />
         </Link>
@@ -207,7 +231,9 @@ export default function MemberDetailPage({ params }) {
           <dl className="divide-y divide-[var(--color-neutral-100)]">
             {residency && (
               <div className="flex items-center justify-between py-3">
-                <dt className="text-sm text-[var(--color-neutral-600)]">Residency</dt>
+                <dt className="text-sm text-[var(--color-neutral-600)]">
+                  {t("directory.residency")}
+                </dt>
                 <dd>
                   <Badge
                     variant="secondary"
@@ -220,7 +246,7 @@ export default function MemberDetailPage({ params }) {
             )}
 
             <div className="flex items-center justify-between py-3">
-              <dt className="text-sm text-[var(--color-neutral-600)]">Phone</dt>
+              <dt className="text-sm text-[var(--color-neutral-600)]">{t("profile.phone")}</dt>
               <dd>
                 <PhonePrivacyChip targetUserId={membership?.user_id} />
               </dd>
@@ -228,13 +254,15 @@ export default function MemberDetailPage({ params }) {
 
             {joinedAt && (
               <div className="flex items-center justify-between py-3">
-                <dt className="text-sm text-[var(--color-neutral-600)]">Joined</dt>
+                <dt className="text-sm text-[var(--color-neutral-600)]">{t("directory.joined")}</dt>
                 <dd className="text-sm text-[var(--color-neutral-900)]">{joinedAt}</dd>
               </div>
             )}
 
             <div className="flex items-center justify-between py-3">
-              <dt className="text-sm text-[var(--color-neutral-600)]">Family members</dt>
+              <dt className="text-sm text-[var(--color-neutral-600)]">
+                {t("directory.familyMembers")}
+              </dt>
               <dd className="text-sm text-[var(--color-neutral-900)]">{familyCount}</dd>
             </div>
           </dl>

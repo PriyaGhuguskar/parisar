@@ -71,10 +71,20 @@ function dropById(list, id) {
   return list.filter((p) => p?.id !== id);
 }
 
-export const useDashboardSummary = create((set, get) => ({
+// Fresh state. `societyId` keys the cached summary to the society it was
+// fetched for, so a society switch (or a different user signing in on the same
+// tab) never renders the previous society's tiles. `generation` bumps on every
+// reset so an in-flight fetch for the old society is discarded when it lands.
+const INITIAL_STATE = Object.freeze({
   summary: null,
+  societyId: null,
   status: "idle", // 'idle' | 'loading' | 'ready' | 'error'
   error: null,
+});
+
+export const useDashboardSummary = create((set, get) => ({
+  ...INITIAL_STATE,
+  generation: 0,
 
   /**
    * Fetch the role-aware summary from the RPC. Status transitions
@@ -83,25 +93,42 @@ export const useDashboardSummary = create((set, get) => ({
    * `opts.view` = "member" asks for the resident view (an authority's home).
    */
   async fetchSummary(supabase, opts) {
+    const generation = get().generation;
     set({ status: "loading", error: null });
     try {
       const data = opts
         ? await getDashboardSummary(supabase, opts)
         : await getDashboardSummary(supabase);
+      // Stale response (store was reset / society switched mid-flight) → drop.
+      if (get().generation !== generation) return data;
       set({ summary: data, status: "ready", error: null });
       return data;
     } catch (err) {
-      set({ status: "error", error: err });
+      if (get().generation === generation) set({ status: "error", error: err });
       throw err;
     }
   },
 
   /**
    * Replace the summary atomically (used by SSR seeding, reconnect-reconcile,
-   * and tests). Status becomes "ready".
+   * and tests). Status becomes "ready". Pass `societyId` when seeding so the
+   * cache is keyed to the society it belongs to; switching societies discards
+   * any in-flight fetch for the previous one.
+   *
+   * @param {object|null} data
+   * @param {string|null} [societyId]
    */
-  setSummary(data) {
-    set({ summary: data, status: "ready", error: null });
+  setSummary(data, societyId) {
+    const prev = get();
+    const nextSocietyId = societyId === undefined ? prev.societyId : societyId;
+    const switched = nextSocietyId !== prev.societyId;
+    set({
+      summary: data,
+      societyId: nextSocietyId,
+      status: "ready",
+      error: null,
+      ...(switched ? { generation: prev.generation + 1 } : {}),
+    });
   },
 
   /**
@@ -284,9 +311,30 @@ export const useDashboardSummary = create((set, get) => ({
   },
 
   /**
+   * Key the (empty) store to `societyId` without data — used when there is no
+   * SSR summary to seed. A different society clears the previous one's data
+   * and discards its in-flight fetch; the same society is a no-op.
+   *
+   * @param {string|null} societyId
+   */
+  bindSociety(societyId) {
+    const prev = get();
+    if (prev.societyId === societyId) return;
+    set({ ...INITIAL_STATE, societyId, generation: prev.generation + 1 });
+  },
+
+  /**
    * Reset to initial state. Used by tests and on sign-out / society-switch.
    */
   reset() {
-    set({ summary: null, status: "idle", error: null });
+    set({ ...INITIAL_STATE, generation: get().generation + 1 });
   },
 }));
+
+/**
+ * Clear the cached dashboard summary. Call on society switch and on sign-out
+ * so the next society/user never sees the previous one's tiles.
+ */
+export function resetDashboardSummary() {
+  useDashboardSummary.getState().reset();
+}

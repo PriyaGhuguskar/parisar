@@ -1,2 +1,6 @@
+# Invoked by a Postgres trigger via pg_net (no user JWT) → verify_jwt = false.
+# Access control: authorize() in ../_shared/fanout.js — constant-time match of
+# the x-webhook-secret header against env FANOUT_WEBHOOK_SECRET (fails closed
+# when unset), or a service-role Bearer.
 [functions.booking-ack-fanout]
 verify_jwt = false

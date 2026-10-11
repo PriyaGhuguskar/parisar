@@ -28,6 +28,13 @@
     "yourVote": "your vote",
     "emptyHeading": "No polls yet",
     "emptyBody": "Polls posted by your board will appear here.",
-    "closeError": "Couldn't close the poll. Please try again."
+    "closeError": "Couldn't close the poll. Please try again.",
+    "back": "Back",
+    "tryAgain": "Try again",
+    "incomplete": "Poll incomplete — add a question and at least 2 options (max 4).",
+    "voteRecordedA11y": "Vote recorded. Results now visible.",
+    "removeOption": "Remove option {{n}}",
+    "closedWhileVoting": "This poll was closed before your vote was saved. Final results are shown.",
+    "optionA11y": "{{label}}: {{percent}} percent, {{count}} votes"
   }
 }

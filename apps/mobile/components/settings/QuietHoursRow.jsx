@@ -14,7 +14,8 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
+import { Text } from "../ui/Text";
 
 // "HH:mm" → a Date (today) carrying that time, for seeding the native picker.
 function toDate(hhmm) {

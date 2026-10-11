@@ -1,9 +1,14 @@
-// Code Rate-Limit Isolation Tests
-// Covers: SETUP-04 — 5+ redemptions in 60s auto-pauses the code
+// Code attempt throttle — isolation tests.
+//
+// Migration 054 revoked redeem_society_code (and with it the old 60s
+// "5 redemptions → CODE_PAUSED_RATE_LIMIT" path). Joining is onboard_resident,
+// throttled per user: after 5 failed code attempts (INVALID_CODE / CODE_PAUSED)
+// within 15 minutes, onboard_resident AND onboard_flats_for_code raise
+// TOO_MANY_CODE_ATTEMPTS — even for a valid code — so codes can't be brute-forced.
 //
 // Uses:
 //   +919000000001 = Secretary
-//   +919000000003 = Member-A (redeems the code after rate-limit threshold)
+//   +919000000003 = Member-A (guesses codes, then joins)
 //
 // JavaScript only — no TypeScript, no import type.
 
@@ -11,123 +16,102 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   adminClient,
   cleanupTestUsers,
+  createSocietyAsSecretary,
   resetTestState,
   signInTestPhone,
 } from "./helpers/phase3.js";
+
+const FAILED_ATTEMPTS_ALLOWED = 5;
 
 afterAll(async () => {
   await resetTestState();
   await cleanupTestUsers();
 });
 
-describe("Phase 3 — Code Rate-Limit (SETUP-04)", () => {
+describe("Phase 3 — code attempt throttle (054 onboard_resident / onboard_flats_for_code)", () => {
   beforeEach(async () => {
     await resetTestState();
   });
 
-  // Helper: create a society + flat for rate-limit testing
   async function setupSociety() {
     const sec = await signInTestPhone("+919000000001", "secretary");
-    const { data: created, error } = await sec.client.rpc("create_society_with_secretary", {
-      p_name: "RateLimit Society",
-      p_address: "1 Rate Limit Street, Test City, MH 400001",
-      p_co_secretary_phone: "9000000002",
-    });
-    if (error) throw new Error(`create_society_with_secretary failed: ${error.message}`);
+    const created = await createSocietyAsSecretary(sec.userId, { name: "RateLimit Society" });
 
     const admin = adminClient();
-    const { data: wing } = await admin
+    const { data: wing, error: wErr } = await admin
       .from("wings")
-      .insert({ society_id: created.society_id, name: "A" })
+      .insert({ society_id: created.societyId, name: "A" })
       .select()
       .single();
-    const { data: flat1 } = await admin
+    if (wErr) throw new Error(`wing insert: ${wErr.message}`);
+    const { data: flat, error: fErr } = await admin
       .from("flats")
-      .insert({ society_id: created.society_id, wing_id: wing.id, number: "101" })
+      .insert({ society_id: created.societyId, wing_id: wing.id, number: "101" })
       .select()
       .single();
-    const { data: flat2 } = await admin
-      .from("flats")
-      .insert({ society_id: created.society_id, wing_id: wing.id, number: "102" })
-      .select()
-      .single();
+    if (fErr) throw new Error(`flat insert: ${fErr.message}`);
 
-    return { sec, created, wing, flat1, flat2, admin };
+    return { sec, created, flat, admin };
   }
 
-  it("SETUP-04: 5 existing redemptions in 60s window → redeem_society_code returns CODE_PAUSED_RATE_LIMIT, society_codes.paused_at is set, audit_log has code.auto_paused", async () => {
-    const { created, flat1, flat2, admin } = await setupSociety();
+  function onboard(client, code, flatId) {
+    return client.rpc("onboard_resident", {
+      p_code: code,
+      p_flat_id: flatId,
+      p_full_name: "Member A",
+      p_residency: "owner",
+      p_alt_phone: null,
+      p_family: [],
+    });
+  }
 
-    // Insert 5 code_redemptions rows within the 60s window via service-role
-    // (bypasses the RLS/REVOKE because service-role ignores RLS)
-    // We need a real user_id — sign in as Member-A to get a user_id
+  it("a single valid onboard_resident succeeds (status=active)", async () => {
+    const { created, flat, admin } = await setupSociety();
     const memberA = await signInTestPhone("+919000000003", "member");
 
-    const redemptionRows = Array.from({ length: 5 }, () => ({
-      code: created.code,
-      user_id: memberA.userId,
-      society_id: created.society_id,
-      redeemed_at: new Date().toISOString(),
-    }));
-    const { error: insertError } = await admin.from("code_redemptions").insert(redemptionRows);
-    expect(insertError).toBeNull();
+    const { data, error } = await onboard(memberA.client, created.code, flat.id);
+    expect(error).toBeNull();
+    expect(data.error).toBeUndefined();
+    expect(data.status).toBe("active");
 
-    // Now call redeem_society_code — the rolling window count is 5, should auto-pause
-    const { data: result, error: redeemError } = await memberA.client.rpc(
-      "redeem_society_code",
-      {
-        p_code: created.code,
-        p_flat_id: flat2.id,
-        p_residency: "owner",
-        p_household: "family",
-        p_emergency: "9999999999",
-      },
-    );
-    expect(redeemError).toBeNull();
-    expect(result.error).toBe("CODE_PAUSED_RATE_LIMIT");
-
-    // society_codes.paused_at must be set
-    const { data: codeRow } = await admin
-      .from("society_codes")
-      .select("paused_at")
-      .eq("code", created.code)
+    const { data: mem } = await admin
+      .from("society_memberships")
+      .select("status, flat_id")
+      .eq("user_id", memberA.userId)
+      .eq("society_id", created.societyId)
       .single();
-    expect(codeRow.paused_at).not.toBeNull();
-
-    // audit_log must have code.auto_paused
-    const { data: logs } = await admin
-      .from("audit_log")
-      .select("action, payload")
-      .eq("action", "code.auto_paused")
-      .eq("society_id", created.society_id);
-    expect(logs.length).toBeGreaterThanOrEqual(1);
-    expect(logs[0].payload.code).toBe(created.code);
+    expect(mem).toMatchObject({ status: "active", flat_id: flat.id });
   });
 
-  it("SETUP-04: single redemption with no prior history succeeds (status=active, no pause)", async () => {
-    const { created, flat2, admin } = await setupSociety();
-
+  it("after 5 failed codes, even a valid code raises TOO_MANY_CODE_ATTEMPTS", async () => {
+    const { created, flat } = await setupSociety();
     const memberA = await signInTestPhone("+919000000003", "member");
 
-    const { data: result, error } = await memberA.client.rpc("redeem_society_code", {
+    for (let i = 0; i < FAILED_ATTEMPTS_ALLOWED; i++) {
+      const { data, error } = await memberA.client.rpc("onboard_flats_for_code", {
+        p_code: "ZZZZ-ZZZZ",
+      });
+      expect(error).toBeNull();
+      expect(data.error).toBe("INVALID_CODE");
+    }
+
+    const lookup = await memberA.client.rpc("onboard_flats_for_code", { p_code: created.code });
+    expect(lookup.error?.message ?? "").toMatch(/TOO_MANY_CODE_ATTEMPTS/);
+
+    const join = await onboard(memberA.client, created.code, flat.id);
+    expect(join.error?.message ?? "").toMatch(/TOO_MANY_CODE_ATTEMPTS/);
+  });
+
+  it("redeem_society_code is revoked for authenticated clients (054)", async () => {
+    const { created, flat } = await setupSociety();
+    const memberA = await signInTestPhone("+919000000003", "member");
+    const { error } = await memberA.client.rpc("redeem_society_code", {
       p_code: created.code,
-      p_flat_id: flat2.id,
+      p_flat_id: flat.id,
       p_residency: "owner",
       p_household: "family",
-      p_emergency: "9999999999",
+      p_emergency: null,
     });
-
-    expect(error).toBeNull();
-    // Should succeed — no rate-limit error
-    expect(result.error).toBeUndefined();
-    expect(result.status).toBe("active");
-
-    // Code should NOT be paused
-    const { data: codeRow } = await admin
-      .from("society_codes")
-      .select("paused_at")
-      .eq("code", created.code)
-      .single();
-    expect(codeRow.paused_at).toBeNull();
+    expect(error).not.toBeNull();
   });
 });

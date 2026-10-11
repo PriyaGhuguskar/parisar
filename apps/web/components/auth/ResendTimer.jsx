@@ -19,13 +19,18 @@ export default function ResendTimer({ onResend }) {
     return () => clearInterval(id);
   }, [secondsLeft]);
 
+  // onResend throws on failure (rate limit / network). The caller shows the
+  // error; we keep the link tappable instead of restarting the countdown for
+  // an OTP that was never sent.
   const handleResend = useCallback(async () => {
     setResending(true);
     try {
       await onResend?.();
+      setSecondsLeft(RESEND_DELAY_SECONDS);
+    } catch {
+      // surfaced by the caller
     } finally {
       setResending(false);
-      setSecondsLeft(RESEND_DELAY_SECONDS);
     }
   }, [onResend]);
 
@@ -37,10 +42,7 @@ export default function ResendTimer({ onResend }) {
 
   if (resending) {
     return (
-      <p className="text-sm text-[var(--color-neutral-400)] leading-snug">
-        {/* Resending… */}
-        Resending...
-      </p>
+      <p className="text-sm text-[var(--color-neutral-400)] leading-snug">{t("auth.sending")}</p>
     );
   }
 

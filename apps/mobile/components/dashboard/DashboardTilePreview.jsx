@@ -33,7 +33,8 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../ui/Text";
 
 // Locked design tokens (UI-SPEC §Color / §Typography). The only places these
 // hex literals appear in this file — kept here so future audits can grep for

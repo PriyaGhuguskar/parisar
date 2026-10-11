@@ -19,6 +19,12 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
+// Release builds only talk to the backend over HTTPS (cleartext is disabled
+// outside the debug manifest anyway — fail loudly instead of timing out).
+if (!__DEV__ && !SUPABASE_URL.startsWith("https://")) {
+  throw new Error("Mobile release build requires an https:// EXPO_PUBLIC_SUPABASE_URL.");
+}
+
 /** @type {ReturnType<typeof createSupabaseClient> | null} */
 let client = null;
 

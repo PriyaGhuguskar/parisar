@@ -14,11 +14,12 @@ import {
 import { Plus, ShieldCheck, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
 import { FormError } from "../auth/FormError";
 import { SectionTitle, SmallButton, StatusPill, SurfaceCard } from "../kit";
 import { Field, TextField } from "../onboarding/Form";
+import { Text } from "../ui/Text";
 
 const ERROR_KEY = {
   INVALID_NAME: "authority.errName",
@@ -72,7 +73,12 @@ function AddAuthoritySheet({ visible, societyId, onClose, onAdded }) {
             <Text className="text-xl font-semibold text-neutral-900">
               {t("authority.addAuthority")}
             </Text>
-            <Pressable onPress={onClose} accessibilityRole="button" className="p-1">
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+              className="p-1"
+            >
               <X size={20} color="#64748B" />
             </Pressable>
           </View>

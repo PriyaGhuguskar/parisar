@@ -44,7 +44,9 @@ export default async function FlatActionsPage() {
   try {
     initialActions = await listFlatActions(supabase, { limit: 50 });
   } catch (err) {
-    loadError = err?.message ?? "load_failed";
+    // Raw PostgREST/RPC text never reaches the client — clients render localized copy.
+    console.error("[flat-actions] load failed:", err?.message ?? err);
+    loadError = "load_failed";
   }
 
   // Member: resolve own flat_id + label for the privacy subtitle + Realtime scope.

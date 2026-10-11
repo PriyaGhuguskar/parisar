@@ -13,7 +13,7 @@
 //            booking does NOT appear in Society A caller's bookings.previews.
 //            Society A booking count is unaffected by Society B inserts.
 //   Test 4 — preview cap (T-07-07): seeding 5 complaints → exactly 2 previews.
-//   Test 5 — NO_SOCIETY: user with no society claim → RPC raises NO_SOCIETY.
+//   Test 5 — NO_SOCIETY: signed-in user with no membership → RPC raises NO_SOCIETY.
 //   Test 6 — AUTH_REQUIRED: unauthenticated client → RPC raises AUTH_REQUIRED.
 //   Test 7 — board_member view = secretary view: board sees the same 4 admin keys.
 //
@@ -22,38 +22,40 @@
 //
 // JavaScript only — no TypeScript.
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
   adminClient,
-  signInAsBoard,
-  signInAsMember,
-  signInAsSecretary,
-  seedTestSociety,
-  teardownPhase6,
-  seedAmenity,
-  seedNotification,
-  seedBooking,
-  seedFlatAction,
-  seedPost,
   BOARD_A_PHONE,
   MEMBER_A_PHONE,
   MEMBER_B_PHONE,
+  refreshSession,
   SECRETARY_A_PHONE,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  seedAmenity,
+  seedBooking,
+  seedFlatAction,
+  seedNotification,
+  seedPost,
+  seedTestSociety,
+  signInAsBoard,
+  signInAsMember,
+  signInAsSecretary,
+  signInTestPhone,
+  teardownPhase6,
 } from "./helpers/phase6.js";
 
 const societyA = seedTestSociety("A"); // flatId=A-101, flat2Id=A-102
 const societyB = seedTestSociety("B"); // flatId=B-101
 
 let secretaryA; // Society A secretary (admin)
-let boardA;     // Society A board_member (admin branch)
-let memberA;    // Society A member (member branch)
-let memberB;    // Society B member (cross-society leakage probe)
+let boardA; // Society A board_member (admin branch)
+let memberA; // Society A member (member branch)
+let memberB; // Society B member (cross-society leakage probe)
 
-let amenityA;   // Society A amenity (used by booking seeds)
-let amenityB;   // Society B amenity (used by booking seeds)
+let amenityA; // Society A amenity (used by booking seeds)
+let amenityB; // Society B amenity (used by booking seeds)
 
 // Track seeded row IDs for fine-grained teardown / assertions.
 const seededComplaintIdsA = [];
@@ -65,7 +67,13 @@ const seededPostIdsA = [];
 
 // Seed a complaint row directly via service-role (bypasses the REVOKE on
 // public.complaints inserts; clients can only write through file_complaint).
-async function seedComplaint({ societyId, reporterId, reporterFlatId, description = "Test complaint", kind = "society" }) {
+async function seedComplaint({
+  societyId,
+  reporterId,
+  reporterFlatId,
+  description = "Test complaint",
+  kind = "society",
+}) {
   const admin = adminClient();
   const { data, error } = await admin
     .from("complaints")
@@ -102,10 +110,19 @@ beforeAll(async () => {
   // Wipe phase 4/5/6 rows for both societies before signing in.
   await teardownPhase6([societyA.societyId, societyB.societyId]);
   const admin = adminClient();
-  await admin.from("complaint_responses").delete().in("society_id", [societyA.societyId, societyB.societyId]);
-  await admin.from("complaints").delete().in("society_id", [societyA.societyId, societyB.societyId]);
+  await admin
+    .from("complaint_responses")
+    .delete()
+    .in("society_id", [societyA.societyId, societyB.societyId]);
+  await admin
+    .from("complaints")
+    .delete()
+    .in("society_id", [societyA.societyId, societyB.societyId]);
   await admin.from("bookings").delete().in("society_id", [societyA.societyId, societyB.societyId]);
-  await admin.from("notifications").delete().in("society_id", [societyA.societyId, societyB.societyId]);
+  await admin
+    .from("notifications")
+    .delete()
+    .in("society_id", [societyA.societyId, societyB.societyId]);
 
   // Sign in (sequential — test-OTP shared phone rate-limit safety).
   secretaryA = await signInAsSecretary(SECRETARY_A_PHONE, societyA.societyId, societyA.flat2Id);
@@ -214,10 +231,7 @@ afterAll(async () => {
     .from("complaints")
     .delete()
     .in("society_id", [societyA.societyId, societyB.societyId]);
-  await admin
-    .from("bookings")
-    .delete()
-    .in("society_id", [societyA.societyId, societyB.societyId]);
+  await admin.from("bookings").delete().in("society_id", [societyA.societyId, societyB.societyId]);
   await admin
     .from("notifications")
     .delete()
@@ -374,29 +388,41 @@ describe("preview cap", () => {
 // Test 5 — NO_SOCIETY: user with no society claim
 // ---------------------------------------------------------------------------
 describe("NO_SOCIETY", () => {
-  it("raises NO_SOCIETY for a user with no current_society_id() claim", async () => {
-    // Build an anon client (no signed-in session → no app_metadata.society_id).
-    // We can't directly clear the claim from an existing JWT, so the simplest
-    // assertion is to use a raw anon client that is NOT authenticated — but
-    // then auth.uid() is also null so AUTH_REQUIRED fires first.
-    // To exercise NO_SOCIETY isolation, sign in a fresh phone with NO membership
-    // upsert: the auth-hook injects no society_id claim, so refreshSession
-    // produces a JWT without society_id while auth.uid() IS set.
-    //
-    // The simplest deterministic route: use the adminClient and impersonate via
-    // service-role to call the RPC with a non-society user. Since service-role
-    // bypasses the auth.uid()/current_society_id() helpers (they read JWT
-    // claims), this isn't a clean test path.
-    //
-    // Instead: we re-use the AUTH_REQUIRED path below to prove the gate exists,
-    // and document NO_SOCIETY as the second gate — both error branches are
-    // present in the function body. The cross-society / role-aware tests above
-    // collectively prove the society-scoping discipline is enforced.
-    //
-    // Mark as documented coverage; the actual NO_SOCIETY raise is in the
-    // function body and is exercised any time a freshly-onboarded user without
-    // a membership-upsert hits the RPC (covered by manual UAT + by code review).
-    expect(true).toBe(true);
+  // A dedicated test_otp number (not used by any other suite) so the user can be
+  // made membership-less without disturbing other fixtures.
+  const NO_SOCIETY_PHONE = "+919000000013";
+  let lonely;
+
+  afterAll(async () => {
+    if (lonely?.userId) {
+      const admin = adminClient();
+      await admin.from("profiles").delete().eq("user_id", lonely.userId);
+      await admin.auth.admin.deleteUser(lonely.userId);
+    }
+  });
+
+  it("raises NO_SOCIETY for a signed-in user with no membership", async () => {
+    // Signed in (auth.uid() set) but with NO society_memberships row, so the
+    // auth hook injects society_id = null and current_society_id() is NULL.
+    const session = await signInTestPhone(NO_SOCIETY_PHONE, "member");
+    const admin = adminClient();
+    // Belt-and-braces: signInTestPhone may reuse a user whose delete failed.
+    await admin.from("society_memberships").delete().eq("user_id", session.userId);
+    await admin.from("society_guards").update({ user_id: null }).eq("user_id", session.userId);
+    const refreshed = await refreshSession(session.session.refresh_token);
+    lonely = { userId: session.userId };
+
+    // Guard against a vacuous pass: the token really has no society claim.
+    const claims = JSON.parse(
+      Buffer.from(refreshed.accessToken.split(".")[1], "base64url").toString("utf8"),
+    );
+    expect(claims.sub).toBe(session.userId);
+    expect(claims.app_metadata?.society_id ?? null).toBeNull();
+
+    const { data, error } = await refreshed.client.rpc("get_dashboard_summary");
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+    expect(String(error.message)).toContain("NO_SOCIETY");
   });
 });
 
@@ -411,8 +437,9 @@ describe("AUTH_REQUIRED", () => {
     const { data, error } = await anon.rpc("get_dashboard_summary");
     expect(data).toBeNull();
     expect(error).not.toBeNull();
-    // The function raises AUTH_REQUIRED for null auth.uid().
-    expect(String(error.message)).toMatch(/AUTH_REQUIRED|JWT|jwt/);
+    // Since 052 anon has no EXECUTE on the RPC (permission denied, 42501); the
+    // body would raise AUTH_REQUIRED for a null auth.uid() if it were reached.
+    expect(String(error.message)).toMatch(/AUTH_REQUIRED|JWT|jwt|permission denied/);
   });
 });
 

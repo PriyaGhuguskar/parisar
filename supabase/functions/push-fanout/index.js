@@ -1,34 +1,35 @@
-// push-fanout Edge Function — Database Webhook handler for complaint_responses INSERT.
+// push-fanout Edge Function — complaint_responses INSERT → push to the reporter.
 //
 // Flow:
-//   1. Postgres trigger `notify_push_on_response` (Phase 4 migration) calls
-//      net.http_post → this endpoint with the row payload and the sentinel
-//      header `x-push-trigger: true`.
-//   2. We load the parent complaint to find reporter_id.
-//   3. We load all push_tokens for the reporter where notifications_enabled = true.
-//   4. We batch-send to Expo Push (≤100 messages per HTTP call).
-//   5. We delete any stale tokens that Expo returns DeviceNotRegistered for.
+//   1. Trigger notify_push_on_response (migration 055) enqueues a push_outbox row
+//      and calls this endpoint via pg_net with `x-webhook-secret` and an id-only
+//      body: { type:'INSERT', table:'complaint_responses', record:{ id } }.
+//   2. authorize() — constant-time secret (or service-role Bearer); fail closed.
+//   3. claimEvent() — each event is processed at most once (replay → skipped).
+//   4. Re-read the response + parent complaint with the service role; the
+//      recipient (reporter) comes from the DB, never from the payload.
+//   5. Batch-send to Expo Push; delete DeviceNotRegistered tokens.
 //
-// Auth surface: either the sentinel header `x-push-trigger: true` OR an
-// `Authorization: Bearer {SUPABASE_SERVICE_ROLE_KEY}` header. Anything else → 401.
-//
-// Failure mode: errors during fan-out are logged + returned as a 200 with an
-// `error` field so that pg_net does NOT retry forever. The trigger is
-// fire-and-forget; the originating complaint_response INSERT is already committed.
+// Failure mode: handled errors return 200 with an `error` field so pg_net never
+// retries; the originating INSERT is already committed.
 //
 // JavaScript only — no TS annotations, no type imports, no generics.
-import { createClient } from "npm:@supabase/supabase-js@2.103.3";
+import {
+  authorize,
+  claimEvent,
+  cleanupStaleTokens,
+  finishEvent,
+  jsonResponse,
+  readEvent,
+  sendExpo,
+  serviceClient,
+  tokensForUser,
+} from "../_shared/fanout.js";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const EXPO_ACCESS_TOKEN = Deno.env.get("EXPO_ACCESS_TOKEN") ?? "";
+const TAG = "push-fanout";
+const EVENT_KIND = "complaint_response";
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const BATCH_SIZE = 100;
-
-// Predefined response-kind → push body labels. English only for v1; full
-// i18n lands in Phase 7. Body intentionally generic — never include the
-// complaint description (lock-screen privacy, T-04-10).
+// Generic, lock-screen-safe bodies — never the complaint description (T-04-10).
 const RESPONSE_LABELS = {
   checking: "Someone is checking your complaint",
   will_resolve: "Your complaint will be resolved soon",
@@ -36,172 +37,73 @@ const RESPONSE_LABELS = {
   resolved: "Your complaint has been resolved",
 };
 
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    headers: { "Content-Type": "application/json" },
-    status,
-  });
-}
+async function loadTarget(svc, responseId) {
+  const { data: response, error: rErr } = await svc
+    .from("complaint_responses")
+    .select("id, complaint_id, society_id, response_kind")
+    .eq("id", responseId)
+    .maybeSingle();
+  if (rErr || !response) return { error: "response_not_found" };
 
-function isAuthorized(req) {
-  // Sentinel header set by the Postgres trigger (notify_push_on_response).
-  if (req.headers.get("x-push-trigger") === "true") return true;
-
-  // Fallback: service-role Bearer (lets ops re-trigger from a script).
-  const auth = req.headers.get("authorization") ?? "";
-  if (
-    SERVICE_ROLE_KEY &&
-    auth.startsWith("Bearer ") &&
-    auth.slice("Bearer ".length) === SERVICE_ROLE_KEY
-  ) {
-    return true;
+  const { data: complaint, error: cErr } = await svc
+    .from("complaints")
+    .select("id, reporter_id, society_id")
+    .eq("id", response.complaint_id)
+    .maybeSingle();
+  if (cErr || !complaint || complaint.society_id !== response.society_id) {
+    return { error: "complaint_not_found" };
   }
-  return false;
+  return { response, complaint };
 }
 
 Deno.serve(async (req) => {
-  // 1. Gate: only the DB trigger (sentinel) or service-role caller may invoke.
-  if (!isAuthorized(req)) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
+  const denied = authorize(req);
+  if (denied) return denied;
 
-  // 2. Parse the webhook payload.
-  let payload;
-  try {
-    payload = await req.json();
-  } catch (_err) {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
-
-  const { type, table, record } = payload ?? {};
-
-  // 3. Only handle complaint_responses INSERT events. Anything else is a no-op.
-  if (type !== "INSERT" || table !== "complaint_responses" || !record) {
-    return jsonResponse({ skipped: true });
-  }
-
-  // 4. Build the service-role client (bypasses RLS — intentional for cleanup).
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  const { eventId, response: early } = await readEvent(req, {
+    type: "INSERT",
+    table: "complaint_responses",
   });
+  if (early) return early;
 
-  // 5. Load the parent complaint to find the reporter_id.
-  const { data: complaint, error: cErr } = await supabase
-    .from("complaints")
-    .select("reporter_id, society_id, description")
-    .eq("id", record.complaint_id)
-    .single();
+  const svc = serviceClient();
+  const claim = await claimEvent(svc, EVENT_KIND, eventId);
+  if (claim.error) {
+    console.error(`[${TAG}] outbox claim failed`, claim.error.message);
+    return jsonResponse({ error: "claim_failed", sent: 0 });
+  }
+  if (!claim.claimed) return jsonResponse({ skipped: true, reason: "unknown_or_processed" });
 
-  if (cErr || !complaint) {
-    console.error(
-      "[push-fanout] complaint not found",
-      record.complaint_id,
-      cErr,
-    );
-    // 200 (not 500) so pg_net does not retry forever — see "Failure mode" note above.
-    return jsonResponse({ error: "complaint_not_found", sent: 0 }, 200);
+  const target = await loadTarget(svc, eventId);
+  if (target.error) {
+    await finishEvent(svc, EVENT_KIND, eventId, { error: target.error }, TAG);
+    return jsonResponse({ error: target.error, sent: 0 });
   }
 
-  // 6. Load all push tokens for the reporter that have notifications enabled.
-  const { data: tokens, error: tErr } = await supabase
-    .from("push_tokens")
-    .select("expo_token")
-    .eq("user_id", complaint.reporter_id)
-    .eq("notifications_enabled", true);
-
+  const { tokens, error: tErr } = await tokensForUser(svc, target.complaint.reporter_id);
   if (tErr) {
-    console.error("[push-fanout] token fetch error", tErr);
-    return jsonResponse({ error: "token_fetch_failed", sent: 0 }, 200);
+    await finishEvent(svc, EVENT_KIND, eventId, { error: "token_fetch_failed" }, TAG);
+    return jsonResponse({ error: "token_fetch_failed", sent: 0 });
   }
-
-  if (!tokens || tokens.length === 0) {
+  if (tokens.length === 0) {
+    await finishEvent(svc, EVENT_KIND, eventId, { sent: 0, reason: "no_tokens" }, TAG);
     return jsonResponse({ sent: 0, reason: "no_tokens" });
   }
 
-  // 7. Build one Expo push message per token.
-  const pushBody =
-    RESPONSE_LABELS[record.response_kind] ?? "Your complaint has a new update";
-
+  const complaintId = target.complaint.id;
+  const body = RESPONSE_LABELS[target.response.response_kind] ?? "Your complaint has a new update";
   const messages = tokens.map((t) => ({
     to: t.expo_token,
     sound: "default",
     title: "Complaint Update",
-    body: pushBody,
-    data: {
-      complaintId: record.complaint_id,
-      // Expo Router deep-link path — root layout listener routes on tap.
-      screen: `/complaints/${record.complaint_id}`,
-    },
+    body,
+    data: { complaintId, screen: `/complaints/${complaintId}` },
   }));
 
-  // 8. Batch (Expo Push API limit: 100 messages per HTTP request).
-  const batches = [];
-  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-    batches.push(messages.slice(i, i + BATCH_SIZE));
-  }
+  const { sent, staleTokens } = await sendExpo(messages, TAG);
+  await cleanupStaleTokens(svc, staleTokens, TAG);
 
-  const headers = {
-    "Content-Type": "application/json",
-    // EXPO_ACCESS_TOKEN is only set when running against the Expo Enhanced
-    // Security tier (EAS). Local dev omits the header gracefully.
-    ...(EXPO_ACCESS_TOKEN
-      ? { Authorization: `Bearer ${EXPO_ACCESS_TOKEN}` }
-      : {}),
-  };
-
-  let totalSent = 0;
-  const staleTokens = [];
-
-  for (const batch of batches) {
-    let result;
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(batch),
-      });
-      result = await res.json();
-    } catch (err) {
-      console.error("[push-fanout] Expo Push fetch failed", err);
-      continue; // move to next batch; do not retry forever
-    }
-
-    // Expo returns { data: [ { status, id, message, details } ] }
-    if (Array.isArray(result?.data)) {
-      for (let i = 0; i < result.data.length; i++) {
-        const ticket = result.data[i];
-        if (ticket?.status === "ok") {
-          totalSent++;
-        } else if (ticket?.details?.error === "DeviceNotRegistered") {
-          // Device uninstalled the app — token is dead. Collect for cleanup.
-          staleTokens.push(batch[i].to);
-        } else if (ticket?.status === "error") {
-          console.warn(
-            "[push-fanout] Expo Push ticket error",
-            ticket.message,
-            ticket.details,
-          );
-        }
-      }
-    } else {
-      console.warn("[push-fanout] Unexpected Expo response shape", result);
-    }
-  }
-
-  // 9. Clean up stale tokens. Filter by expo_token (globally unique) so only
-  // the matching rows are deleted — never another user's tokens (T-04-12).
-  if (staleTokens.length > 0) {
-    const { error: dErr } = await supabase
-      .from("push_tokens")
-      .delete()
-      .in("expo_token", staleTokens);
-    if (dErr) {
-      console.error("[push-fanout] stale token cleanup failed", dErr);
-    }
-  }
-
-  return jsonResponse({
-    sent: totalSent,
-    stale_cleaned: staleTokens.length,
-  });
+  const result = { sent, stale_cleaned: staleTokens.length };
+  await finishEvent(svc, EVENT_KIND, eventId, result, TAG);
+  return jsonResponse(result);
 });

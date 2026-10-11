@@ -5,11 +5,12 @@
 // society) and adds via the secretary_add_guard RPC. Rendered inside SocietyOverview.
 
 import { addGuard } from "@parisar/api-client";
-import { Plus, ShieldCheck, X } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SurfaceCard } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const FIELD =
   "h-11 w-full rounded-xl border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
@@ -49,36 +50,19 @@ function AddGuardDialog({ societyId, onClose, onAdded }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,38,28,0.45)] p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("visitor.addGuard")}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="w-full max-w-md rounded-t-[22px] bg-[var(--color-neutral-0)] p-6 sm:rounded-[22px]">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="max-w-md rounded-[22px] bg-[var(--color-neutral-0)] p-6 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
             {t("visitor.addGuard")}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("profile.cancel")}
-            className="rounded-lg p-1.5 text-[var(--color-neutral-500)] hover:bg-[var(--color-neutral-100)]"
-          >
-            <X size={18} strokeWidth={2.2} aria-hidden="true" />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
               {t("visitor.guardName")}
             </span>
             <input
-              // biome-ignore lint/a11y/noAutofocus: first field of an explicitly-opened dialog
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -100,7 +84,9 @@ function AddGuardDialog({ societyId, onClose, onAdded }) {
             />
           </label>
           {error ? (
-            <p className="text-[13px] font-semibold text-[var(--color-danger)]">{error}</p>
+            <p role="alert" className="text-[13px] font-semibold text-[var(--color-danger)]">
+              {error}
+            </p>
           ) : null}
           <div className="flex items-center justify-end gap-2.5">
             <button
@@ -120,8 +106,8 @@ function AddGuardDialog({ societyId, onClose, onAdded }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,18 +1,19 @@
 "use client";
 
-// Verify OTP, then branch by the `mode` the login screen decided:
+// Verify OTP, then ask the database what this person needs next
+// (my_login_state() as the just-verified user → lib/auth/loginMode.js):
 //
 //   staff  -> in
 //   pin    -> enter existing PIN (second factor) -> in
 //   setpin -> set a new PIN -> in           (onboarded, no PIN yet)
 //   family -> claim the flat a resident pre-entered -> set a PIN -> in
-//   code   -> brand-new resident -> /onboard (society code + join)
+//   code   -> brand-new resident -> /onboarding (society code + join)
 //
-// OTP is what proves the person on every login; the PIN is a second factor on
-// top. verifyOtp runs on the browser client so the session cookie lands here
-// (RESEARCH.md Pitfall 2). The PIN is checked with signInWithPassword against the
-// real stored credential — a wrong PIN does not get in even though the OTP
-// already succeeded.
+// Nothing about the number is looked up before the OTP succeeds. verifyOtp
+// runs on the browser client so the session cookie lands here (RESEARCH.md
+// Pitfall 2). The PIN is checked and written ONLY on the server (pinLogin /
+// setMyPin): the credential is peppered, so the browser cannot compute it, and
+// failures are counted and locked server-side.
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -23,13 +24,15 @@ import FormError from "../../../components/auth/FormError";
 import OtpInput from "../../../components/auth/OtpInput";
 import PrimaryButton from "../../../components/auth/PrimaryButton";
 import ResendTimer from "../../../components/auth/ResendTimer";
-import { derivePinSecret } from "../../../lib/auth/pinSecret";
+import { loginModeFromState, safeNextPath } from "../../../lib/auth/loginMode";
+import { otpErrorCode, otpErrorKey } from "../../../lib/auth/otpErrors";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
 import {
   claimAuthority,
   claimFamilyMember,
   claimGuard,
-  setPin as setPinAction,
+  pinLogin,
+  setMyPin,
 } from "../../actions/codeLogin";
 
 const PIN_FIELD =
@@ -39,28 +42,68 @@ function weakPin(p) {
   return p === "1234" || /^(\d)\1{3}$/.test(p); // 1234 or four identical
 }
 
+/** [i18n key, options] for a pinLogin error. */
+function pinLoginErrorKey(res) {
+  switch (res?.error) {
+    case "PIN_INVALID":
+    case "INVALID_INPUT":
+      return ["auth.pinWrong"];
+    case "LOCKED":
+      return [
+        "auth.pinLocked",
+        {
+          minutes: String(Math.max(1, Math.ceil((res.retryAfterSeconds ?? 900) / 60))),
+          defaultValue: "Too many wrong PINs. Try again in {{minutes}} minutes.",
+        },
+      ];
+    case "RATE_LIMITED":
+      return ["auth.rateLimited"];
+    default:
+      return ["auth.networkError"];
+  }
+}
+
+/** [i18n key, options] for a setMyPin error. */
+function setPinErrorKey(res) {
+  switch (res?.error) {
+    case "WEAK_PIN":
+      return ["auth.setPinWeak"];
+    case "INVALID_PIN":
+      return ["auth.pinWrong"];
+    case "REAUTH_REQUIRED":
+    case "AUTH_REQUIRED":
+      return [
+        "auth.reauthRequired",
+        { defaultValue: "For your security, please verify your number again." },
+      ];
+    default:
+      return ["auth.networkError"];
+  }
+}
+
 function VerifyForm() {
   const { t } = useTranslation("auth");
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
-  const mode = params.get("mode") ?? "code";
   const resetFromUrl = params.get("reset") === "1"; // came via "Forgot PIN?"
-  const isGuard = mode === "guardpin" || mode === "guardclaim"; // gate-guard login
-  const dest = isGuard ? "/guard" : "/dashboard"; // where PIN success lands
+  const nextFromUrl = safeNextPath(params.get("next"), "/dashboard");
 
-  const [stage, setStage] = useState("otp"); // otp | pin | setpin
+  const [stage, setStage] = useState("otp"); // otp | resolve | pin | setpin
+  const [mode, setMode] = useState(null); // decided after OTP, from the database
   const [reset, setReset] = useState(resetFromUrl); // reached setpin via "Forgot PIN?"
   const [otp, setOtp] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
-  const [userId, setUserId] = useState(null);
   const [hasError, setHasError] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  function fail(key) {
-    setError(t(key));
+  const isGuard = mode === "guardpin" || mode === "guardclaim"; // gate-guard login
+  const dest = isGuard ? "/guard" : nextFromUrl; // where PIN success lands
+
+  function fail(key, opts) {
+    setError(t(key, opts));
     setLoading(false);
   }
 
@@ -79,13 +122,13 @@ function VerifyForm() {
         token: otp,
         type: "sms",
       });
-      if (vErr) {
-        const m = (vErr.message ?? "").toLowerCase();
+      if (vErr || !data?.user) {
+        const m = (vErr?.message ?? "").toLowerCase();
         setError(
           t(
             m.includes("expired")
               ? "auth.otpExpired"
-              : vErr.status === 429
+              : vErr?.status === 429
                 ? "auth.verifyRateLimited"
                 : "auth.incorrectOtp",
           ),
@@ -95,72 +138,85 @@ function VerifyForm() {
         setLoading(false);
         return;
       }
-
-      setUserId(data.user.id);
-
-      if (mode === "staff") return router.push("/admin");
-      if (mode === "code") return router.push("/onboarding");
-      if (mode === "guardpin") {
-        // Returning guard — enter PIN, then into the guard app.
-        setStage("pin");
-        setLoading(false);
-        return;
-      }
-      if (mode === "guardclaim") {
-        // First guard login: link the auth user to the society_guards row so the
-        // hook injects guard_society_id, then set a PIN.
-        const res = await claimGuard(data.session?.access_token);
-        if (res?.error) return fail("auth.networkError");
-        await supabase.auth.refreshSession();
-        setStage("setpin");
-        setLoading(false);
-        return;
-      }
-      if (mode === "pin") {
-        // "Forgot PIN?" from login (reset=1) skips the enter-PIN screen and
-        // goes straight to setting a new one — OTP already proved identity.
-        setStage(reset ? "setpin" : "pin");
-        setLoading(false);
-        return;
-      }
-      if (mode === "family") {
-        // Turn the pre-entered family record into a real membership, then PIN.
-        const res = await claimFamilyMember(data.session?.access_token);
-        if (res?.error) return fail("auth.networkError");
-        setStage("setpin");
-        setLoading(false);
-        return;
-      }
-      if (mode === "authority") {
-        // Society authority: link them (one membership with authority powers),
-        // then either set up the wings/flats (society has none yet) or onboard
-        // as a resident (pick their own flat — the wizard ends with the PIN).
-        const res = await claimAuthority(data.session?.access_token);
-        if (res?.error) return fail("auth.networkError");
-        // The membership was just created/upgraded — AFTER this session's JWT was
-        // minted at verifyOtp. Re-mint so the Auth Hook injects society_id/role;
-        // without it every RLS-scoped query on the next screen comes back empty.
-        await supabase.auth.refreshSession();
-        if (res.needsSetup) {
-          // Structure setup collects the PIN, then continues to /onboarding.
-          router.push("/setup/structure");
-          return;
-        }
-        if (res.needsFlat) {
-          router.push("/onboarding");
-          return;
-        }
-        // Already a resident (e.g. added as an authority after joining).
-        setStage("setpin");
-        setLoading(false);
-        return;
-      }
-      // setpin
-      setStage("setpin");
-      setLoading(false);
+      await routeAfterOtp();
     } catch {
       fail("auth.networkError");
     }
+  }
+
+  // Ask the database who this is (as the verified user) and branch. A failure
+  // leaves the user signed in on a retry screen — never on a guessed route.
+  async function routeAfterOtp() {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data: state, error: sErr } = await supabase.rpc("my_login_state");
+      if (sErr) throw sErr;
+      const m = loginModeFromState(state);
+      setMode(m);
+      await branch(m, supabase);
+    } catch {
+      setStage("resolve");
+      fail("auth.networkError");
+    }
+  }
+
+  async function branch(m, supabase) {
+    if (m === "staff") return router.push("/admin");
+    // A brand-new resident who arrived via a share link (/join/code?code=…) keeps
+    // the code: /join/code forwards it to /onboarding as a prefill.
+    if (m === "code") {
+      return router.push(nextFromUrl.startsWith("/join/") ? nextFromUrl : "/onboarding");
+    }
+    if (m === "guardpin") {
+      setStage("pin");
+      setLoading(false);
+      return;
+    }
+    if (m === "guardclaim") {
+      // First guard login: link the auth user to the society_guards row so the
+      // hook injects guard_society_id, then set a PIN.
+      const res = await claimGuard();
+      if (res?.error) throw new Error(res.error);
+      await supabase.auth.refreshSession();
+      setStage("setpin");
+      setLoading(false);
+      return;
+    }
+    if (m === "pin") {
+      // "Forgot PIN?" (reset=1) skips the enter-PIN screen — this fresh OTP is
+      // what lets the server accept a new PIN.
+      setStage(reset ? "setpin" : "pin");
+      setLoading(false);
+      return;
+    }
+    if (m === "family") {
+      // Turn the pre-entered family record into a real membership, then PIN.
+      const res = await claimFamilyMember();
+      if (res?.error) throw new Error(res.error);
+      await supabase.auth.refreshSession();
+      setStage("setpin");
+      setLoading(false);
+      return;
+    }
+    if (m === "authority") {
+      // Link them (one membership with authority powers), then set up the
+      // wings/flats or onboard as a resident (the wizard ends with the PIN).
+      const res = await claimAuthority();
+      if (res?.error) throw new Error(res.error);
+      // The membership was created after this JWT was minted — re-mint so the
+      // Auth Hook injects society_id/role before the next screen's RLS reads.
+      await supabase.auth.refreshSession();
+      if (res.needsSetup) return router.push("/setup/structure");
+      if (res.needsFlat) return router.push("/onboarding");
+      setStage("setpin");
+      setLoading(false);
+      return;
+    }
+    // setpin
+    setStage("setpin");
+    setLoading(false);
   }
 
   // --- returning: enter existing PIN (second factor) ---------------------
@@ -170,13 +226,13 @@ function VerifyForm() {
     setLoading(true);
     setError(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      // Verify against the real credential — wrong PIN does not proceed.
-      const { error: sErr } = await supabase.auth.signInWithPassword({
-        phone,
-        password: derivePinSecret(phone, pin),
-      });
-      if (sErr) return fail(sErr.status === 429 ? "auth.rateLimited" : "auth.pinWrong");
+      // Checked on the server: peppered credential + per-phone lockout.
+      const res = await pinLogin(pin);
+      if (res?.error === "AUTH_REQUIRED") return router.push("/login");
+      if (res?.error) {
+        setPin("");
+        return fail(...pinLoginErrorKey(res));
+      }
       router.push(dest);
     } catch {
       fail("auth.networkError");
@@ -192,8 +248,8 @@ function VerifyForm() {
     setLoading(true);
     setError(null);
     try {
-      const res = await setPinAction(userId, phone, pin);
-      if (res?.error) return fail("auth.networkError");
+      const res = await setMyPin(pin);
+      if (res?.error) return fail(...setPinErrorKey(res));
       // Family claim created the membership after this JWT was minted; re-mint so
       // society_id/role land in the token before the dashboard's RLS queries run.
       const supabase = createSupabaseBrowserClient();
@@ -201,6 +257,17 @@ function VerifyForm() {
       router.push(dest);
     } catch {
       fail("auth.networkError");
+    }
+  }
+
+  async function onResend() {
+    setOtp("");
+    setError(null);
+    const supabase = createSupabaseBrowserClient();
+    const { error: rErr } = await supabase.auth.signInWithOtp({ phone });
+    if (rErr) {
+      setError(t(otpErrorKey(otpErrorCode(rErr))));
+      throw rErr; // keeps ResendTimer's link tappable for a retry
     }
   }
 
@@ -216,19 +283,11 @@ function VerifyForm() {
         // (apps/mobile/app/(auth)/verify.jsx:36); web now matches, so the two
         // clients honour the same contract for the shared key.
         sub={t("auth.otpSentTo", { phone: String(phone ?? "").replace(/^\+91/, "") })}
-        extra={mode === "pin" ? t("auth.otpVerifyThenPin") : null}
       >
         <form onSubmit={onOtp} className="flex flex-col gap-4">
           <div className="flex flex-col gap-3">
             <OtpInput value={otp} onChange={setOtp} hasError={hasError} onComplete={setOtp} />
-            <ResendTimer
-              onResend={async () => {
-                setOtp("");
-                setError(null);
-                const supabase = createSupabaseBrowserClient();
-                await supabase.auth.signInWithOtp({ phone });
-              }}
-            />
+            <ResendTimer onResend={onResend} />
             <FormError message={error} />
           </div>
           <PrimaryButton
@@ -238,6 +297,23 @@ function VerifyForm() {
             disabled={otp.length !== 6}
           />
         </form>
+      </Shell>
+    );
+  }
+
+  if (stage === "resolve") {
+    // Signed in, but the next step couldn't be worked out (offline / server).
+    return (
+      <Shell heading={t("auth.enterOtp")} sub={null}>
+        <div className="flex flex-col gap-4">
+          <FormError message={error} />
+          <PrimaryButton
+            type="button"
+            label={loading ? t("auth.verifying") : t("auth.retry", { defaultValue: "Try again" })}
+            loading={loading}
+            onClick={routeAfterOtp}
+          />
+        </div>
       </Shell>
     );
   }
@@ -273,9 +349,8 @@ function VerifyForm() {
           <button
             type="button"
             onClick={() => {
-              // OTP already proved identity this login, so no second OTP is
-              // needed — go straight to setting a new PIN. userId was captured
-              // at verifyOtp, which setPin uses to overwrite the credential.
+              // This login's OTP is fresh, so the server accepts a new PIN
+              // (setMyPin checks the session's OTP time — no ids are sent).
               setError(null);
               setPin("");
               setPin2("");

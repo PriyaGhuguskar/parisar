@@ -18,11 +18,13 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { BarChart3, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { BackArrow } from "../../../../components/kit";
 import { NoticeCard } from "../../../../components/notices/NoticeCard";
+import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 export default function PollsScreen() {
@@ -92,10 +94,10 @@ export default function PollsScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("poll.back")}
         >
           <BackArrow />
         </Pressable>
@@ -106,7 +108,7 @@ export default function PollsScreen() {
       {loading ? (
         <PollListSkeleton />
       ) : error ? (
-        <ErrorState onRetry={load} />
+        <ErrorState t={t} onRetry={load} />
       ) : notices.length === 0 ? (
         <EmptyState t={t} />
       ) : (
@@ -163,7 +165,7 @@ function EmptyState({ t }) {
   );
 }
 
-function ErrorState({ onRetry }) {
+function ErrorState({ t, onRetry }) {
   return (
     <View className="flex-1 items-center justify-center px-8 gap-3">
       <WifiOff size={48} color="#94A3B8" />
@@ -174,9 +176,9 @@ function ErrorState({ onRetry }) {
         onPress={onRetry}
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
-        accessibilityLabel="Try again"
+        accessibilityLabel={t("poll.tryAgain")}
       >
-        <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
+        <Text className="text-sm font-semibold text-neutral-900">{t("poll.tryAgain")}</Text>
       </Pressable>
     </View>
   );

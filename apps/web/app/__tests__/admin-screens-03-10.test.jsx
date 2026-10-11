@@ -21,6 +21,8 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     back: vi.fn(),
   }),
+  // MemberDetailPage reads the [id] segment via useParams() (Next 15).
+  useParams: () => ({ id: "mem-1" }),
 }));
 
 vi.mock("next/link", () => ({
@@ -167,7 +169,24 @@ function makeSupabaseMock({
       .mockReturnValue(
         makeQueryChain({ data: listData, error: null }, { data: singleData, error: null }),
       ),
-    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    // resolveActiveSociety → my_active_society() is the single source of truth
+    // for society + role (app_metadata is never read any more).
+    rpc: vi.fn((name) =>
+      Promise.resolve(
+        name === "my_active_society"
+          ? {
+              data: {
+                society_id: "soc-123",
+                role,
+                society_name: "Green Valley CHS",
+                service_status: "active",
+                token_stale: false,
+              },
+              error: null,
+            }
+          : { data: null, error: null },
+      ),
+    ),
   };
 }
 
@@ -183,7 +202,12 @@ vi.mock("@/lib/supabase/client", () => ({
 // ---------------------------------------------------------------------------
 // ReviewQueuePage
 // ---------------------------------------------------------------------------
-import ReviewQueuePage from "../(protected)/dashboard/review-queue/page";
+// The route's page.jsx is now a server role gate; the UI is ReviewQueueClient.
+import { ReviewQueueClient } from "../(protected)/dashboard/review-queue/ReviewQueueClient";
+
+function ReviewQueuePage() {
+  return <ReviewQueueClient societyId="soc-123" />;
+}
 
 describe("ReviewQueuePage", () => {
   beforeEach(() => {
@@ -240,8 +264,8 @@ describe("ReviewQueuePage", () => {
     expect(screen.getByText(/remove both/i)).toBeTruthy();
   });
 
-  it("calls removeMember when Remove both is clicked", async () => {
-    const { fetchPendingReviews, removeMember } = await import("@parisar/api-client");
+  it("calls reject_pending_membership for each claimant when Remove both is clicked", async () => {
+    const { fetchPendingReviews } = await import("@parisar/api-client");
     vi.mocked(fetchPendingReviews).mockResolvedValueOnce([
       makeMember({ id: "mem-a", user_id: "ua", flat_id: "f-3", status: "pending_review" }),
       makeMember({
@@ -252,15 +276,43 @@ describe("ReviewQueuePage", () => {
         profiles: { full_name: "Person B", phone: "9000000000" },
       }),
     ]);
-    // Also need to mock the .update() chain
-    vi.mocked(supabaseClientModule.createSupabaseBrowserClient).mockReturnValue({
-      ...makeSupabaseMock(),
-      from: vi.fn().mockReturnValue(makeQueryChain({ data: [], error: null })),
-    });
+    const mock = makeSupabaseMock();
+    vi.mocked(supabaseClientModule.createSupabaseBrowserClient).mockReturnValue(mock);
     render(<ReviewQueuePage />);
     await waitFor(() => screen.getByText(/remove both/i));
     fireEvent.click(screen.getByText(/remove both/i));
-    await waitFor(() => expect(removeMember).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mock.rpc).toHaveBeenCalledWith("reject_pending_membership", {
+        p_membership_id: "mem-b",
+      }),
+    );
+    expect(mock.rpc).toHaveBeenCalledWith("reject_pending_membership", {
+      p_membership_id: "mem-a",
+    });
+  });
+
+  it("approves atomically via approve_pending_membership (no direct update)", async () => {
+    const { fetchPendingReviews } = await import("@parisar/api-client");
+    vi.mocked(fetchPendingReviews).mockResolvedValueOnce([
+      makeMember({ id: "mem-x", user_id: "ux", flat_id: "f-4", status: "pending_review" }),
+      makeMember({
+        id: "mem-y",
+        user_id: "uy",
+        flat_id: "f-4",
+        status: "pending_review",
+        profiles: { full_name: "Person Y", phone: "9000000001" },
+      }),
+    ]);
+    const mock = makeSupabaseMock();
+    vi.mocked(supabaseClientModule.createSupabaseBrowserClient).mockReturnValue(mock);
+    render(<ReviewQueuePage />);
+    await waitFor(() => screen.getByText(/approve first member/i));
+    fireEvent.click(screen.getByText(/approve first member/i));
+    await waitFor(() =>
+      expect(mock.rpc).toHaveBeenCalledWith("approve_pending_membership", {
+        p_membership_id: "mem-x",
+      }),
+    );
   });
 
   it("uses fetchPendingReviews from @parisar/api-client", async () => {
@@ -486,7 +538,12 @@ describe("MemberDetailPage", () => {
 // ---------------------------------------------------------------------------
 // RoleTransferPage
 // ---------------------------------------------------------------------------
-import RoleTransferPage from "../(protected)/dashboard/role-transfer/page";
+// The route's page.jsx is now a server role gate; the UI is RoleTransferClient.
+import { RoleTransferClient } from "../(protected)/dashboard/role-transfer/RoleTransferClient";
+
+function RoleTransferPage() {
+  return <RoleTransferClient societyId="soc-123" />;
+}
 
 describe("RoleTransferPage", () => {
   beforeEach(() => {

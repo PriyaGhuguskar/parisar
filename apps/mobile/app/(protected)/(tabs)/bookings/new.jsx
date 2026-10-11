@@ -25,14 +25,16 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { AmenityPicker } from "../../../../components/bookings/AmenityPicker";
 import { TimeSlotPicker } from "../../../../components/bookings/TimeSlotPicker";
 import { BackArrow } from "../../../../components/kit";
+import { Text } from "../../../../components/ui/Text";
+import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
+import { useSafeTimeout } from "../../../../lib/use-safe-timeout";
 
 const PURPOSE_MAX = 300;
 
@@ -41,17 +43,22 @@ function mapRpcError(t, message, amenity) {
   const code = String(message ?? "");
   const openLabel = amenity?.open_time ? String(amenity.open_time).slice(0, 5) : "—";
   const closeLabel = amenity?.close_time ? String(amenity.close_time).slice(0, 5) : "—";
-  if (code.includes("TIME_ORDER")) return t("booking.timeOrderError");
+  if (code.includes("TOO_MANY_PENDING")) return t("booking.tooManyPendingError");
+  if (code.includes("TIME_ORDER") || code.includes("INVALID_TIME")) {
+    return t("booking.timeOrderError");
+  }
   if (code.includes("DURATION")) return t("booking.durationError");
   if (code.includes("OUTSIDE_HOURS")) {
     return t("booking.hoursError", { open: openLabel, close: closeLabel });
   }
-  if (code.includes("LEAD_TIME") || code.includes("TOO_FAR")) return t("booking.leadTimeError");
+  if (code.includes("TOO_FAR")) return t("booking.tooFarError");
+  if (code.includes("LEAD_TIME")) return t("booking.leadTimeError");
   return t("booking.submitError");
 }
 
 export default function NewBookingScreen() {
   const router = useRouter();
+  const later = useSafeTimeout();
   const { t } = useTranslation("bookings");
 
   const [amenities, setAmenities] = useState([]);
@@ -80,7 +87,7 @@ export default function NewBookingScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const canSubmit = !!amenity && range.valid && !submitting;
 
@@ -98,7 +105,7 @@ export default function NewBookingScreen() {
         purpose: purpose.trim() || null,
       });
       setShowSuccess(true);
-      setTimeout(() => router.back(), 1200);
+      later(() => goBack(router), 1200);
     } catch (err) {
       console.warn("[bookings/new] requestBooking failed:", err?.message ?? err);
       setSubmitError(mapRpcError(t, err?.message, amenity));
@@ -115,10 +122,10 @@ export default function NewBookingScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("booking.back")}
         >
           <BackArrow />
         </Pressable>

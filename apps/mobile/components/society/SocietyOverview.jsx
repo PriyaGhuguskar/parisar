@@ -9,21 +9,14 @@ import { addWing } from "@parisar/api-client";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from "react-native";
 import { buildFlats, initialFloors } from "../../lib/flats/floors";
 import { getSupabase } from "../../lib/supabase";
 import { FormError } from "../auth/FormError";
 import { EmptyState, SectionTitle, SmallButton, SurfaceCard } from "../kit";
 import { Field, TextField } from "../onboarding/Form";
 import { FloorFlats } from "../structure/FloorFlats";
+import { Text } from "../ui/Text";
 
 function Stat({ label, value, brand }) {
   return (

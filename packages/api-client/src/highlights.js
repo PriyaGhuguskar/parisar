@@ -1,6 +1,10 @@
 // Home highlights — the secretary's up-to-4 pinned cards. Residents read the
 // rows directly (RLS); the secretary saves the whole set through one RPC that
 // notifies residents on any add/change.
+//
+// Error contract: known validation / business codes are RETURNED as
+// `{ error: CODE }` (listed per function) so the UI can render localized copy;
+// any other RPC failure (network, auth, unexpected SQL error) is THROWN.
 
 /**
  * Replace the society's highlights (0..4). Secretary/co-sec only (enforced

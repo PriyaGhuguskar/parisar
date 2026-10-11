@@ -4,16 +4,18 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { OwnerChip } from "../complaints/OwnerChip";
+import { useDateLocale } from "../hooks/use-date-locale";
+import { Text } from "../ui/Text";
 import { FineStatusBadge } from "./FineStatusBadge";
 import { FlatActionKindBadge, KIND_ACCENT } from "./FlatActionKindBadge";
 import { formatFlatLabel } from "./FlatPicker";
 
-function safeAge(iso) {
+function safeAge(iso, locale) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
   } catch {
     return "";
   }
@@ -40,6 +42,7 @@ function formatAmount(amount) {
  */
 export function FlatActionCard({ action, onPress, showFlatPill = false, nowMs = Date.now() }) {
   const { t } = useTranslation("flat-actions");
+  const dateLocale = useDateLocale();
   const kind = action?.kind ?? "notify";
   const accent = KIND_ACCENT[kind] ?? KIND_ACCENT.notify;
 
@@ -48,7 +51,7 @@ export function FlatActionCard({ action, onPress, showFlatPill = false, nowMs = 
   const issuedByLabel = t("flatAction.issuedBy", { name: issuerName, flat: issuerFlat });
 
   const targetFlat = formatFlatLabel(action?.flat);
-  const age = safeAge(action?.created_at);
+  const age = safeAge(action?.created_at, dateLocale);
 
   const isFine = kind === "fine";
   const fineStatus = action?.fine_status ?? "outstanding";
