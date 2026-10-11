@@ -16,13 +16,11 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Bell, Plus, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { BackArrow } from "../../../../components/kit";
 import { NoticeCard } from "../../../../components/notices/NoticeCard";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -103,10 +101,10 @@ export default function NoticesScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("notice.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -227,9 +225,9 @@ function ErrorState({ t, onRetry }) {
         onPress={onRetry}
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
-        accessibilityLabel={t("notice.tryAgain")}
+        accessibilityLabel="Try again"
       >
-        <Text className="text-sm font-semibold text-neutral-900">{t("notice.tryAgain")}</Text>
+        <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
       </Pressable>
     </View>
   );

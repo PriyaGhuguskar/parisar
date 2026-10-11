@@ -16,11 +16,7 @@
 
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { amenityDisplayName } from "../shared/amenity-label";
-import { parsePgTimestamp, toIstWallClock } from "../shared/ist-time";
-import { Text } from "../ui/Text";
+import { Pressable, Text, View } from "react-native";
 import { ApproverBanner } from "./ApproverBanner";
 import { BOOKING_STATUS_ACCENT, BookingStatusBadge } from "./BookingStatusBadge";
 
@@ -49,22 +45,23 @@ function parseRange(timeRange) {
   return { start: m[1], end: m[2] };
 }
 
-// Range bounds come back as "2026-06-18 18:00:00+00", which Hermes' Date
-// parser rejects — normalize first, then show the India wall clock.
-function istDate(value) {
-  const d = parsePgTimestamp(value);
-  return d ? toIstWallClock(d) : null;
-}
-
 function safeTime(value) {
-  const d = istDate(value);
-  return d ? format(d, "HH:mm") : "";
+  if (!value) return "";
+  try {
+    return format(new Date(value), "HH:mm");
+  } catch {
+    return "";
+  }
 }
 
-function datePill(value, locale) {
-  const d = istDate(value);
-  if (!d) return { day: "--", month: "" };
-  return { day: format(d, "dd"), month: format(d, "MMM", { locale }).toUpperCase() };
+function datePill(value) {
+  if (!value) return { day: "--", month: "" };
+  try {
+    const d = new Date(value);
+    return { day: format(d, "dd"), month: format(d, "MMM").toUpperCase() };
+  } catch {
+    return { day: "--", month: "" };
+  }
 }
 
 /**
@@ -77,13 +74,12 @@ function datePill(value, locale) {
  */
 export function BookingCard({ booking, onPress, boardMode = false, children }) {
   const { t } = useTranslation("bookings");
-  const dateLocale = useDateLocale();
   const status = booking?.status ?? "pending";
   const accent = BOOKING_STATUS_ACCENT[status] ?? BOOKING_STATUS_ACCENT.pending;
 
-  const amenityName = amenityDisplayName(booking?.amenity?.name, t) || "—";
+  const amenityName = booking?.amenity?.name ?? "—";
   const { start, end } = parseRange(booking?.time_range);
-  const pill = datePill(start, dateLocale);
+  const pill = datePill(start);
   const timeRange = `${safeTime(start)}–${safeTime(end)}`;
 
   const requesterName = booking?.requester?.full_name ?? "—";
@@ -95,9 +91,7 @@ export function BookingCard({ booking, onPress, boardMode = false, children }) {
   const rejecterName = booking?.rejecter?.full_name ?? null;
   const rejecterFlat = formatFlat(booking?.rejecter_flat);
 
-  const statusKey =
-    { approved: "statusApproved", rejected: "statusRejected" }[status] ?? "statusPending";
-  const a11yLabel = `${t(`booking.${statusKey}`)} · ${amenityName} · ${timeRange}`;
+  const a11yLabel = `${status} booking: ${amenityName} ${timeRange}`;
 
   const Wrapper = onPress ? Pressable : View;
   const wrapperProps = onPress

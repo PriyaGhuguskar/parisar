@@ -12,9 +12,7 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import { Pressable, View } from "react-native";
-import { Text } from "../../../../components/ui/Text";
-import { goBack } from "../../../../lib/navigation";
+import { Pressable, Text, View } from "react-native";
 
 export default function PhotoViewerScreen() {
   const router = useRouter();
@@ -24,7 +22,7 @@ export default function PhotoViewerScreen() {
     <View style={{ flex: 1, backgroundColor: "#1E293B" }}>
       {/* Close button */}
       <Pressable
-        onPress={() => goBack(router)}
+        onPress={() => router.back()}
         accessibilityRole="button"
         accessibilityLabel="Close photo"
         style={{

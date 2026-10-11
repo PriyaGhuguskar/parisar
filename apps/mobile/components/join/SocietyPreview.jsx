@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, TouchableOpacity, View } from "react-native";
 
 /**
  * Step 1 — Society Found Preview.

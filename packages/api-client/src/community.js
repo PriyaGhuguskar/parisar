@@ -27,7 +27,6 @@ import {
   POST_KIND_LABELS,
   REPORT_TARGET_KIND,
 } from "@parisar/shared-types";
-import { applyNewestFirstCursor } from "./pagination.js";
 import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export enum constants alongside the API.
@@ -52,14 +51,14 @@ export const MAX_POST_PHOTOS = 4;
  * (community author attribution) and a comment count.
  *
  * @param {object} supabase
- * @param {{ limit?: number, cursor?: string|{createdAt: string, id: string}|null }} [opts]
- *   - cursor: composite { createdAt, id } of the previous page's last row
- *             (see nextCursorFrom); a bare ISO timestamp is still accepted
+ * @param {{ limit?: number, cursor?: string|null }} [opts]
  * @returns {Promise<Array>} post rows with embedded author/author_flat + comment count
  */
 export async function listPosts(supabase, { limit = 30, cursor = null } = {}) {
-  let q = supabase.from("posts").select(
-    `
+  let q = supabase
+    .from("posts")
+    .select(
+      `
         id,
         society_id,
         author_id,
@@ -71,8 +70,13 @@ export async function listPosts(supabase, { limit = 30, cursor = null } = {}) {
         author_flat:author_flat_id ( number, wing:wing_id ( name ) ),
         comment_count:post_comments(count)
       `,
-  );
-  q = applyNewestFirstCursor(q, cursor).limit(limit);
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) {
+    q = q.lt("created_at", cursor);
+  }
 
   const { data, error } = await q;
   if (error) throw error;
@@ -258,11 +262,10 @@ export async function listAuditLog(supabase, { limit = 50 } = {}) {
 export async function createPost(supabase, { societyId, kind, body, postId, photos = [] }) {
   // ---- No-photo fast path: create_post directly, skip moderate-image. ----
   if (!photos || photos.length === 0) {
-    // Forward a caller-supplied id so optimistic UI / idempotent retries keep it.
-    const params = postId
-      ? { p_kind: kind, p_body: body, p_post_id: postId }
-      : { p_kind: kind, p_body: body };
-    const { data, error } = await supabase.rpc("create_post", params);
+    const { data, error } = await supabase.rpc("create_post", {
+      p_kind: kind,
+      p_body: body,
+    });
     if (error) throw error;
     return { ok: true, postId: data.post_id, societyId: data.society_id };
   }
@@ -332,44 +335,15 @@ export async function addComment(supabase, { postId, body }) {
   return { commentId: data.comment_id, societyId: data.society_id };
 }
 
-// report_content exception codes (contract-055). Thrown errors carry one of these
-// in error.message; use reportErrorCode() to map them to localized copy.
-export const REPORT_ERROR_CODES = Object.freeze([
-  "REPORT_RATE_LIMITED",
-  "INVALID_REASON",
-  "TARGET_NOT_FOUND",
-  "NOT_ACTIVE_MEMBER",
-  "NO_SOCIETY",
-  "AUTH_REQUIRED",
-]);
-
 /**
- * Extract a report_content error code from a thrown error.
- *
- * @param {unknown} error
- * @returns {string|null}
- */
-export function reportErrorCode(error) {
-  const msg = String(error?.message ?? "");
-  return REPORT_ERROR_CODES.find((code) => msg.includes(code)) ?? null;
-}
-
-/**
- * Report a post or comment (COMM-04).
- *
- * Since migration 055 a single member report does NOT hide the item: it hides at
- * 3 distinct reporters, or at once when a board_member / co_secretary / secretary
- * reports. Reporting the same item twice is idempotent (`already_reported: true`,
- * still a success). Show "Reported, thanks" when `hidden === false`.
+ * Report a post or comment (COMM-04). Auto-hides on the first report (D-03). Returns
+ * the RPC jsonb ({ report_id, hidden: true }) straight through.
  *
  * Calls: report_content(p_target_kind, p_target_id, p_reason, p_note)
- * Throws on RPC errors — REPORT_RATE_LIMITED (20/hour), INVALID_REASON,
- * TARGET_NOT_FOUND, NOT_ACTIVE_MEMBER, … (see reportErrorCode).
  *
  * @param {object} supabase
  * @param {{ targetKind: 'post'|'comment', targetId: string, reason: string, note?: string|null }} opts
- * @returns {Promise<{ report_id: string|null, already_reported: boolean, hidden: boolean,
- *                     report_count: number|null }>} the RPC jsonb with booleans normalised
+ * @returns {Promise<object>}
  */
 export async function reportContent(supabase, { targetKind, targetId, reason, note = null }) {
   const { data, error } = await supabase.rpc("report_content", {
@@ -379,13 +353,7 @@ export async function reportContent(supabase, { targetKind, targetId, reason, no
     p_note: note,
   });
   if (error) throw error;
-  return {
-    ...(data ?? {}),
-    report_id: data?.report_id ?? null,
-    already_reported: data?.already_reported === true,
-    hidden: data?.hidden === true,
-    report_count: typeof data?.report_count === "number" ? data.report_count : null,
-  };
+  return data;
 }
 
 /**

@@ -5,8 +5,7 @@
 import { Check, ChevronDown, Lock } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 const BRAND_500 = "#12715A";
 
@@ -51,10 +50,9 @@ export function FlatPicker({
   onSelect,
   label,
   allowAll = false,
-  allLabel,
+  allLabel = "All flats",
 }) {
-  const { t } = useTranslation(["flat-actions", "auth"]);
-  const resolvedAllLabel = allLabel ?? t("flatAction.allFlats");
+  const { t } = useTranslation("flat-actions");
   const [open, setOpen] = useState(false);
   const isEmpty = flats.length === 0;
   const selected = flats.find((f) => f.id === selectedId) ?? null;
@@ -64,7 +62,7 @@ export function FlatPicker({
   const fieldText = selected
     ? formatFlatLabel(selected)
     : allowAll && !selectedId
-      ? resolvedAllLabel
+      ? allLabel
       : resolvedLabel;
   const fieldIsPlaceholder = !selected && !(allowAll && !selectedId);
 
@@ -104,7 +102,7 @@ export function FlatPicker({
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           onPress={() => setOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel={t("auth:common.dismiss")}
+          accessibilityLabel="Dismiss"
         >
           <Pressable
             className="bg-white rounded-t-3xl p-4 mt-auto"
@@ -126,9 +124,9 @@ export function FlatPicker({
                   className="flex-row items-center py-3 border-b border-neutral-100"
                   accessibilityRole="button"
                   accessibilityState={{ selected: !selectedId }}
-                  accessibilityLabel={resolvedAllLabel}
+                  accessibilityLabel={allLabel}
                 >
-                  <Text className="flex-1 text-base text-neutral-900">{resolvedAllLabel}</Text>
+                  <Text className="flex-1 text-base text-neutral-900">{allLabel}</Text>
                   {!selectedId ? <Check size={20} color={BRAND_500} /> : null}
                 </Pressable>
               ) : null}

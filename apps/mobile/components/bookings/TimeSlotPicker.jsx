@@ -9,9 +9,7 @@
 //       duration <= 4h             → booking.durationError
 //       within amenity open/close  → booking.hoursError
 //       lead time >= 1h            → booking.leadTimeError
-//       horizon <= 30d             → booking.tooFarError (also the picker max bound)
-//   - All times are India time (+05:30): the picked wall clock is sent as an IST
-//     timestamptz, matching the server checks, whatever the phone's timezone.
+//       horizon <= 30d             → date picker max bound (no inline error needed)
 //   - Helper text booking.timeHelper ("Up to 4 hours, within {{open}}–{{close}}.").
 //   - Emits { startsAt, endsAt } as ISO timestamptz-ready strings via onChange, plus
 //     a validity flag + the localized error so the parent can gate Submit.
@@ -20,12 +18,9 @@
 
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { istIsoFromWallClock } from "../shared/ist-time";
-import { Text } from "../ui/Text";
+import { Platform, Pressable, Text, View } from "react-native";
 
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // 4h
 const MIN_LEAD_MS = 60 * 60 * 1000; // 1h
@@ -46,6 +41,15 @@ function hhmm(time) {
 }
 
 /**
+ * Compose a Date from a date-part Date and a time-part Date.
+ */
+function combine(datePart, timePart) {
+  const d = new Date(datePart);
+  d.setHours(timePart.getHours(), timePart.getMinutes(), 0, 0);
+  return d;
+}
+
+/**
  * Pure validator — returns { valid, error, startsAt, endsAt }.
  * `error` is a localized string (or null). startsAt/endsAt are ISO strings (or null).
  *
@@ -61,10 +65,8 @@ export function validateRange({ date, start, end, amenity = null, nowMs = Date.n
     return { valid: false, error: null, startsAt: null, endsAt: null };
   }
 
-  const startsIso = istIsoFromWallClock(date, start);
-  const endsIso = istIsoFromWallClock(date, end);
-  const startsMs = Date.parse(startsIso);
-  const endsMs = Date.parse(endsIso);
+  const startsAt = combine(date, start);
+  const endsAt = combine(date, end);
 
   const openMin = timeToMinutes(amenity?.open_time);
   const closeMin = timeToMinutes(amenity?.close_time);
@@ -72,23 +74,28 @@ export function validateRange({ date, start, end, amenity = null, nowMs = Date.n
   const closeLabel = hhmm(amenity?.close_time);
 
   // 1. End must be after start.
-  if (endsMs <= startsMs) {
+  if (endsAt.getTime() <= startsAt.getTime()) {
     return { valid: false, error: tt("booking.timeOrderError"), startsAt: null, endsAt: null };
   }
 
   // 2. Duration <= 4h.
-  if (endsMs - startsMs > MAX_DURATION_MS) {
+  if (endsAt.getTime() - startsAt.getTime() > MAX_DURATION_MS) {
     return { valid: false, error: tt("booking.durationError"), startsAt: null, endsAt: null };
   }
 
   // 3. Lead time >= 1h from now.
-  if (startsMs - nowMs < MIN_LEAD_MS) {
+  if (startsAt.getTime() - nowMs < MIN_LEAD_MS) {
     return { valid: false, error: tt("booking.leadTimeError"), startsAt: null, endsAt: null };
   }
 
   // 4. Horizon <= 30d.
-  if (startsMs - nowMs > MAX_HORIZON_MS) {
-    return { valid: false, error: tt("booking.tooFarError"), startsAt: null, endsAt: null };
+  if (startsAt.getTime() - nowMs > MAX_HORIZON_MS) {
+    return {
+      valid: false,
+      error: tt("booking.leadTimeError"), // out-of-horizon is bounded by the picker; reuse a soft error
+      startsAt: null,
+      endsAt: null,
+    };
   }
 
   // 5. Within amenity open/close hours (both endpoints).
@@ -104,8 +111,8 @@ export function validateRange({ date, start, end, amenity = null, nowMs = Date.n
   return {
     valid: true,
     error: null,
-    startsAt: startsIso,
-    endsAt: endsIso,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
   };
 }
 
@@ -117,7 +124,6 @@ export function validateRange({ date, start, end, amenity = null, nowMs = Date.n
  */
 export function TimeSlotPicker({ amenity = null, onChange }) {
   const { t } = useTranslation("bookings");
-  const dateLocale = useDateLocale();
   const [date, setDate] = useState(null);
   const [start, setStart] = useState(null);
   const [end, setEnd] = useState(null);
@@ -127,21 +133,6 @@ export function TimeSlotPicker({ amenity = null, onChange }) {
   const maxDate = new Date(Date.now() + MAX_HORIZON_MS);
 
   const result = validateRange({ date, start, end, amenity, t });
-
-  // Re-emit validity when the amenity (and so its open hours) changes — the
-  // parent's gate must not keep the verdict computed for the previous amenity.
-  const latest = useRef({ date, start, end, t, onChange });
-  latest.current = { date, start, end, t, onChange };
-  const amenityKey = `${amenity?.id ?? ""}|${amenity?.open_time ?? ""}|${amenity?.close_time ?? ""}`;
-  const lastAmenityKey = useRef(amenityKey);
-  useEffect(() => {
-    if (lastAmenityKey.current === amenityKey) return;
-    lastAmenityKey.current = amenityKey;
-    const cur = latest.current;
-    cur.onChange?.(
-      validateRange({ date: cur.date, start: cur.start, end: cur.end, amenity, t: cur.t }),
-    );
-  }, [amenityKey, amenity]);
 
   function emit(next) {
     const r = validateRange({
@@ -184,15 +175,13 @@ export function TimeSlotPicker({ amenity = null, onChange }) {
           onPress={() => setShowPicker("date")}
           accessibilityRole="button"
           accessibilityLabel={t("booking.dateLabel")}
-          className="min-h-12 py-2 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
+          className="h-12 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
         >
           <Text
             className={date ? "text-base text-neutral-900" : "text-base text-neutral-400"}
             numberOfLines={1}
           >
-            {date
-              ? format(date, "EEE, dd MMM yyyy", { locale: dateLocale })
-              : t("booking.dateLabel")}
+            {date ? format(date, "EEE, dd MMM yyyy") : t("booking.dateLabel")}
           </Text>
         </Pressable>
       </View>
@@ -204,8 +193,8 @@ export function TimeSlotPicker({ amenity = null, onChange }) {
           <Pressable
             onPress={() => setShowPicker("start")}
             accessibilityRole="button"
-            accessibilityLabel={t("booking.startTimeLabel")}
-            className="flex-1 min-h-12 py-2 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
+            accessibilityLabel={`${t("booking.timeLabel")} start`}
+            className="flex-1 h-12 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
           >
             <Text
               className={start ? "text-base text-neutral-900" : "text-base text-neutral-400"}
@@ -218,8 +207,8 @@ export function TimeSlotPicker({ amenity = null, onChange }) {
           <Pressable
             onPress={() => setShowPicker("end")}
             accessibilityRole="button"
-            accessibilityLabel={t("booking.endTimeLabel")}
-            className="flex-1 min-h-12 py-2 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
+            accessibilityLabel={`${t("booking.timeLabel")} end`}
+            className="flex-1 h-12 px-3 rounded-xl border border-neutral-200 bg-white justify-center"
           >
             <Text
               className={end ? "text-base text-neutral-900" : "text-base text-neutral-400"}

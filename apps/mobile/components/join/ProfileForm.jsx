@@ -1,4 +1,4 @@
-import { mapSocietyCodeError, onboardResident } from "@parisar/api-client";
+import { joinBySocietyCode, mapSocietyCodeError } from "@parisar/api-client";
 import { ChevronDown, Trash2, UserPlus, X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,12 +7,12 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { getSupabase } from "../../lib/supabase";
-import { Text } from "../ui/Text";
 
 const MAX_FAMILY_MEMBERS = 5;
 
@@ -20,7 +20,6 @@ const MAX_FAMILY_MEMBERS = 5;
  * Inline dropdown picker (NativeWind + Modal pattern).
  */
 function DropdownPicker({ label, value, options, placeholder, disabled, onSelect }) {
-  const { t } = useTranslation("auth");
   const [open, setOpen] = useState(false);
 
   return (
@@ -30,7 +29,7 @@ function DropdownPicker({ label, value, options, placeholder, disabled, onSelect
       <Pressable
         onPress={() => !disabled && setOpen(true)}
         className={[
-          "min-h-14 py-2 rounded-lg border px-3 flex-row items-center justify-between",
+          "h-14 rounded-lg border px-3 flex-row items-center justify-between",
           disabled ? "bg-neutral-100 border-neutral-200" : "bg-neutral-0 border-neutral-200",
         ].join(" ")}
         accessibilityRole="button"
@@ -55,12 +54,7 @@ function DropdownPicker({ label, value, options, placeholder, disabled, onSelect
                 <Text className="text-base font-semibold text-neutral-900">
                   {label || placeholder}
                 </Text>
-                <Pressable
-                  onPress={() => setOpen(false)}
-                  className="p-2"
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.close")}
-                >
+                <Pressable onPress={() => setOpen(false)} className="p-2">
                   <X size={20} color="#64748B" />
                 </Pressable>
               </View>
@@ -100,13 +94,13 @@ function DropdownPicker({ label, value, options, placeholder, disabled, onSelect
  */
 function SegmentedControl({ options, value, onChange }) {
   return (
-    <View className="flex-row min-h-11 rounded-xl overflow-hidden border border-neutral-200">
+    <View className="flex-row h-11 rounded-xl overflow-hidden border border-neutral-200">
       {options.map(({ key, label }, idx) => (
         <Pressable
           key={key}
           onPress={() => onChange(key)}
           className={[
-            "flex-1 items-center justify-center py-2 px-1",
+            "flex-1 items-center justify-center",
             idx > 0 ? "border-l border-neutral-200" : "",
             value === key ? "bg-brand-500" : "bg-neutral-100",
           ].join(" ")}
@@ -115,10 +109,9 @@ function SegmentedControl({ options, value, onChange }) {
         >
           <Text
             className={[
-              "text-base font-medium text-center",
+              "text-base font-medium",
               value === key ? "text-neutral-0" : "text-neutral-600",
             ].join(" ")}
-            numberOfLines={2}
           >
             {label}
           </Text>
@@ -153,8 +146,6 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
   // About you
   const [fullName, setFullName] = useState(userProfile?.full_name ?? "");
   const [residency, setResidency] = useState("owner"); // 'owner' | 'tenant'
-  // Shown for context only — onboard_resident (migration 054) has no household
-  // parameter, so this choice is not persisted.
   const [household, setHousehold] = useState("family"); // 'family' | 'bachelor'
 
   // Your flat
@@ -195,15 +186,15 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
 
   function addFamilyMember() {
     if (familyMembers.length >= MAX_FAMILY_MEMBERS) return;
-    setFamilyMembers((prev) => [...prev, { id: Date.now(), name: "", phone: "" }]);
+    setFamilyMembers([...familyMembers, { id: Date.now(), name: "", phone: "" }]);
   }
 
   function updateFamilyMember(id, field, value) {
-    setFamilyMembers((prev) => prev.map((fm) => (fm.id === id ? { ...fm, [field]: value } : fm)));
+    setFamilyMembers(familyMembers.map((fm) => (fm.id === id ? { ...fm, [field]: value } : fm)));
   }
 
   function removeFamilyMember(id) {
-    setFamilyMembers((prev) => prev.filter((fm) => fm.id !== id));
+    setFamilyMembers(familyMembers.filter((fm) => fm.id !== id));
   }
 
   function resolveErrorMessage(key) {
@@ -212,18 +203,14 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
     return t("auth.networkError");
   }
 
-  // One onboard_resident call (migration 054) does join + name + family
-  // atomically, so a retry after a failure can't leave a half-written profile —
-  // the direct family_members / profiles writes are revoked.
   async function handleSubmit() {
-    if (loading) return;
     if (!canSubmit) {
       if (fullName.trim().length < 2) {
-        setError(t("join.nameMin"));
+        setError("Please enter your name (at least 2 characters).");
         return;
       }
       if (!selectedFlat) {
-        setError(t("auth.obNeedFlat"));
+        setError("Please select your flat.");
         return;
       }
       return;
@@ -233,40 +220,63 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
     setLoading(true);
 
     try {
-      const family = familyMembers
-        .filter((fm) => fm.name.trim().length >= 2)
-        .map((fm) => ({ name: fm.name.trim(), phone: fm.phone.trim() || null }));
-
-      const result = await onboardResident(supabase, {
+      // 1. Join via RPC (refreshSession called inside joinBySocietyCode on success)
+      const result = await joinBySocietyCode(supabase, {
         code,
         flatId: selectedFlat.id,
-        fullName: fullName.trim(),
         residency,
-        // The emergency contact is the committee-only backup number.
-        altPhone: emergencyContact.trim() || null,
-        family,
+        household,
+        emergencyContact: emergencyContact.trim() || null,
       });
 
       if (result.error) {
-        if (result.error === "MEMBERSHIP_REMOVED") {
-          setError(t("join.membershipRemoved"));
-          return;
-        }
-        setError(resolveErrorMessage(mapSocietyCodeError(result)));
+        const i18nKey = mapSocietyCodeError(result);
+        setError(resolveErrorMessage(i18nKey));
         return;
       }
 
+      // 2. Insert family members (JWT now carries society_id after refreshSession)
+      const validFamilyMembers = familyMembers.filter((fm) => fm.name.trim().length >= 2);
+      if (validFamilyMembers.length > 0) {
+        // PAR-106: never discard the {error} — silently dropping family members is
+        // data loss on the core join loop. The membership RPC upserts on conflict,
+        // so surfacing the failure lets the user safely retry.
+        const { error: familyError } = await supabase.from("family_members").insert(
+          validFamilyMembers.map((fm) => ({
+            society_id: result.societyId,
+            membership_id: result.membershipId,
+            full_name: fm.name.trim(),
+            phone: fm.phone.trim() || null,
+          })),
+        );
+        if (familyError) {
+          setError(t("auth.networkError"));
+          return;
+        }
+      }
+
+      // 3. Update profiles.full_name if changed
+      if (userProfile?.userId && fullName.trim() !== (userProfile.full_name ?? "")) {
+        // PAR-106: same — a failed name update must not be silently swallowed.
+        const { error: nameError } = await supabase
+          .from("profiles")
+          .update({ full_name: fullName.trim() })
+          .eq("user_id", userProfile.userId);
+        if (nameError) {
+          setError(t("auth.networkError"));
+          return;
+        }
+      }
+
+      // 4. Propagate result to parent
       onJoin({
         status: result.status,
         societyName: preview?.name ?? "",
         flatNumber: selectedFlat.number || selectedFlat.label,
-        autoElevatedToCoSecretary: false,
+        autoElevatedToCoSecretary: result.autoElevatedToCoSecretary,
       });
-    } catch (err) {
-      const msg = String(err?.message ?? "");
-      if (msg.includes("TOO_MANY_CODE_ATTEMPTS")) setError(t("join.rateLimited"));
-      else if (msg.includes("INVALID_NAME")) setError(t("join.nameMin"));
-      else setError(t("auth.networkError"));
+    } catch {
+      setError(t("auth.networkError"));
     } finally {
       setLoading(false);
     }
@@ -294,19 +304,19 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
           <TextInput
             value={fullName}
             onChangeText={setFullName}
-            placeholder={t("auth.namePlaceholder")}
+            placeholder="Full name"
             placeholderTextColor="#64748B"
             maxLength={60}
             autoCapitalize="words"
-            className="min-h-14 py-2 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
+            className="h-14 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
             accessibilityLabel={t("join.nameLabel")}
           />
         </View>
 
         {/* Mobile — locked */}
         <View className="gap-1">
-          <Text className="text-sm text-neutral-600">{t("profile.phone")}</Text>
-          <View className="min-h-14 py-2 rounded-lg border border-neutral-200 bg-neutral-100 px-3 flex-row items-center">
+          <Text className="text-sm text-neutral-600">Mobile</Text>
+          <View className="h-14 rounded-lg border border-neutral-200 bg-neutral-100 px-3 flex-row items-center">
             <Text className="text-base text-neutral-600 flex-1">{userProfile?.phone ?? ""}</Text>
           </View>
           <Text className="text-xs text-neutral-400">{t("setup.step1.secretaryPhoneHelper")}</Text>
@@ -314,7 +324,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
 
         {/* Resident type */}
         <View className="gap-1">
-          <Text className="text-sm text-neutral-600">{t("auth.obResidency")}</Text>
+          <Text className="text-sm text-neutral-600">Resident type</Text>
           <SegmentedControl
             options={[
               { key: "owner", label: t("join.owner") },
@@ -327,7 +337,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
 
         {/* Household type */}
         <View className="gap-1">
-          <Text className="text-sm text-neutral-600">{t("join.householdType")}</Text>
+          <Text className="text-sm text-neutral-600">Household type</Text>
           <SegmentedControl
             options={[
               { key: "family", label: t("join.family") },
@@ -343,7 +353,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
 
         {/* Wing picker */}
         <DropdownPicker
-          label={t("setup.step4.wingLabel")}
+          label="Wing"
           placeholder={t("join.wingPlaceholder")}
           value={selectedWing?.name ?? null}
           options={wingOptions}
@@ -356,8 +366,12 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
 
         {/* Flat picker */}
         <DropdownPicker
-          label={t("profile.flat")}
-          placeholder={selectedWing ? t("join.flatPlaceholder") : t("join.wingFirst")}
+          label="Flat"
+          placeholder={
+            selectedWing
+              ? t("join.flatPlaceholder")
+              : t("join.wingFirst", { defaultValue: "Select a wing first" })
+          }
           value={selectedFlat?.number ?? null}
           options={flatOptions}
           disabled={!selectedWing || flatOptions.length === 0}
@@ -374,7 +388,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
             placeholderTextColor="#64748B"
             keyboardType="phone-pad"
             maxLength={10}
-            className="min-h-14 py-2 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
+            className="h-14 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
             accessibilityLabel={t("join.emergencyContact")}
           />
           <Text className="text-xs text-neutral-400">{t("join.emergencyHelper")}</Text>
@@ -408,29 +422,31 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
                   <TextInput
                     value={fm.name}
                     onChangeText={(v) => updateFamilyMember(fm.id, "name", v)}
-                    placeholder={t("join.familyNamePlaceholder")}
+                    placeholder={t("join.familyNamePlaceholder", { defaultValue: "Name" })}
                     placeholderTextColor="#64748B"
                     maxLength={60}
                     autoCapitalize="words"
-                    className="min-h-12 py-2 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
+                    className="h-12 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
                   />
                 </View>
                 <View className="flex-1 gap-1">
                   <TextInput
                     value={fm.phone}
                     onChangeText={(v) => updateFamilyMember(fm.id, "phone", v)}
-                    placeholder={t("join.familyPhonePlaceholder")}
+                    placeholder={t("join.familyPhonePlaceholder", {
+                      defaultValue: "Mobile (optional)",
+                    })}
                     placeholderTextColor="#64748B"
                     keyboardType="phone-pad"
                     maxLength={10}
-                    className="min-h-12 py-2 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
+                    className="h-12 rounded-lg border border-neutral-200 bg-neutral-0 px-3 text-base text-neutral-900"
                   />
                 </View>
                 <TouchableOpacity
                   onPress={() => removeFamilyMember(fm.id)}
                   className="p-2"
                   accessibilityRole="button"
-                  accessibilityLabel={t("join.removeFamilyMember")}
+                  accessibilityLabel="Remove family member"
                 >
                   <Trash2 size={20} color="#c81e1e" />
                 </TouchableOpacity>
@@ -441,7 +457,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
               <TouchableOpacity
                 onPress={addFamilyMember}
                 activeOpacity={0.7}
-                className="min-h-12 py-2 rounded-xl border border-neutral-200 flex-row items-center justify-center gap-2"
+                className="h-12 rounded-xl border border-neutral-200 flex-row items-center justify-center gap-2"
                 accessibilityRole="button"
               >
                 <UserPlus size={16} color="#12715A" />
@@ -450,7 +466,9 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
             )}
 
             {familyMembers.length >= MAX_FAMILY_MEMBERS && (
-              <Text className="text-xs text-neutral-400 text-center">{t("join.familyMax")}</Text>
+              <Text className="text-xs text-neutral-400 text-center">
+                Contact the Secretary to add more family members.
+              </Text>
             )}
           </View>
         )}
@@ -464,7 +482,7 @@ export function ProfileForm({ code, preview, structure, userProfile, onJoin }) {
           disabled={!canSubmit}
           activeOpacity={0.8}
           className={[
-            "min-h-14 py-2 w-full rounded-xl items-center justify-center mt-2",
+            "h-14 w-full rounded-xl items-center justify-center mt-2",
             canSubmit ? "bg-brand-500 active:bg-brand-600" : "bg-neutral-200",
           ].join(" ")}
           accessibilityRole="button"

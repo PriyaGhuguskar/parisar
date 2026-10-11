@@ -1,8 +1,7 @@
 import { useRouter } from "expo-router";
 import { CircleCheck } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, TouchableOpacity, View } from "react-native";
 
 /**
  * Step 3a — Join Success screen.

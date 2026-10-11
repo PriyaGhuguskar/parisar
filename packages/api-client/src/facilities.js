@@ -1,15 +1,7 @@
 // Facility calendar — society-ops schedule. Secretary/co-sec schedule events;
 // residents read (RLS). The next upcoming event surfaces on home highlights.
-//
-// Error contract: known validation / business codes are RETURNED as
-// `{ error: CODE }` (listed per function) so the UI can render localized copy;
-// any other RPC failure (network, auth, unexpected SQL error) is THROWN.
 
-/**
- * Schedule a facility event (secretary/co-sec only). Notifies residents (an empty
- * note is fine since 055 — the notification body falls back to the title).
- * Returns { ok, id } or { error: 'INVALID_TITLE'|'INVALID_TIME'|'NOT_SECRETARY' }.
- */
+/** Schedule a facility event (secretary/co-sec only). Notifies residents. */
 export async function addFacilityEvent(supabase, { societyId, category, title, note, startsAt }) {
   const { data, error } = await supabase.rpc("add_facility_event", {
     p_society_id: societyId,
@@ -28,7 +20,7 @@ export async function addFacilityEvent(supabase, { societyId, category, title, n
   return { ok: true, id: data.id };
 }
 
-/** Remove a facility event (secretary/co-sec only). Returns { ok } or { error: 'NOT_ALLOWED' }. */
+/** Remove a facility event (secretary/co-sec only). */
 export async function deleteFacilityEvent(supabase, id) {
   const { error } = await supabase.rpc("delete_facility_event", { p_id: id });
   if (error) {

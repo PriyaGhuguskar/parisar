@@ -34,6 +34,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Text,
   TextInput,
   View,
 } from "react-native";
@@ -42,10 +43,7 @@ import { HiddenPendingBanner } from "../../../../components/community/HiddenPend
 import { PostCard } from "../../../../components/community/PostCard";
 import { ReportReasonSheet } from "../../../../components/community/ReportReasonSheet";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
-import { rpcErrorCode } from "../../../../lib/rpc-error";
 import { getSupabase } from "../../../../lib/supabase";
 
 const COMMENT_MAX = 1000;
@@ -74,7 +72,6 @@ export default function PostDetailScreen() {
   const [reportError, setReportError] = useState(null);
   // Items the reporter has optimistically hidden (D-03): keyed by id.
   const [reportedIds, setReportedIds] = useState(new Set());
-  const [reportNotice, setReportNotice] = useState(null);
 
   const cleanupRef = useRef(null);
 
@@ -146,30 +143,22 @@ export default function PostDetailScreen() {
     setReportError(null);
     try {
       const supabase = getSupabase();
-      const res = await reportContent(supabase, {
+      await reportContent(supabase, {
         targetKind: reportTarget.targetKind,
         targetId: reportTarget.targetId,
         reason,
         note,
       });
-      // Migration 055: one member's report no longer hides the item (it hides
-      // at 3 reporters, or at once for a board report). Only swap in the
-      // hidden banner when the server says it is hidden; otherwise thank them.
-      // already_reported is a success too.
-      if (res?.hidden) {
-        setReportedIds((prev) => new Set([...prev, reportTarget.targetId]));
-        setReportNotice(null);
-      } else {
-        setReportNotice(t("community.reportThanks"));
-      }
+      // Optimistic swap for the reporter only (D-03) — mark this id hidden-pending.
+      setReportedIds((prev) => {
+        const next = new Set(prev);
+        next.add(reportTarget.targetId);
+        return next;
+      });
       setReportTarget(null);
     } catch (err) {
       console.warn("[community/[id]] report failed:", err?.message ?? err);
-      setReportError(
-        rpcErrorCode(err, ["REPORT_RATE_LIMITED"])
-          ? t("community.reportRateLimited")
-          : t("community.reportError"),
-      );
+      setReportError(t("community.reportError"));
     } finally {
       setReporting(false);
     }
@@ -182,7 +171,7 @@ export default function PostDetailScreen() {
   async function handleDeletePost() {
     try {
       await deletePost(getSupabase(), postId);
-      goBack(router);
+      router.back();
     } catch (err) {
       console.warn("[community/[id]] delete post failed:", err?.message ?? err);
       Alert.alert(t("community.deleteError"));
@@ -218,7 +207,7 @@ export default function PostDetailScreen() {
           className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
           accessibilityRole="button"
         >
-          <Text className="text-sm font-semibold text-neutral-900">{t("community.tryAgain")}</Text>
+          <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
         </Pressable>
       </View>
     );
@@ -234,10 +223,10 @@ export default function PostDetailScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("community.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -247,13 +236,6 @@ export default function PostDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 24 }}>
-        {reportNotice ? (
-          <View className="rounded-xl border border-brand-500 bg-brand-50 p-3">
-            <Text className="text-sm text-neutral-900" accessibilityRole="alert">
-              {reportNotice}
-            </Text>
-          </View>
-        ) : null}
         {/* Section 1 — full post (or the reporter's optimistic hidden banner) */}
         {postReported ? (
           <HiddenPendingBanner />

@@ -13,11 +13,9 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { GrievanceOfficerCard } from "../../../components/community/GrievanceOfficerCard";
 import { BackArrow } from "../../../components/kit";
-import { Text } from "../../../components/ui/Text";
-import { goBack } from "../../../lib/navigation";
 import { getSupabase } from "../../../lib/supabase";
 
 export default function AboutScreen() {
@@ -50,10 +48,10 @@ export default function AboutScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("moderation.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>

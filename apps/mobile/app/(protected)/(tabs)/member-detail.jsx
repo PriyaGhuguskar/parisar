@@ -3,16 +3,12 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { AlertTriangle } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { PhonePrivacyChip } from "../../../components/directory/PhonePrivacyChip";
 import { BackArrow } from "../../../components/kit";
 import { DestructiveConfirmDialog } from "../../../components/shared/DestructiveConfirmDialog";
-import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
-import { goBack } from "../../../lib/navigation";
-import { localizedRpcError } from "../../../lib/rpc-error";
 import { getSupabase } from "../../../lib/supabase";
-import { useSafeTimeout } from "../../../lib/use-safe-timeout";
 
 // ---------------------------------------------------------------------------
 // Avatar helpers
@@ -53,16 +49,8 @@ function Toast({ message }) {
 // ---------------------------------------------------------------------------
 // MemberDetailScreen
 // ---------------------------------------------------------------------------
-const ROLE_LABEL_KEY = {
-  secretary: "profile.roleSecretary",
-  co_secretary: "profile.roleCoSecretary",
-  board_member: "profile.roleBoard",
-  member: "profile.roleMember",
-};
-
 export default function MemberDetailScreen() {
   const router = useRouter();
-  const later = useSafeTimeout();
   const { t } = useTranslation("auth");
   const { id: membershipId } = useLocalSearchParams();
 
@@ -86,10 +74,7 @@ export default function MemberDetailScreen() {
       let active = true;
 
       async function load() {
-        if (!membershipId) {
-          setLoading(false);
-          return;
-        }
+        if (!membershipId) return;
         setLoading(true);
         setError(null);
         try {
@@ -117,8 +102,7 @@ export default function MemberDetailScreen() {
           setMembership(memberRes.data);
           setFamilyCount(familyRes.count ?? 0);
         } catch (err) {
-          console.warn("[member-detail] load failed:", err?.message ?? err);
-          if (active) setError(t("common.loadError"));
+          if (active) setError(err.message ?? "Failed to load member.");
         } finally {
           if (active) setLoading(false);
         }
@@ -128,7 +112,7 @@ export default function MemberDetailScreen() {
       return () => {
         active = false;
       };
-    }, [membershipId, t]),
+    }, [membershipId]),
   );
 
   // ---------------------------------------------------------------------------
@@ -141,16 +125,11 @@ export default function MemberDetailScreen() {
       setDialogOpen(false);
       setToast(t("removal.success"));
       // Navigate back after short delay so the toast is visible
-      later(() => goBack(router), 1200);
+      setTimeout(() => {
+        router.back();
+      }, 1200);
     } catch (err) {
-      console.warn("[member-detail] remove failed:", err?.message ?? err);
-      setError(
-        localizedRpcError(
-          err,
-          { INSUFFICIENT_PRIVILEGES: t("memberDetail.errNotAllowed") },
-          t("auth.obErr"),
-        ),
-      );
+      setError(err.message ?? "Failed to remove member.");
       setDialogOpen(false);
     } finally {
       setRemoving(false);
@@ -160,7 +139,7 @@ export default function MemberDetailScreen() {
   // ---------------------------------------------------------------------------
   // Derived display values
   // ---------------------------------------------------------------------------
-  const name = membership?.profiles?.full_name ?? t("profile.roleMember");
+  const name = membership?.profiles?.full_name ?? "Member";
   const flatNum = membership?.flats?.number ?? "";
   const wing = membership?.flats?.wings?.name ?? "";
   const flatLabel = [wing, flatNum].filter(Boolean).join("-");
@@ -200,10 +179,10 @@ export default function MemberDetailScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-neutral-100">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("common.goBack")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -253,7 +232,7 @@ export default function MemberDetailScreen() {
           {/* Phone */}
           {userId ? (
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-neutral-600">{t("profile.phone")}</Text>
+              <Text className="text-sm text-neutral-600">Phone</Text>
               <PhonePrivacyChip targetUserId={userId} mode={chipMode} />
             </View>
           ) : null}
@@ -261,26 +240,24 @@ export default function MemberDetailScreen() {
           {/* Join date */}
           {joinedAt ? (
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-neutral-600">{t("memberDetail.joined")}</Text>
+              <Text className="text-sm text-neutral-600">Joined</Text>
               <Text className="text-sm text-neutral-900">{joinedAt}</Text>
             </View>
           ) : null}
 
           {/* Family members count */}
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm text-neutral-600">{t("memberDetail.familyMembers")}</Text>
+            <Text className="text-sm text-neutral-600">Family members</Text>
             <Text className="text-sm text-neutral-900">{familyCount}</Text>
           </View>
 
           {/* Role */}
           {membership?.role ? (
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-neutral-600">{t("profile.role")}</Text>
+              <Text className="text-sm text-neutral-600">Role</Text>
               <View className="bg-brand-50 rounded-full px-3 py-0.5">
-                <Text className="text-xs font-medium text-brand-500">
-                  {ROLE_LABEL_KEY[membership.role]
-                    ? t(ROLE_LABEL_KEY[membership.role])
-                    : membership.role.replace(/_/g, " ")}
+                <Text className="text-xs font-medium text-brand-500 capitalize">
+                  {membership.role.replace(/_/g, " ")}
                 </Text>
               </View>
             </View>

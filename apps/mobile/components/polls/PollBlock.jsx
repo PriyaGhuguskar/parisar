@@ -7,9 +7,7 @@
 import { closePoll, getPollTally, subscribeToVotes, voteOnPoll } from "@parisar/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, ActivityIndicator, Pressable, View } from "react-native";
-import { cryptoRandomUUID } from "../shared/uuid";
-import { Text } from "../ui/Text";
+import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from "react-native";
 import { PollOptionBar } from "./PollOptionBar";
 
 const BRAND_500 = "#12715A";
@@ -27,7 +25,7 @@ const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
  * }} props
  */
 export function PollBlock({ supabase, poll, options, myVote, role = "member", onToast }) {
-  const { t } = useTranslation(["polls", "auth"]);
+  const { t } = useTranslation("polls");
   const isBoard = BOARD_ROLES.has(role);
 
   // Local poll status (Realtime/close can move it to 'closed').
@@ -46,40 +44,6 @@ export function PollBlock({ supabase, poll, options, myVote, role = "member", on
   const [confirmClose, setConfirmClose] = useState(false);
 
   const cleanupRef = useRef(null);
-  const statusChannelName = useRef(`poll-status:${cryptoRandomUUID()}`);
-
-  // Props are the source of truth when the parent refetches (realtime list
-  // refresh, pull-to-refresh) — don't keep the values copied at mount.
-  useEffect(() => {
-    if (poll?.status) setStatus(poll.status);
-  }, [poll?.status]);
-
-  const myVoteOptionId = myVote?.option_id ?? null;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `changing` is read, not tracked — only a new prop value re-syncs.
-  useEffect(() => {
-    setVotedOptionId(myVoteOptionId);
-    if (!changing) setSelected(myVoteOptionId);
-  }, [myVoteOptionId]);
-
-  // Live poll status: a board member closing the poll elsewhere moves this
-  // card to the closed state without a refetch.
-  useEffect(() => {
-    if (!supabase || !poll?.id || typeof supabase.channel !== "function") return undefined;
-    const channel = supabase
-      .channel(`${statusChannelName.current}:${poll.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "polls", filter: `id=eq.${poll.id}` },
-        (payload) => {
-          const next = payload?.new?.status;
-          if (next) setStatus(next);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel?.(channel);
-    };
-  }, [supabase, poll?.id]);
 
   const closed = status === "closed";
   const hasVoted = !!votedOptionId;
@@ -121,7 +85,7 @@ export function PollBlock({ supabase, poll, options, myVote, role = "member", on
       // Only on RPC confirm do we reveal results (no optimistic reveal).
       setVotedOptionId(selected);
       setChanging(false);
-      AccessibilityInfo.announceForAccessibility?.(t("poll.voteRecordedA11y"));
+      AccessibilityInfo.announceForAccessibility?.("Vote recorded. Results now visible.");
       onToast?.(t("poll.voteSuccess"), "success");
     } catch (err) {
       console.warn("[PollBlock] vote failed:", err?.message ?? err);
@@ -147,7 +111,7 @@ export function PollBlock({ supabase, poll, options, myVote, role = "member", on
       setConfirmClose(false);
     } catch (err) {
       console.warn("[PollBlock] close failed:", err?.message ?? err);
-      onToast?.(t("poll.closeError"), "error");
+      onToast?.(t("poll.voteError"), "error");
     } finally {
       setClosing(false);
     }
@@ -199,12 +163,10 @@ export function PollBlock({ supabase, poll, options, myVote, role = "member", on
             <Pressable
               onPress={() => setConfirmClose(false)}
               accessibilityRole="button"
-              accessibilityLabel={t("auth:common.cancel")}
-              className="min-h-10 py-2 px-4 rounded-lg items-center justify-center border border-neutral-200"
+              accessibilityLabel="Cancel"
+              className="h-10 px-4 rounded-lg items-center justify-center border border-neutral-200"
             >
-              <Text className="text-sm font-semibold text-neutral-900">
-                {t("auth:common.cancel")}
-              </Text>
+              <Text className="text-sm font-semibold text-neutral-900">Cancel</Text>
             </Pressable>
           </View>
         </View>

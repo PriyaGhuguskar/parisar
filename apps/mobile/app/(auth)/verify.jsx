@@ -1,15 +1,22 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
 import { DevOtpHint } from "../../components/auth/DevOtpHint";
 import { FormError } from "../../components/auth/FormError";
 import { OtpInput } from "../../components/auth/OtpInput";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { ResendTimer } from "../../components/auth/ResendTimer";
-import { Text } from "../../components/ui/Text";
 import { ANY_USER, clearPinPending, setPinPending } from "../../lib/pin-pending";
+import { ROUTES, resolvePostLoginRoute } from "../../lib/post-login";
 import { getSupabase } from "../../lib/supabase";
 
 /**
@@ -51,7 +58,6 @@ export default function VerifyScreen() {
       });
 
       if (verifyError) {
-        await clearPinPending();
         const msg = verifyError.message?.toLowerCase() ?? "";
         if (msg.includes("expired")) {
           setError(t("auth.otpExpired"));
@@ -76,12 +82,14 @@ export default function VerifyScreen() {
         return;
       }
 
-      // Pin the pending-PIN marker to this user. Routing is NOT done here:
-      // the new session flips the (auth) guard and the splash (app/index.jsx)
-      // becomes the single owner of resolvePostLoginRoute — running it here as
-      // well ran every claim RPC twice. The splash sees the marker, so it adds
-      // the PIN step, and shows a retry (never a guessed route) on failure.
-      await setPinPending(userId);
+      // Same routing as the website: residents with a flat → app; a society
+      // authority → wings/flats setup or onboarding; anyone else → enter the
+      // society code. A failed lookup must not be treated as "new user"
+      // (PAR-109/116) — resolvePostLoginRoute throws and we show a retry.
+      const route = await resolvePostLoginRoute(supabase, { atLogin: true });
+      if (route.startsWith(ROUTES.pin)) await setPinPending(userId);
+      else await clearPinPending();
+      router.replace(route);
     } catch {
       setError(t("auth.networkError"));
     } finally {

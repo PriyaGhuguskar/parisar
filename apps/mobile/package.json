@@ -10,6 +10,7 @@
     "ios": "expo run:ios",
     "build": "expo prebuild --no-install --clean",
     "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "clean": "rm -rf .expo node_modules/.cache coverage"

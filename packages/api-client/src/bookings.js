@@ -7,14 +7,13 @@
 //
 // Functions exported:
 //   1. listAmenities(supabase)
-//   2. listBookings(supabase, opts) / listBookingsPage(supabase, opts)
+//   2. listBookings(supabase, opts)
 //   3. requestBooking(supabase, opts)
 //   4. approveBooking(supabase, { bookingId })  ← surfaces slot_taken / race_lost as typed results
 //   5. rejectBooking(supabase, { bookingId, reason })
 //   6. subscribeToBookings(supabase, societyId, handlers)
 
 import { BOOKING_STATUS } from "@parisar/shared-types";
-import { applyNewestFirstCursor, nextCursorFrom } from "./pagination.js";
 import { uniqueChannelName } from "./realtime-channel.js";
 
 // Re-export so callers can pull the enum from the bookings module.
@@ -39,100 +38,73 @@ export async function listAmenities(supabase) {
   return data ?? [];
 }
 
-const BOOKING_SELECT = `
-  id,
-  society_id,
-  amenity_id,
-  requester_id,
-  requester_flat_id,
-  time_range,
-  purpose,
-  status,
-  approved_by,
-  approver_flat_id,
-  approved_at,
-  rejected_by,
-  rejecter_flat_id,
-  rejection_reason,
-  rejected_at,
-  created_at,
-  amenity:amenity_id ( id, name, open_time, close_time ),
-  requester:requester_id ( user_id, full_name ),
-  requester_flat:requester_flat_id ( number, wing:wing_id ( name ) ),
-  approver_flat:approver_flat_id ( number, wing:wing_id ( name ) ),
-  rejecter_flat:rejecter_flat_id ( number, wing:wing_id ( name ) )
-`;
-
-// Safety cap on the board's pending queue (pending requests are bounded server-side:
-// request_booking allows at most 5 future pending per user + amenity).
-export const PENDING_QUEUE_MAX = 200;
-
 /**
- * List one page of bookings plus the cursor for the next page.
+ * List bookings.
  *
- * - mode='mine':  the requester's own bookings, newest first (RLS scopes to requester).
- * - mode='queue': the society's board queue (RLS: can_see_booking). The FIRST page
- *   (no cursor) returns EVERY pending request (soonest slot first, capped at
- *   PENDING_QUEUE_MAX) followed by `limit` decided bookings, newest first. Pending
- *   rows are fetched by their own `status = 'pending'` query so a long decided
- *   history can never truncate the action queue. Later pages (cursor set) return
- *   decided bookings only.
+ * - mode='mine':  the requester's own bookings (RLS already scopes to requester).
+ * - mode='queue': the society's board queue (RLS scopes to same-society board via
+ *   can_see_booking). Pending first, then by created_at desc so the action queue
+ *   floats to the top.
  *
  * Embeds amenity name + requester/approver/rejecter flat for attribution (BOOK-06/07).
  *
  * @param {object} supabase
- * @param {{ mode?: 'mine'|'queue', limit?: number, cursor?: string|{createdAt: string, id: string}|null }} [opts]
- * @returns {Promise<{ rows: Array, nextCursor: {createdAt: string, id: string}|null }>}
- * @throws on query errors
- */
-export async function listBookingsPage(
-  supabase,
-  { mode = "mine", limit = 30, cursor = null } = {},
-) {
-  if (mode !== "queue") {
-    const q = applyNewestFirstCursor(supabase.from("bookings").select(BOOKING_SELECT), cursor);
-    const { data, error } = await q.limit(limit);
-    if (error) throw error;
-    const rows = data ?? [];
-    return { rows, nextCursor: nextCursorFrom(rows, limit) };
-  }
-
-  const pending = cursor ? [] : await listPendingBookings(supabase);
-
-  const decidedQuery = applyNewestFirstCursor(
-    supabase.from("bookings").select(BOOKING_SELECT).neq("status", BOOKING_STATUS.PENDING),
-    cursor,
-  );
-  const { data, error } = await decidedQuery.limit(limit);
-  if (error) throw error;
-  const decided = data ?? [];
-
-  return { rows: [...pending, ...decided], nextCursor: nextCursorFrom(decided, limit) };
-}
-
-/**
- * List bookings (first page only) — kept for existing callers. See
- * {@link listBookingsPage} for ordering and pagination.
- *
- * @param {object} supabase
- * @param {{ mode?: 'mine'|'queue', limit?: number, cursor?: string|{createdAt: string, id: string}|null }} [opts]
+ * @param {{ mode?: 'mine'|'queue', limit?: number }} [opts]
  * @returns {Promise<Array>}
  */
-export async function listBookings(supabase, opts = {}) {
-  const { rows } = await listBookingsPage(supabase, opts);
-  return rows;
-}
-
-async function listPendingBookings(supabase) {
-  const { data, error } = await supabase
+export async function listBookings(supabase, { mode = "mine", limit = 30 } = {}) {
+  let q = supabase
     .from("bookings")
-    .select(BOOKING_SELECT)
-    .eq("status", BOOKING_STATUS.PENDING)
-    .order("time_range", { ascending: true })
-    .order("id", { ascending: true })
-    .limit(PENDING_QUEUE_MAX);
+    .select(
+      `
+        id,
+        society_id,
+        amenity_id,
+        requester_id,
+        requester_flat_id,
+        time_range,
+        purpose,
+        status,
+        approved_by,
+        approver_flat_id,
+        approved_at,
+        rejected_by,
+        rejecter_flat_id,
+        rejection_reason,
+        rejected_at,
+        created_at,
+        amenity:amenity_id ( id, name, open_time, close_time ),
+        requester:requester_id ( user_id, full_name ),
+        requester_flat:requester_flat_id ( number, wing:wing_id ( name ) ),
+        approver_flat:approver_flat_id ( number, wing:wing_id ( name ) ),
+        rejecter_flat:rejecter_flat_id ( number, wing:wing_id ( name ) )
+      `,
+    )
+    .limit(limit);
+
+  if (mode === "queue") {
+    // Pending-first so the board's action queue floats up, then newest first.
+    q = q
+      .order("status", { ascending: true }) // pending < approved < rejected lexically? no — order in JS below
+      .order("created_at", { ascending: false });
+  } else {
+    q = q.order("created_at", { ascending: false });
+  }
+
+  const { data, error } = await q;
   if (error) throw error;
-  return data ?? [];
+
+  const rows = data ?? [];
+  if (mode === "queue") {
+    // Deterministic pending-first ordering regardless of enum sort semantics.
+    return [...rows].sort((a, b) => {
+      const aPending = a.status === BOOKING_STATUS.PENDING ? 0 : 1;
+      const bPending = b.status === BOOKING_STATUS.PENDING ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  }
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,33 +136,6 @@ export async function requestBooking(supabase, { amenityId, startsAt, endsAt, pu
   return { bookingId: data.booking_id };
 }
 
-// Every request_booking exception code (none is a substring of another, so the
-// match order below does not matter).
-export const BOOKING_REQUEST_ERROR_CODES = Object.freeze([
-  "INVALID_TIME",
-  "TOO_MANY_PENDING",
-  "TIME_ORDER",
-  "LEAD_TIME",
-  "TOO_FAR",
-  "DURATION",
-  "OUTSIDE_HOURS",
-  "INVALID_AMENITY",
-  "NOT_ACTIVE_MEMBER",
-  "NO_SOCIETY",
-  "AUTH_REQUIRED",
-]);
-
-/**
- * Extract the request_booking error code from a thrown error.
- *
- * @param {unknown} error
- * @returns {string|null} one of BOOKING_REQUEST_ERROR_CODES, or null when unknown
- */
-export function bookingErrorCode(error) {
-  const msg = String(error?.message ?? "");
-  return BOOKING_REQUEST_ERROR_CODES.find((code) => msg.includes(code)) ?? null;
-}
-
 /**
  * Approve a booking (atomic first-approval, BOOK-03).
  *
@@ -199,8 +144,7 @@ export function bookingErrorCode(error) {
  *   - { approved: true,  booking }                          → won
  *   - { approved: false, reason: 'race_lost_or_not_pending' } → another board member won
  *   - { approved: false, reason: 'slot_taken' }              → exclusion constraint 23P01 (BOOK-05)
- * Only a genuine transport/RLS error throws — including BOOKING_NOT_FOUND (migration
- * 054) for an id outside the caller's society.
+ * Only a genuine transport/RLS error throws.
  *
  * Calls: approve_booking(p_booking_id)
  *

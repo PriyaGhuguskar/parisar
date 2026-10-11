@@ -8,27 +8,25 @@
 
 import { addFacilityEvent, deleteFacilityEvent } from "@parisar/api-client";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { CalendarClock, Plus, Trash2, WifiOff, X } from "lucide-react-native";
+import { CalendarClock, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   ScrollView,
+  Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FormError } from "../../../components/auth/FormError";
 import { EmptyState, PageHeader, SmallButton, SurfaceCard } from "../../../components/kit";
 import { Field, TextField } from "../../../components/onboarding/Form";
-import { Text } from "../../../components/ui/Text";
 import { getSupabase } from "../../../lib/supabase";
 import { useMyContext } from "../../../lib/use-my-context";
-import { useSocietyRealtime } from "../../../lib/use-society-realtime";
 
 const FCATS = [
   "water_shutdown",
@@ -217,40 +215,30 @@ export default function FacilitiesScreen() {
   const [filter, setFilter] = useState("all");
   const [adding, setAdding] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-
   const load = useCallback(async () => {
-    if (!societyId) {
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await getSupabase()
+    if (!societyId) return;
+    const { data } = await getSupabase()
       .from("facility_events")
       .select("id, category, title, note, starts_at")
       .eq("society_id", societyId)
       .order("starts_at", { ascending: true });
-    setLoading(false);
-    if (error) {
-      console.warn("[facilities] load failed:", error.message ?? error);
-      setLoadError(true);
-      return;
-    }
-    setLoadError(false);
     setEvents(Array.isArray(data) ? data : []);
   }, [societyId]);
 
   useEffect(() => {
+    if (!societyId) return undefined;
     load();
-  }, [load]);
-
-  // Live while focused, this society only.
-  useSocietyRealtime("facility_events", societyId, load);
-
-  function retry() {
-    setLoading(true);
-    load();
-  }
+    const supabase = getSupabase();
+    const channel = supabase
+      .channel(`facilities-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "facility_events" }, () =>
+        load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [societyId, load]);
 
   function remove(id) {
     Alert.alert(t("facility.remove"), "", [
@@ -326,15 +314,7 @@ export default function FacilitiesScreen() {
           ))}
         </ScrollView>
 
-        {loading ? (
-          <ActivityIndicator color="#12715A" style={{ marginTop: 24 }} />
-        ) : loadError ? (
-          <EmptyState
-            icon={WifiOff}
-            title={t("common.loadError")}
-            action={<SmallButton label={t("common.retry")} onPress={retry} />}
-          />
-        ) : upcoming.length === 0 && past.length === 0 ? (
+        {upcoming.length === 0 && past.length === 0 ? (
           <EmptyState
             icon={CalendarClock}
             title={t("facility.empty")}

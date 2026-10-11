@@ -5,8 +5,7 @@
 import { Clock } from "lucide-react-native";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, View } from "react-native";
-import { Text } from "../ui/Text";
+import { AccessibilityInfo, Text, View } from "react-native";
 
 export function HiddenPendingBanner() {
   const { t } = useTranslation("community");

@@ -6,8 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, TextInput, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
 const BRAND_500 = "#12715A";
 const DANGER_500 = "#c81e1e";
@@ -33,7 +32,7 @@ export function ReportReasonSheet({
   onClose,
   onConfirm,
 }) {
-  const { t } = useTranslation(["community", "auth"]);
+  const { t } = useTranslation("community");
   const [reason, setReason] = useState(null);
   const [note, setNote] = useState("");
 
@@ -57,7 +56,7 @@ export function ReportReasonSheet({
         style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel={t("auth:common.dismiss")}
+        accessibilityLabel="Dismiss"
       >
         <Pressable
           className="bg-white rounded-t-3xl p-4 mt-auto gap-3"
@@ -138,7 +137,7 @@ export function ReportReasonSheet({
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel={t("auth:common.cancel")}
+            accessibilityLabel="Cancel"
             className="h-10 items-center justify-center"
           >
             <Text className="text-base text-neutral-600">Cancel</Text>

@@ -15,14 +15,11 @@ import { Redirect, useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from "react-native";
 import { BackArrow } from "../../../../components/kit";
 import { NoticeComposer } from "../../../../components/notices/NoticeComposer";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
-import { useSafeTimeout } from "../../../../lib/use-safe-timeout";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
 
@@ -41,7 +38,6 @@ function cryptoRandomUUID() {
 
 export default function NewNoticeScreen() {
   const router = useRouter();
-  const later = useSafeTimeout();
   const { t } = useTranslation("notifications");
   const session = useAuthStore((s) => s.session);
 
@@ -80,7 +76,7 @@ export default function NewNoticeScreen() {
         pollOptions: payload.pollOptions,
       });
       setShowSuccess(true);
-      later(() => goBack(router), 1200);
+      setTimeout(() => router.back(), 1200);
     } catch (err) {
       console.warn("[notices/new] submit failed:", err?.message ?? err);
       const code = String(err?.message ?? "");
@@ -102,10 +98,10 @@ export default function NewNoticeScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("notice.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>

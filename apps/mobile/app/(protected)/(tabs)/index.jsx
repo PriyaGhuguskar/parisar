@@ -34,7 +34,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronDown } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthorityEntry } from "../../../components/dashboard/AuthorityEntry";
 import { DashboardTile } from "../../../components/dashboard/DashboardTile";
@@ -44,7 +44,6 @@ import { ProfileMenuSheet } from "../../../components/dashboard/ProfileMenuSheet
 import { SocietyHeaderPill } from "../../../components/dashboard/SocietyHeaderPill";
 import { SocietySwitcherSheet } from "../../../components/dashboard/SocietySwitcherSheet";
 import { SosAlerts } from "../../../components/sos/SosAlerts";
-import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getAvatarColor, initials } from "../../../lib/avatar";
 import { subscribeDashboardRealtime } from "../../../lib/dashboard-realtime";
@@ -55,7 +54,7 @@ import {
   getRoleTiles,
 } from "../../../lib/role-tiles";
 import { getSupabase } from "../../../lib/supabase";
-import { AUTHORITY_ROLES, refreshMyContext, useMyContext } from "../../../lib/use-my-context";
+import { AUTHORITY_ROLES, useMyContext } from "../../../lib/use-my-context";
 
 const BRAND_500 = "#12715A";
 
@@ -100,8 +99,6 @@ export default function HomeScreen() {
   const [rotatesAt, setRotatesAt] = useState(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
-  const [switchError, setSwitchError] = useState(null);
 
   // Phase 7 Plan 07-07 — live dashboard summary (DASH-03).
   // Selector-style subscriptions keep re-renders shallow.
@@ -210,33 +207,6 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [societyId, session?.user?.id, summaryView, fetchSummary, patchEvent]);
 
-  // Society switcher: set_active_society (migration 054) records the choice,
-  // refreshSession() re-mints the token so RLS sees the new society, then every
-  // per-society cache is dropped and reloaded (focus effect + realtime re-run
-  // because societyId changes).
-  async function handleSwitchSociety(newSocietyId) {
-    if (!newSocietyId || newSocietyId === societyId || switching) return;
-    setSwitching(true);
-    setSwitchError(null);
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase.rpc("set_active_society", { p_society_id: newSocietyId });
-      if (error) throw error;
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) throw refreshError;
-      useDashboardSummary.getState().reset();
-      setPendingCount(0);
-      setPendingBookings(0);
-      setRotatesAt(null);
-      await refreshMyContext();
-    } catch (err) {
-      console.warn("[society-switcher] switch failed:", err?.message ?? err);
-      setSwitchError(t("switcher.error"));
-    } finally {
-      setSwitching(false);
-    }
-  }
-
   // Active memberships come from the shared context (one query for the app).
   const memberships = me.memberships ?? [];
   const showSwitcher = memberships.length > 1;
@@ -289,12 +259,6 @@ export default function HomeScreen() {
           </Text>
         </Pressable>
       </View>
-
-      {switchError ? (
-        <Text className="px-4 pb-2 text-sm text-danger-500" accessibilityRole="alert">
-          {switchError}
-        </Text>
-      ) : null}
 
       {/* Card grid */}
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 + insets.bottom }}>
@@ -370,7 +334,18 @@ export default function HomeScreen() {
         visible={switcherOpen}
         memberships={memberships}
         activeSocietyId={societyId}
-        onSelect={handleSwitchSociety}
+        onSelect={(newSocietyId) => {
+          // Visual-only stub per user decision #1. v1 logs intent and returns;
+          // Phase 8 wires real multi-society switching (JWT refresh + tile-count
+          // re-fetch). This intentionally does NOT invalidate any caches because
+          // v1 never actually switches (threat T-04.1-01 — real switch must issue
+          // a Supabase Auth Hook refresh so the JWT carries the new society_id).
+          console.log(
+            "[society-switcher] Switch intent logged:",
+            newSocietyId,
+            "(Phase 8 will wire)",
+          );
+        }}
         onClose={() => setSwitcherOpen(false)}
       />
       <ProfileMenuSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />

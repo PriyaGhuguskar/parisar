@@ -4,9 +4,8 @@
 // JavaScript only — no TypeScript per CLAUDE.md.
 
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { isOverdue } from "../../lib/fine-overdue";
-import { Text } from "../ui/Text";
 
 const STATUS_STYLES = {
   outstanding: { bg: "#fffbeb", text: "#f59e0b", border: "#f59e0b" },
@@ -52,7 +51,7 @@ export function FineStatusBadge({ status, dueDate = null, nowMs = Date.now() }) 
         alignSelf: "flex-start",
       }}
       accessibilityRole="text"
-      accessibilityLabel={label}
+      accessibilityLabel={`Fine status: ${label}`}
     >
       <Text className="text-sm" style={{ color: style.text }} numberOfLines={1}>
         {label}

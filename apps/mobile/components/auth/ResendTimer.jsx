@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, TouchableOpacity } from "react-native";
 
 const COUNTDOWN_SECONDS = 60;
 

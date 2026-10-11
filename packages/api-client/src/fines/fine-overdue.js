@@ -15,20 +15,14 @@
 // NO escalation, NO status change.
 //
 // `dueDate` semantics:
-//   - bare 'YYYY-MM-DD'   → end of that day in India (23:59:59.999 Asia/Kolkata,
-//                           UTC+05:30, no DST). A fine due "today" is not overdue
-//                           until the day fully elapses in IST — independent of
-//                           the device / server time zone, so web SSR, a phone
-//                           set to another zone and the society all agree.
+//   - bare 'YYYY-MM-DD'   → end-of-day local (23:59:59.999). A fine due "today"
+//                           is not overdue until the day fully elapses.
 //   - full ISO timestamp  → honored as-is.
 //   - epoch ms number     → honored as-is.
 //   - Date instance       → uses .getTime().
 //   - null / undefined / "" / invalid → never overdue.
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
-
-// India Standard Time is a fixed UTC+05:30 (no daylight saving).
-const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
 /**
  * Resolve a due date string/number/Date to an end-of-day epoch ms.
@@ -45,12 +39,11 @@ function dueDateEndOfDayMs(dueDate) {
     return Number.isNaN(t) ? null : t;
   }
   const s = String(dueDate);
-  // Bare 'YYYY-MM-DD' → 23:59:59.999 IST that day.
+  // Bare 'YYYY-MM-DD' → 23:59:59.999 LOCAL that day.
   const bare = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (bare) {
-    const t =
-      Date.UTC(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]), 23, 59, 59, 999) -
-      IST_OFFSET_MS;
+    const d = new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]), 23, 59, 59, 999);
+    const t = d.getTime();
     return Number.isNaN(t) ? null : t;
   }
   const t = new Date(s).getTime();

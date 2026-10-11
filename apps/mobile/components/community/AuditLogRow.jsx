@@ -6,9 +6,7 @@
 
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
+import { Text, View } from "react-native";
 
 const DOT_COLOR = {
   report: "#f59e0b",
@@ -22,10 +20,10 @@ function eventLabel(t, kind) {
   return t("moderation.eventReport");
 }
 
-function safeTime(iso, locale) {
+function safeTime(iso) {
   if (!iso) return "";
   try {
-    return format(new Date(iso), "HH:mm, dd MMM", { locale });
+    return format(new Date(iso), "HH:mm, dd MMM");
   } catch {
     return "";
   }
@@ -53,14 +51,13 @@ function formatFlat(flatJoin) {
  */
 export function AuditLogRow({ event, isLast = false }) {
   const { t } = useTranslation("moderation");
-  const dateLocale = useDateLocale();
   const kind = event?.event_kind ?? "report";
   const dotColor = DOT_COLOR[kind] ?? DOT_COLOR.report;
   const label = eventLabel(t, kind);
 
   const actor = event?.actor?.full_name ?? "—";
   const flat = formatFlat(event?.actor_flat);
-  const time = safeTime(event?.created_at, dateLocale);
+  const time = safeTime(event?.created_at);
   const byLine = t("moderation.eventBy", { actor, flat, time });
 
   // Target + reason line (e.g. "Post · Spam"). Target kind is the moderated content type.

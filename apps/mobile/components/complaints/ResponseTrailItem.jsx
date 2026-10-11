@@ -10,9 +10,7 @@
 
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
+import { Text, View } from "react-native";
 
 const DOT_COLOR = {
   checking: "#12715A",
@@ -37,10 +35,10 @@ function formatFlat(responderFlat) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeTime(iso, locale) {
+function safeTime(iso) {
   if (!iso) return "";
   try {
-    return format(new Date(iso), "HH:mm, dd MMM", { locale });
+    return format(new Date(iso), "HH:mm, dd MMM");
   } catch {
     return "";
   }
@@ -60,13 +58,12 @@ function safeTime(iso, locale) {
  */
 export function ResponseTrailItem({ response, isLast = false }) {
   const { t } = useTranslation("complaints");
-  const dateLocale = useDateLocale();
   const kind = response?.response_kind ?? "open";
   const dotColor = DOT_COLOR[kind] ?? DOT_COLOR.open;
   const statusLabel = resolveStatusLabel(t, kind);
   const name = response?.responder?.full_name ?? "—";
   const flat = formatFlat(response?.responder_flat);
-  const time = safeTime(response?.created_at, dateLocale);
+  const time = safeTime(response?.created_at);
   const byLine = t("complaint.trailBy", { name, flat, time });
 
   return (

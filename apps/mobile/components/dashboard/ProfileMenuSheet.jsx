@@ -16,12 +16,11 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, View } from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import { useAuthStore } from "../../lib/auth-store";
 import { getAvatarColor, initials } from "../../lib/avatar";
 import { useMyContext } from "../../lib/use-my-context";
 import { LanguageSelector } from "../profile/LanguageSelector";
-import { Text } from "../ui/Text";
 
 const DANGER_500 = "#c81e1e";
 const NEUTRAL_400 = "#64748B";
@@ -37,7 +36,7 @@ const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
 export function ProfileMenuSheet({ visible, onClose }) {
   const router = useRouter();
   const signOut = useAuthStore((s) => s.signOut);
-  const { t, i18n } = useTranslation(["dashboard", "moderation", "auth"]);
+  const { t, i18n } = useTranslation(["dashboard", "moderation"]);
 
   // Name, flat and membership role come from the database (the access token
   // carries neither the name nor the flat) — same as the website.
@@ -92,7 +91,7 @@ export function ProfileMenuSheet({ visible, onClose }) {
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel={t("auth:common.dismiss")}
+          accessibilityLabel="Dismiss"
         >
           <Pressable
             className="bg-white rounded-t-3xl p-4 mt-auto"

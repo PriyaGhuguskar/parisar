@@ -18,14 +18,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { FileText, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { BackArrow } from "../../../../components/kit";
 import { AttachmentPill } from "../../../../components/notices/AttachmentPill";
 import { PollBlock } from "../../../../components/polls/PollBlock";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
-import { openExternalUrl } from "../../../../lib/safe-link";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -140,7 +137,7 @@ export default function NoticeDetailScreen() {
           className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
           accessibilityRole="button"
         >
-          <Text className="text-sm font-semibold text-neutral-900">{t("notice.tryAgain")}</Text>
+          <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
         </Pressable>
       </View>
     );
@@ -163,10 +160,10 @@ export default function NoticeDetailScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("notice.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -189,11 +186,7 @@ export default function NoticeDetailScreen() {
         {att && signedUrl ? (
           isPdf ? (
             <Pressable
-              onPress={() =>
-                openExternalUrl(signedUrl).catch((err) => {
-                  console.warn("[notices/[id]] open attachment failed:", err?.message ?? err);
-                })
-              }
+              onPress={() => Linking.openURL(signedUrl)}
               accessibilityRole="button"
               accessibilityLabel={t("notice.openAttachment")}
               className="bg-white rounded-xl p-4 flex-row items-center gap-3"

@@ -9,12 +9,11 @@ import { addGuard } from "@parisar/api-client";
 import { Plus, ShieldCheck, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
 import { FormError } from "../auth/FormError";
 import { SectionTitle, SmallButton, SurfaceCard } from "../kit";
 import { Field, TextField } from "../onboarding/Form";
-import { Text } from "../ui/Text";
 
 export function GuardsSection({ societyId }) {
   const { t } = useTranslation("auth");
@@ -24,23 +23,16 @@ export function GuardsSection({ societyId }) {
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!societyId) return;
-    try {
-      const { data, error: readError } = await getSupabase()
-        .from("society_guards")
-        .select("id, name, phone")
-        .eq("society_id", societyId)
-        .eq("status", "active")
-        .order("created_at", { ascending: true });
-      if (readError) throw readError;
-      setGuards(Array.isArray(data) ? data : []);
-      setLoadError(false);
-    } catch {
-      setLoadError(true);
-    }
+    const { data } = await getSupabase()
+      .from("society_guards")
+      .select("id, name, phone")
+      .eq("society_id", societyId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true });
+    setGuards(Array.isArray(data) ? data : []);
   }, [societyId]);
 
   useEffect(() => {
@@ -91,14 +83,7 @@ export function GuardsSection({ societyId }) {
           />
         }
       />
-      {loadError ? (
-        <Pressable onPress={load} accessibilityRole="button" className="py-1">
-          <Text className="text-sm text-danger-500">
-            {`${t("common.loadError")} ${t("common.retry")}`}
-          </Text>
-        </Pressable>
-      ) : null}
-      {guards.length === 0 && !loadError ? (
+      {guards.length === 0 ? (
         <Text className="text-sm text-neutral-400">{t("visitor.noGuards")}</Text>
       ) : (
         <View className="gap-2">
@@ -134,7 +119,6 @@ export function GuardsSection({ societyId }) {
               <Pressable
                 onPress={() => setAdding(false)}
                 accessibilityRole="button"
-                accessibilityLabel={t("common.close")}
                 className="p-1"
               >
                 <X size={20} color="#64748B" />

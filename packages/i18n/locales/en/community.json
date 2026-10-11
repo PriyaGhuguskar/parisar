@@ -37,7 +37,7 @@
     "deleteConfirm": "Delete this post?",
     "deleteCommentConfirm": "Delete this comment?",
     "reportTitle": "Report this {{target}}",
-    "reportSubhead": "Tell us why. Reported content is hidden once several residents report it or a board member reviews it.",
+    "reportSubhead": "Tell us why. Reported content is hidden right away while the Secretary reviews it.",
     "reportNotePlaceholder": "Add a note (optional)",
     "reportConfirm": "Report",
     "reportSuccess": "Reported.",

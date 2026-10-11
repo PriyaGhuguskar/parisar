@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Pressable, Text, View } from "react-native";
 import { PhonePrivacyChip } from "./PhonePrivacyChip";
 
 // ---------------------------------------------------------------------------

@@ -239,9 +239,7 @@ describe("BoardForm", () => {
 
   it("shows the Secretary pre-populated locked row", () => {
     const { getByText } = render(<BoardForm {...defaultProps} />);
-    // New i18n keys resolve to their English text once the wave-2 locale merge lands;
-    // until then the global react-i18next mock returns the key itself.
-    expect(getByText(/^(You \(Secretary\)|setup\.step4\.youSecretary)$/)).toBeTruthy();
+    expect(getByText("You (Secretary)")).toBeTruthy();
     expect(getByText("Secretary")).toBeTruthy();
   });
 
@@ -271,7 +269,7 @@ describe("BoardForm", () => {
     const { getByPlaceholderText, getByText } = render(<BoardForm {...defaultProps} />);
     const phoneInput = getByPlaceholderText("98765 43210");
     fireEvent.changeText(phoneInput, "9000000002");
-    expect(getByText(/auto-elevated on join|setup\.step4\.coSecAutoElevated/)).toBeTruthy();
+    expect(getByText(/auto-elevated on join/)).toBeTruthy();
   });
 });
 
@@ -300,9 +298,9 @@ describe("FlatsForm", () => {
   };
 
   it("renders wing sections for each wing", () => {
-    const { getAllByText } = render(<FlatsForm {...defaultProps} />);
-    const headings = getAllByText(/^(Wing [AB]|setup\.step3\.wingHeading)$/);
-    expect(headings.length).toBeGreaterThanOrEqual(2);
+    const { getByText } = render(<FlatsForm {...defaultProps} />);
+    expect(getByText("Wing A")).toBeTruthy();
+    expect(getByText("Wing B")).toBeTruthy();
   });
 
   it("shows secretary flat section", () => {

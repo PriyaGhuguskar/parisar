@@ -18,10 +18,9 @@
 import { Check } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, Modal, Pressable, View } from "react-native";
+import { AccessibilityInfo, Modal, Pressable, Text, View } from "react-native";
 import { FONT_DEVANAGARI_REGULAR } from "../../lib/fonts";
 import { changeLanguage } from "../../lib/i18n";
-import { Text } from "../ui/Text";
 
 const BRAND_500 = "#12715A";
 const BRAND_50 = "#f5f7ff";

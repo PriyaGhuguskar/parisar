@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   bootstrapSocietyStructure,
   createSociety,
-  fetchAuditLog,
-  fetchJoinPercent,
   finalizeSocietySetup,
   formatSocietyCode,
   isValidSocietyCode,
@@ -158,28 +156,94 @@ describe("normalizePhoneForCoSec", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Retired legacy wrappers (054 revoked their RPCs)
+// createSociety
 // ---------------------------------------------------------------------------
 
-describe("retired legacy wrappers", () => {
-  it("createSociety throws SOCIETY_SETUP_RETIRED without calling the revoked RPC", async () => {
-    const supabase = { rpc: vi.fn() };
-    await expect(createSociety(supabase, { name: "S" })).rejects.toThrow("SOCIETY_SETUP_RETIRED");
-    expect(supabase.rpc).not.toHaveBeenCalled();
-  });
-
-  it("finalizeSocietySetup throws SOCIETY_SETUP_RETIRED", async () => {
-    const supabase = { rpc: vi.fn() };
-    await expect(finalizeSocietySetup(supabase, {})).rejects.toThrow("SOCIETY_SETUP_RETIRED");
-    expect(supabase.rpc).not.toHaveBeenCalled();
-  });
-
-  it("joinBySocietyCode throws SOCIETY_JOIN_RETIRED (use onboardResident)", async () => {
-    const supabase = { rpc: vi.fn() };
-    await expect(joinBySocietyCode(supabase, { code: "PAR7-XKM2" })).rejects.toThrow(
-      "SOCIETY_JOIN_RETIRED",
+describe("createSociety", () => {
+  it("returns mapped camelCase payload and does NOT call refreshSession", async () => {
+    const refreshSpy = vi.fn();
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: { society_id: "sid", code: "PAR7-XKM2", co_secretary_found: true },
+        error: null,
+      }),
+      auth: { refreshSession: refreshSpy },
+    };
+    const out = await createSociety(supabase, {
+      name: "Shree Ganesh CHS",
+      address: "Building 1, Main Street, Pune, 411001",
+      coSecretaryPhone: "9876543210",
+    });
+    expect(out).toEqual({ societyId: "sid", code: "PAR7-XKM2", coSecretaryFound: true });
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "create_society_with_secretary",
+      expect.objectContaining({ p_co_secretary_phone: "9876543210" }),
     );
-    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("normalizes +91 prefix on coSecretaryPhone before calling RPC", async () => {
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: { society_id: "s", code: "PAR7-XKM2", co_secretary_found: false },
+        error: null,
+      }),
+      auth: { refreshSession: vi.fn() },
+    };
+    await createSociety(supabase, { name: "S", address: "A", coSecretaryPhone: "+919876543210" });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "create_society_with_secretary",
+      expect.objectContaining({ p_co_secretary_phone: "9876543210" }),
+    );
+  });
+
+  it("throws when RPC returns an error", async () => {
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } }),
+      auth: { refreshSession: vi.fn() },
+    };
+    await expect(
+      createSociety(supabase, { name: "S", address: "A", coSecretaryPhone: "9" }),
+    ).rejects.toMatchObject({ message: "DB error" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// finalizeSocietySetup
+// ---------------------------------------------------------------------------
+
+describe("finalizeSocietySetup", () => {
+  it("returns membershipId and calls refreshSession exactly once on success", async () => {
+    const refreshSpy = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({ data: { membership_id: "mid" }, error: null }),
+      auth: { refreshSession: refreshSpy },
+    };
+    const out = await finalizeSocietySetup(supabase, { societyId: "sid", flatId: "fid" });
+    expect(out.membershipId).toBe("mid");
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("still returns membershipId when refreshSession fails (console.warn, no throw)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({ data: { membership_id: "mid2" }, error: null }),
+      auth: { refreshSession: vi.fn().mockResolvedValue({ error: { message: "token error" } }) },
+    };
+    const out = await finalizeSocietySetup(supabase, { societyId: "sid", flatId: "fid" });
+    expect(out.membershipId).toBe("mid2");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("throws when RPC returns an error", async () => {
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { message: "finalize failed" } }),
+      auth: { refreshSession: vi.fn() },
+    };
+    await expect(
+      finalizeSocietySetup(supabase, { societyId: "s", flatId: "f" }),
+    ).rejects.toMatchObject({ message: "finalize failed" });
   });
 });
 
@@ -249,13 +313,13 @@ describe("bootstrapSocietyStructure", () => {
 // ---------------------------------------------------------------------------
 
 describe("listSocietyStructure", () => {
-  it("formats the code, calls onboard_flats_for_code and flattens to the legacy shape", async () => {
+  it("formats the code and returns wings + flats on success", async () => {
     const supabase = {
       rpc: vi.fn().mockResolvedValue({
         data: {
           society_id: "sid",
-          society_name: "Shree CHS",
-          wings: [{ id: "w1", name: "A", flats: [{ id: "f1", number: "101", taken: true }] }],
+          wings: [{ id: "w1", name: "A" }],
+          flats: [{ id: "f1", wing_id: "w1", number: "101" }],
         },
         error: null,
       }),
@@ -263,13 +327,10 @@ describe("listSocietyStructure", () => {
     };
     // Pass unformatted input to verify auto-formatting
     const out = await listSocietyStructure(supabase, "par7xkm2");
-    expect(out).toEqual({
-      society_id: "sid",
-      society_name: "Shree CHS",
-      wings: [{ id: "w1", name: "A" }],
-      flats: [{ id: "f1", wing_id: "w1", number: "101", taken: true }],
-    });
-    expect(supabase.rpc).toHaveBeenCalledWith("onboard_flats_for_code", { p_code: "PAR7-XKM2" });
+    expect(out.society_id).toBe("sid");
+    expect(out.wings).toHaveLength(1);
+    // Verify the RPC received the formatted code
+    expect(supabase.rpc).toHaveBeenCalledWith("list_society_structure", { p_code: "PAR7-XKM2" });
   });
 
   it("returns the error payload (does NOT throw) for CODE_PAUSED", async () => {
@@ -313,24 +374,96 @@ describe("validateSocietyCode", () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
-  it("calls onboard_flats_for_code with the formatted code and maps the preview", async () => {
+  it("calls RPC with formatted code and returns payload on success", async () => {
     const supabase = {
       rpc: vi.fn().mockResolvedValue({
-        data: { society_id: "s", society_name: "Test Society", wings: [] },
+        data: { society_id: "s", name: "Test Society", address: "Addr", member_count: 3 },
         error: null,
       }),
       auth: { refreshSession: vi.fn() },
     };
     const out = await validateSocietyCode(supabase, "par7xkm2");
-    expect(out).toEqual({ society_id: "s", name: "Test Society" });
-    expect(supabase.rpc).toHaveBeenCalledWith("onboard_flats_for_code", { p_code: "PAR7-XKM2" });
+    expect(out.society_id).toBe("s");
+    expect(supabase.rpc).toHaveBeenCalledWith("validate_society_code", { p_code: "PAR7-XKM2" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// joinBySocietyCode
+// ---------------------------------------------------------------------------
+
+describe("joinBySocietyCode", () => {
+  it("returns error payload without calling refreshSession on RPC error case", async () => {
+    const refreshSpy = vi.fn();
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({ data: { error: "INVALID_CODE" }, error: null }),
+      auth: { refreshSession: refreshSpy },
+    };
+    const out = await joinBySocietyCode(supabase, {
+      code: "PAR7-XKM2",
+      flatId: "f",
+      residency: "owner",
+      household: "family",
+      emergencyContact: "",
+    });
+    expect(out).toEqual({ error: "INVALID_CODE" });
+    expect(refreshSpy).not.toHaveBeenCalled();
   });
 
-  it("returns the RPC's inline error (e.g. SOCIETY_BLOCKED)", async () => {
+  it("refreshes session on success and propagates auto-elevation flag", async () => {
+    const refreshSpy = vi.fn().mockResolvedValue({ error: null });
     const supabase = {
-      rpc: vi.fn().mockResolvedValue({ data: { error: "SOCIETY_BLOCKED" }, error: null }),
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          membership_id: "m",
+          society_id: "s",
+          status: "active",
+          duplicate: false,
+          role: "co_secretary",
+          auto_elevated_to_co_secretary: true,
+        },
+        error: null,
+      }),
+      auth: { refreshSession: refreshSpy },
     };
-    expect(await validateSocietyCode(supabase, "PAR7-XKM2")).toEqual({ error: "SOCIETY_BLOCKED" });
+    const out = await joinBySocietyCode(supabase, {
+      code: "PAR7-XKM2",
+      flatId: "f",
+      residency: "owner",
+      household: "family",
+      emergencyContact: "",
+    });
+    expect(out.membershipId).toBe("m");
+    expect(out.societyId).toBe("s");
+    expect(out.status).toBe("active");
+    expect(out.role).toBe("co_secretary");
+    expect(out.autoElevatedToCoSecretary).toBe(true);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not set autoElevatedToCoSecretary to true for regular member join", async () => {
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          membership_id: "m2",
+          society_id: "s",
+          status: "active",
+          duplicate: false,
+          role: "member",
+          auto_elevated_to_co_secretary: false,
+        },
+        error: null,
+      }),
+      auth: { refreshSession: vi.fn().mockResolvedValue({ error: null }) },
+    };
+    const out = await joinBySocietyCode(supabase, {
+      code: "PAR7-XKM2",
+      flatId: "f",
+      residency: "tenant",
+      household: "bachelor",
+      emergencyContact: null,
+    });
+    expect(out.autoElevatedToCoSecretary).toBe(false);
   });
 });
 
@@ -375,20 +508,11 @@ describe("transferSecretaryRole", () => {
       rpc: vi.fn().mockResolvedValue({ error: null }),
       auth: { refreshSession: refreshSpy },
     };
-    const out = await transferSecretaryRole(supabase, "u123");
+    await transferSecretaryRole(supabase, "u123");
     expect(supabase.rpc).toHaveBeenCalledWith("transfer_secretary_role", {
       p_new_secretary_user_id: "u123",
     });
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(out).toEqual({ refreshed: true });
-  });
-
-  it("reports refreshed:false (no console.warn swallow) when refreshSession fails", async () => {
-    const supabase = {
-      rpc: vi.fn().mockResolvedValue({ error: null }),
-      auth: { refreshSession: vi.fn().mockResolvedValue({ error: { message: "expired" } }) },
-    };
-    expect(await transferSecretaryRole(supabase, "u123")).toEqual({ refreshed: false });
   });
 
   it("throws when RPC errors", async () => {
@@ -399,96 +523,5 @@ describe("transferSecretaryRole", () => {
     await expect(transferSecretaryRole(supabase, "u456")).rejects.toMatchObject({
       message: "UNAUTHORIZED",
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fetchJoinPercent — distinct flats, errors thrown, clamped
-// ---------------------------------------------------------------------------
-
-describe("fetchJoinPercent", () => {
-  function makeCountClient(totalRes, joinedRes) {
-    const calls = [];
-    const from = vi.fn(() => {
-      const res = calls.length === 0 ? totalRes : joinedRes;
-      const builder = {
-        select: vi.fn((cols) => {
-          calls.push(cols);
-          return builder;
-        }),
-        eq: vi.fn(() => builder),
-        // biome-ignore lint/suspicious/noThenProperty: mimics the supabase-js thenable builder
-        then: (resolve) => resolve(res),
-      };
-      return builder;
-    });
-    return { client: { from }, calls };
-  }
-
-  it("counts DISTINCT flats via an inner-joined active-membership embed", async () => {
-    const { client, calls } = makeCountClient(
-      { count: 10, error: null },
-      { count: 4, error: null },
-    );
-    expect(await fetchJoinPercent(client, "sid")).toBe(40);
-    expect(calls[1]).toBe("id, society_memberships!inner(id)");
-  });
-
-  it("clamps to 100", async () => {
-    const { client } = makeCountClient({ count: 2, error: null }, { count: 3, error: null });
-    expect(await fetchJoinPercent(client, "sid")).toBe(100);
-  });
-
-  it("returns 0 for a society with no flats", async () => {
-    const { client } = makeCountClient({ count: 0, error: null }, { count: 0, error: null });
-    expect(await fetchJoinPercent(client, "sid")).toBe(0);
-  });
-
-  it("throws instead of reporting 0% when a count query fails", async () => {
-    const err = new Error("rls");
-    const { client } = makeCountClient({ count: null, error: err }, { count: 0, error: null });
-    await expect(fetchJoinPercent(client, "sid")).rejects.toBe(err);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fetchAuditLog — bounded page + composite cursor
-// ---------------------------------------------------------------------------
-
-describe("fetchAuditLog", () => {
-  function makeAuditClient(result = { data: [], error: null }) {
-    const builder = {};
-    for (const m of ["select", "eq", "gte", "order", "or", "lt"]) {
-      builder[m] = vi.fn(() => builder);
-    }
-    builder.limit = vi.fn(async () => result);
-    return { client: { from: vi.fn(() => builder) }, builder };
-  }
-
-  it("applies a default limit of 50 ordered by (created_at, id) desc", async () => {
-    const { client, builder } = makeAuditClient();
-    await fetchAuditLog(client, "sid");
-    expect(builder.order).toHaveBeenNthCalledWith(1, "created_at", { ascending: false });
-    expect(builder.order).toHaveBeenNthCalledWith(2, "id", { ascending: false });
-    expect(builder.limit).toHaveBeenCalledWith(50);
-  });
-
-  it("caps the page size and applies a composite cursor", async () => {
-    const { client, builder } = makeAuditClient();
-    const cursor = {
-      createdAt: "2026-10-01T10:00:00.000Z",
-      id: "11111111-1111-4111-8111-111111111111",
-    };
-    await fetchAuditLog(client, "sid", { limit: 10000, cursor });
-    expect(builder.limit).toHaveBeenCalledWith(200);
-    expect(builder.or).toHaveBeenCalledWith(
-      "created_at.lt.2026-10-01T10:00:00.000Z,and(created_at.eq.2026-10-01T10:00:00.000Z,id.lt.11111111-1111-4111-8111-111111111111)",
-    );
-  });
-
-  it("throws on query errors", async () => {
-    const err = new Error("denied");
-    const { client } = makeAuditClient({ data: null, error: err });
-    await expect(fetchAuditLog(client, "sid")).rejects.toBe(err);
   });
 });

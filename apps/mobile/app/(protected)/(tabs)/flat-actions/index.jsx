@@ -17,14 +17,12 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Plus, ShieldCheck, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { FlatActionCard } from "../../../../components/flat-actions/FlatActionCard";
 import { FlatPicker, PrivateFlatSubtitle } from "../../../../components/flat-actions/FlatPicker";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { fetchFlatLabel } from "../../../../lib/flat-label";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 import { useMyContext } from "../../../../lib/use-my-context";
 
@@ -154,10 +152,10 @@ export default function FlatActionsScreen() {
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 gap-2">
         <View className="flex-row items-center gap-3">
           <Pressable
-            onPress={() => goBack(router)}
+            onPress={() => router.back()}
             className="p-2"
             accessibilityRole="button"
-            accessibilityLabel={t("flatAction.back")}
+            accessibilityLabel="Go back"
           >
             <BackArrow />
           </Pressable>
@@ -297,7 +295,7 @@ function ErrorState({ t, onRetry }) {
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
       >
-        <Text className="text-sm font-semibold text-neutral-900">{t("flatAction.tryAgain")}</Text>
+        <Text className="text-sm font-semibold text-neutral-900">{"Try again"}</Text>
       </Pressable>
     </View>
   );

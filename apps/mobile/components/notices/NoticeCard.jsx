@@ -17,10 +17,8 @@
 import { formatDistanceToNow } from "date-fns";
 import { BarChart3 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { OwnerChip } from "../complaints/OwnerChip";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
 import { AttachmentPill } from "./AttachmentPill";
 
 const BRAND_500 = "#12715A";
@@ -32,10 +30,10 @@ function formatFlat(authorFlat) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeAge(iso, locale) {
+function safeAge(iso) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
   } catch {
     return "";
   }
@@ -104,12 +102,11 @@ export function NoticeCard({
   voted = false,
 }) {
   const { t } = useTranslation("notifications");
-  const dateLocale = useDateLocale();
   const { t: tPoll } = useTranslation("polls");
   const poll = firstPoll(notice);
   const authorName = notice?.author?.full_name ?? "—";
   const authorFlat = formatFlat(notice?.author_flat);
-  const age = safeAge(notice?.created_at, dateLocale);
+  const age = safeAge(notice?.created_at);
 
   const postedByText = t("notice.postedBy", { name: authorName, flat: authorFlat });
 

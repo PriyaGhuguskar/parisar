@@ -15,9 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
+import { Pressable, Text, View } from "react-native";
 import { OwnerChip } from "./OwnerChip";
 import { STATUS_ACCENT, StatusBadge } from "./StatusBadge";
 
@@ -28,10 +26,10 @@ function formatFlat(reporterFlat) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeAge(iso, locale) {
+function safeAge(iso) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
   } catch {
     return "";
   }
@@ -85,7 +83,6 @@ function useThumbnailUrl(supabase, storageKey) {
  */
 export function ComplaintCard({ complaint, onPress, supabase, thumbnailStorageKey = null }) {
   const { t } = useTranslation("complaints");
-  const dateLocale = useDateLocale();
   const status = complaint?.status ?? "open";
   const accent = STATUS_ACCENT[status] ?? STATUS_ACCENT.open;
 
@@ -95,7 +92,7 @@ export function ComplaintCard({ complaint, onPress, supabase, thumbnailStorageKe
   // Owner's flat is not joined on the list query; the OwnerChip falls back to "—" when null.
   const ownerFlat = null;
 
-  const age = safeAge(complaint?.created_at, dateLocale);
+  const age = safeAge(complaint?.created_at);
   const filedByText = t("complaint.filedBy", { name: reporterName, flat: reporterFlat });
 
   const thumbnailUrl = useThumbnailUrl(supabase, thumbnailStorageKey);

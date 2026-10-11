@@ -25,16 +25,13 @@ import { format } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { OwnerChip } from "../../../../components/complaints/OwnerChip";
 import { FineDetailBlock } from "../../../../components/flat-actions/FineDetailBlock";
 import { FlatActionKindBadge } from "../../../../components/flat-actions/FlatActionKindBadge";
 import { formatFlatLabel } from "../../../../components/flat-actions/FlatPicker";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
-import { openExternalUrl } from "../../../../lib/safe-link";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -173,7 +170,7 @@ export default function FlatActionDetailScreen() {
         .createSignedUrl(att.storage_key, 3600);
       const url = data?.signedUrl;
       if (url) {
-        await openExternalUrl(url);
+        await Linking.openURL(url);
       }
     } catch (err) {
       console.warn("[flat-actions/[id]] open pdf failed:", err?.message ?? err);
@@ -198,7 +195,7 @@ export default function FlatActionDetailScreen() {
           className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
           accessibilityRole="button"
         >
-          <Text className="text-sm font-semibold text-neutral-900">{t("flatAction.tryAgain")}</Text>
+          <Text className="text-sm font-semibold text-neutral-900">{"Try again"}</Text>
         </Pressable>
       </View>
     );
@@ -224,10 +221,10 @@ export default function FlatActionDetailScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("flatAction.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>

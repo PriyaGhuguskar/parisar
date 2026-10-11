@@ -9,9 +9,8 @@
 import { useRouter } from "expo-router";
 import { Home, ShieldCheck } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { AUTHORITY_ROLES } from "../../lib/use-my-context";
-import { Text } from "../ui/Text";
 
 const VIEWS = [
   { id: "home", href: "/(protected)/(tabs)", icon: Home, labelKey: "authority.switchHome" },

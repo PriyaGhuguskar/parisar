@@ -10,11 +10,10 @@ import { listSocietyFeatureState, requestFeatureChange } from "@parisar/api-clie
 import { Check, Clock } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { getSupabase } from "../../lib/supabase";
 import { SectionTitle, SmallButton, StatusPill, SurfaceCard } from "../kit";
 import { TextField } from "../onboarding/Form";
-import { Text } from "../ui/Text";
 
 function RequestForm({ feature, societyId, onDone, onCancel }) {
   const { t } = useTranslation("auth");

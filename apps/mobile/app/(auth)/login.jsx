@@ -2,13 +2,12 @@ import { isValidIndianMobile, toE164 } from "@parisar/api-client";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
 import { DevOtpHint } from "../../components/auth/DevOtpHint";
 import { FormError } from "../../components/auth/FormError";
 import { PhoneInput } from "../../components/auth/PhoneInput";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
-import { Text } from "../../components/ui/Text";
 import { getSupabase } from "../../lib/supabase";
 
 /**

@@ -1,8 +1,7 @@
 import { LogOut } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useAuthStore } from "../lib/auth-store";
-import { Text } from "./ui/Text";
 
 /**
  * One-tap logout button. Renders on all protected screens.

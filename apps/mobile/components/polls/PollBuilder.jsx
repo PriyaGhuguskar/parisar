@@ -6,8 +6,7 @@
 
 import { BarChart3, Plus, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, TextInput, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 const QUESTION_MAX = 200;
 const MIN_OPTIONS = 2;
@@ -112,7 +111,7 @@ export function PollBuilder({ value, onChange }) {
               <Pressable
                 onPress={() => removeOption(index)}
                 accessibilityRole="button"
-                accessibilityLabel={t("poll.removeOption", { n: index + 1 })}
+                accessibilityLabel={`Remove option ${index + 1}`}
                 className="items-center justify-center"
                 style={{ width: 44, height: 44 }}
               >

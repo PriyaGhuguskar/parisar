@@ -29,12 +29,10 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { AlertTriangle, Calendar, CheckCircle2, Plus, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from "react-native";
 import { BookingCard } from "../../../../components/bookings/BookingCard";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -220,10 +218,10 @@ export default function BookingsScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("booking.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -403,7 +401,7 @@ export default function BookingsScreen() {
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           onPress={() => setRejectTarget(null)}
           accessibilityRole="button"
-          accessibilityLabel={t("booking.dismiss")}
+          accessibilityLabel="Dismiss"
         >
           <Pressable
             className="bg-white rounded-t-3xl p-4 mt-auto gap-3"
@@ -541,9 +539,9 @@ function ErrorState({ t, onRetry }) {
         onPress={onRetry}
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
-        accessibilityLabel={t("booking.tryAgain")}
+        accessibilityLabel="Try again"
       >
-        <Text className="text-sm font-semibold text-neutral-900">{t("booking.tryAgain")}</Text>
+        <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
       </Pressable>
     </View>
   );

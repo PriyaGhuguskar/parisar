@@ -15,12 +15,10 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { MessageSquareWarning, Plus, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { ComplaintCard } from "../../../../components/complaints/ComplaintCard";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const BOARD_ROLES = new Set(["board_member", "co_secretary", "secretary"]);
@@ -51,10 +49,7 @@ export default function ComplaintsScreen() {
 
   // Initial + manual refetch
   const load = useCallback(async () => {
-    if (!societyId) {
-      setLoading(false);
-      return;
-    }
+    if (!societyId) return;
     setError(null);
     try {
       const supabase = getSupabase();
@@ -139,15 +134,15 @@ export default function ComplaintsScreen() {
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100">
         <View className="flex-row items-center gap-3">
           <Pressable
-            onPress={() => goBack(router)}
+            onPress={() => router.back()}
             className="p-2"
             accessibilityRole="button"
-            accessibilityLabel={t("complaint.back")}
+            accessibilityLabel="Go back"
           >
             <BackArrow />
           </Pressable>
           <Text className="text-xl font-semibold text-neutral-900 flex-1">
-            {isBoard ? t("complaint.listTitleBoard") : t("complaint.listTitleMine")}
+            {isBoard ? "Complaints" : "My Complaints"}
           </Text>
         </View>
 
@@ -155,12 +150,12 @@ export default function ComplaintsScreen() {
         {isBoard ? (
           <View className="flex-row gap-6 mt-3">
             <TabButton
-              label={t("complaint.tabOpen")}
+              label="Open"
               active={activeTab === "open"}
               onPress={() => setActiveTab("open")}
             />
             <TabButton
-              label={t("complaint.tabResolved")}
+              label="Resolved"
               active={activeTab === "resolved"}
               onPress={() => setActiveTab("resolved")}
             />
@@ -294,9 +289,9 @@ function ErrorState({ t, onRetry }) {
         onPress={onRetry}
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
-        accessibilityLabel={t("complaint.tryAgain")}
+        accessibilityLabel="Try again"
       >
-        <Text className="text-sm font-semibold text-neutral-900">{t("complaint.tryAgain")}</Text>
+        <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
       </Pressable>
     </View>
   );

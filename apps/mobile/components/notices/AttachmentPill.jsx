@@ -10,8 +10,7 @@
 
 import { Paperclip } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, View } from "react-native";
 
 /**
  * Decide the label by mime type. PDFs → "PDF", everything image-ish → "Photo".

@@ -33,7 +33,6 @@ jest.mock("../lib/auth-store", () => ({
 jest.mock("../lib/supabase", () => ({ getSupabase: () => ({}) }));
 jest.mock("../lib/complaint-unread", () => ({
   fetchUnreadComplaintCount: jest.fn().mockResolvedValue(0),
-  onComplaintsSeen: jest.fn(() => () => {}),
 }));
 
 import en from "@parisar/i18n/locales/en/dashboard.json";

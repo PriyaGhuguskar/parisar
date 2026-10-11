@@ -6,8 +6,7 @@
 
 import { ArrowLeft } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 export function Field({ label, hint, children }) {
   return (
@@ -28,7 +27,7 @@ export function TextField({ style, ...props }) {
       onBlur={() => setFocused(false)}
       placeholderTextColor="#64748B"
       className={[
-        "min-h-12 py-2 rounded-lg bg-neutral-0 px-3 text-base text-neutral-900",
+        "h-12 rounded-lg bg-neutral-0 px-3 text-base text-neutral-900",
         focused ? "border-2 border-brand-700" : "border border-neutral-200",
         props.editable === false ? "bg-neutral-100 text-neutral-600" : "",
       ].join(" ")}

@@ -13,9 +13,7 @@
 import { Check, ChevronDown } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, View } from "react-native";
-import { amenityDisplayName } from "../shared/amenity-label";
-import { Text } from "../ui/Text";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 const BRAND_500 = "#12715A";
 
@@ -43,7 +41,7 @@ export function hoursHint(amenity, t) {
  * }} props
  */
 export function AmenityPicker({ amenities = [], selectedId = null, onSelect }) {
-  const { t } = useTranslation(["bookings", "auth"]);
+  const { t } = useTranslation("bookings");
   const [open, setOpen] = useState(false);
   const isEmpty = amenities.length === 0;
   const selected = amenities.find((a) => a.id === selectedId) ?? null;
@@ -59,11 +57,9 @@ export function AmenityPicker({ amenities = [], selectedId = null, onSelect }) {
         disabled={isEmpty}
         accessibilityRole="button"
         accessibilityState={{ disabled: isEmpty, expanded: open }}
-        accessibilityLabel={
-          selected ? amenityDisplayName(selected.name, t) : t("booking.amenityLabel")
-        }
+        accessibilityLabel={selected ? selected.name : t("booking.amenityLabel")}
         className={[
-          "flex-row items-center justify-between min-h-12 py-2 px-3 rounded-xl border",
+          "flex-row items-center justify-between h-12 px-3 rounded-xl border",
           isEmpty ? "border-neutral-200 bg-neutral-100" : "border-neutral-200 bg-white",
         ].join(" ")}
       >
@@ -72,7 +68,7 @@ export function AmenityPicker({ amenities = [], selectedId = null, onSelect }) {
             className={selected ? "text-base text-neutral-900" : "text-base text-neutral-400"}
             numberOfLines={1}
           >
-            {selected ? amenityDisplayName(selected.name, t) : t("booking.amenityLabel")}
+            {selected ? selected.name : t("booking.amenityLabel")}
           </Text>
           {selected ? (
             <Text className="text-sm text-neutral-600" numberOfLines={1}>
@@ -93,7 +89,7 @@ export function AmenityPicker({ amenities = [], selectedId = null, onSelect }) {
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           onPress={() => setOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel={t("auth:common.dismiss")}
+          accessibilityLabel="Dismiss"
         >
           <Pressable
             className="bg-white rounded-t-3xl p-4 mt-auto"
@@ -123,11 +119,11 @@ export function AmenityPicker({ amenities = [], selectedId = null, onSelect }) {
                     ].join(" ")}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isActive }}
-                    accessibilityLabel={`${amenityDisplayName(a.name, t)}. ${hoursHint(a, t)}`}
+                    accessibilityLabel={`${a.name}. ${hoursHint(a, t)}`}
                   >
                     <View className="flex-1">
                       <Text className="text-base text-neutral-900" numberOfLines={1}>
-                        {amenityDisplayName(a.name, t)}
+                        {a.name}
                       </Text>
                       <Text className="text-sm text-neutral-600" numberOfLines={1}>
                         {hoursHint(a, t)}

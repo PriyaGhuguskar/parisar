@@ -7,10 +7,8 @@
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { OwnerChip } from "../complaints/OwnerChip";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
 import { PhotoGrid } from "./PhotoGrid";
 
 const SUCCESS_500 = "#047857";
@@ -23,10 +21,10 @@ function formatFlat(flatJoin) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeAge(iso, locale) {
+function safeAge(iso) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
   } catch {
     return "";
   }
@@ -56,11 +54,10 @@ export function ModerationCard({
   restoring = false,
   takingDown = false,
 }) {
-  const { t } = useTranslation(["moderation", "auth"]);
-  const dateLocale = useDateLocale();
+  const { t } = useTranslation("moderation");
   const isPost = (item?.kind ?? "post") === "post";
   const kindLabel = isPost ? t("moderation.kindPost") : t("moderation.kindComment");
-  const age = safeAge(item?.hidden_at ?? item?.created_at, dateLocale);
+  const age = safeAge(item?.hidden_at ?? item?.created_at);
 
   const authorName = item?.author?.full_name ?? "—";
   const authorFlat = formatFlat(item?.author_flat);
@@ -160,7 +157,7 @@ function RestoreButton({ t, onRestore, restoring }) {
           onPress={() => setConfirming(false)}
           disabled={restoring}
           accessibilityRole="button"
-          accessibilityLabel={t("auth:common.cancel")}
+          accessibilityLabel="Cancel"
           className="flex-1 h-10 rounded-lg items-center justify-center border border-neutral-200"
         >
           <Text className="text-base text-neutral-600">Cancel</Text>
@@ -214,7 +211,7 @@ function TakedownButton({ t, onTakedown, takingDown }) {
           onPress={() => setConfirming(false)}
           disabled={takingDown}
           accessibilityRole="button"
-          accessibilityLabel={t("auth:common.cancel")}
+          accessibilityLabel="Cancel"
           className="flex-1 h-10 rounded-lg items-center justify-center border border-neutral-200"
         >
           <Text className="text-base text-neutral-600">Cancel</Text>

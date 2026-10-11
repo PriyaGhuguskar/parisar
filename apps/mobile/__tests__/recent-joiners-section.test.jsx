@@ -45,7 +45,7 @@ describe("RecentJoinersSection (mobile)", () => {
       joiner("u5", "Amit Joshi", "A", "201", 14),
     ]);
     const { findByText } = render(<RecentJoinersSection societyId="soc-1" />);
-    expect(await findByText("Recent joiners")).toBeTruthy();
+    expect(await findByText("Recently joined")).toBeTruthy();
     expect(await findByText("Aman Khan")).toBeTruthy();
     expect(await findByText("Amit Joshi")).toBeTruthy();
   });
@@ -62,14 +62,14 @@ describe("RecentJoinersSection (mobile)", () => {
     fetchRecentJoiners.mockResolvedValue([]);
     const { queryByText } = render(<RecentJoinersSection societyId="soc-1" />);
     await waitFor(() => expect(fetchRecentJoiners).toHaveBeenCalled());
-    expect(queryByText("Recent joiners")).toBeNull();
+    expect(queryByText("Recently joined")).toBeNull();
   });
 
   it("RJ-M4: renders nothing when API rejects (silent failure per D-03)", async () => {
     fetchRecentJoiners.mockRejectedValue(new Error("network"));
     const { queryByText } = render(<RecentJoinersSection societyId="soc-1" />);
     await waitFor(() => expect(fetchRecentJoiners).toHaveBeenCalled());
-    expect(queryByText("Recent joiners")).toBeNull();
+    expect(queryByText("Recently joined")).toBeNull();
   });
 
   it("RJ-M5: avatar shows initials for each joiner (Wave 0 color cycle)", async () => {

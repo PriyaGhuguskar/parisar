@@ -1,15 +1,12 @@
-import { fetchPendingReviews } from "@parisar/api-client";
+import { fetchPendingReviews, removeMember } from "@parisar/api-client";
 import { useFocusEffect, useRouter } from "expo-router";
-import { CircleCheck } from "lucide-react-native";
-import { useCallback, useRef, useState } from "react";
+import { AlertTriangle, CircleCheck } from "lucide-react-native";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { authorityOnly } from "../../../components/AuthorityOnly";
 import { BackArrow } from "../../../components/kit";
-import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
-import { goBack } from "../../../lib/navigation";
-import { localizedRpcError } from "../../../lib/rpc-error";
 import { getSupabase } from "../../../lib/supabase";
 
 // ---------------------------------------------------------------------------
@@ -172,87 +169,78 @@ function ReviewQueueScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingFlat, setProcessingFlat] = useState(null);
-  const mountedRef = useRef(true);
-
-  const errorMessages = {
-    INSUFFICIENT_PRIVILEGES: t("reviewQueue.errNotAllowed"),
-    MEMBERSHIP_NOT_FOUND: t("reviewQueue.errAlreadyResolved"),
-    NOT_PENDING: t("reviewQueue.errAlreadyResolved"),
-  };
 
   // ---------------------------------------------------------------------------
   // Load on focus (so returning from another screen refreshes)
   // ---------------------------------------------------------------------------
-  const load = useCallback(async () => {
-    if (!societyId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const rows = await fetchPendingReviews(getSupabase(), societyId);
-      if (mountedRef.current) setGroups(groupByFlat(rows));
-    } catch (err) {
-      console.warn("[review-queue] load failed:", err?.message ?? err);
-      if (mountedRef.current) setError(t("reviewQueue.loadError"));
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, [societyId, t]);
-
   useFocusEffect(
     useCallback(() => {
-      mountedRef.current = true;
-      setError(null);
+      let active = true;
+
+      async function load() {
+        if (!societyId) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const rows = await fetchPendingReviews(getSupabase(), societyId);
+          if (active) setGroups(groupByFlat(rows));
+        } catch (err) {
+          if (active) setError(err.message ?? "Failed to load conflicts.");
+        } finally {
+          if (active) setLoading(false);
+        }
+      }
+
       load();
       return () => {
-        mountedRef.current = false;
+        active = false;
       };
-    }, [load]),
+    }, [societyId]),
   );
 
   // ---------------------------------------------------------------------------
-  // Run one review action, show a localized error, and always reload: the
-  // server is the source of truth (another authority may have acted first).
+  // Approve one claimant — set them active, remove the other(s)
   // ---------------------------------------------------------------------------
-  async function runAction(group, action) {
+  async function handleApprove(group, approvedIndex) {
     setProcessingFlat(group.flatKey);
-    setError(null);
+    const supabase = getSupabase();
     try {
-      await action(getSupabase());
+      const approved = group.claimants[approvedIndex];
+      const others = group.claimants.filter((_, i) => i !== approvedIndex);
+
+      // Approve: update status to 'active'
+      await supabase.from("society_memberships").update({ status: "active" }).eq("id", approved.id);
+
+      // Remove others via removeMember RPC (handles DPDP erasure if needed)
+      for (const other of others) {
+        await removeMember(supabase, other.id);
+      }
+
+      // Remove card from local state
+      setGroups((prev) => prev.filter((g) => g.flatKey !== group.flatKey));
     } catch (err) {
-      console.warn("[review-queue] action failed:", err?.message ?? err);
-      setError(localizedRpcError(err, errorMessages, t("auth.obErr")));
+      setError(err.message ?? "Action failed.");
     } finally {
       setProcessingFlat(null);
-      await load();
     }
   }
 
-  // Approve one claimant — approve_pending_membership (migration 054) approves
-  // them and rejects every other pending claimant on that flat, atomically.
-  function handleApprove(group, approvedIndex) {
-    const approved = group.claimants[approvedIndex];
-    if (!approved) return;
-    return runAction(group, async (supabase) => {
-      const { error: rpcError } = await supabase.rpc("approve_pending_membership", {
-        p_membership_id: approved.id,
-      });
-      if (rpcError) throw rpcError;
-    });
-  }
-
-  // Remove both claimants — reject_pending_membership per claimant (they may
-  // re-apply; removeMember would redact them and block a rejoin).
-  function handleRemoveBoth(group) {
-    return runAction(group, async (supabase) => {
+  // ---------------------------------------------------------------------------
+  // Remove both claimants
+  // ---------------------------------------------------------------------------
+  async function handleRemoveBoth(group) {
+    setProcessingFlat(group.flatKey);
+    const supabase = getSupabase();
+    try {
       for (const claimant of group.claimants) {
-        const { error: rpcError } = await supabase.rpc("reject_pending_membership", {
-          p_membership_id: claimant.id,
-        });
-        if (rpcError) throw rpcError;
+        await removeMember(supabase, claimant.id);
       }
-    });
+      setGroups((prev) => prev.filter((g) => g.flatKey !== group.flatKey));
+    } catch (err) {
+      setError(err.message ?? "Action failed.");
+    } finally {
+      setProcessingFlat(null);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -263,10 +251,10 @@ function ReviewQueueScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-neutral-100">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("common.goBack")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>

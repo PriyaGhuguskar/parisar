@@ -29,11 +29,10 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinkRow } from "../../../components/kit";
 import { LanguageSelector } from "../../../components/profile/LanguageSelector";
-import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getAvatarColor, initials } from "../../../lib/avatar";
 import { useMyContext } from "../../../lib/use-my-context";

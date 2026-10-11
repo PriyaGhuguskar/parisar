@@ -76,7 +76,6 @@ function makeDefaultSupabaseClient() {
 // here is a secretary.
 jest.mock("../lib/use-my-context", () => ({
   useMyContext: () => ({ ready: true, isAuthority: true, role: "secretary", societyId: "soc-1" }),
-  refreshMyContext: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock("../lib/supabase", () => ({
@@ -328,11 +327,8 @@ describe("ReviewQueueScreen", () => {
     await findByText(/Remove both/i);
   });
 
-  it("rejects both claimants via reject_pending_membership when Remove Both is pressed", async () => {
-    const { fetchPendingReviews } = require("@parisar/api-client");
-    const { getSupabase } = require("../lib/supabase");
-    const client = makeDefaultSupabaseClient();
-    getSupabase.mockImplementation(() => client);
+  it("calls removeMember twice when Remove Both is pressed", async () => {
+    const { fetchPendingReviews, removeMember } = require("@parisar/api-client");
     fetchPendingReviews.mockResolvedValue([
       {
         id: "mem-6",
@@ -364,57 +360,10 @@ describe("ReviewQueueScreen", () => {
 
     await waitFor(
       () => {
-        expect(client.rpc).toHaveBeenCalledWith("reject_pending_membership", {
-          p_membership_id: "mem-6",
-        });
-        expect(client.rpc).toHaveBeenCalledWith("reject_pending_membership", {
-          p_membership_id: "mem-7",
-        });
+        expect(removeMember).toHaveBeenCalledTimes(2);
       },
       { timeout: 8000 },
     );
-  }, 10000);
-
-  it("approves the chosen claimant via approve_pending_membership and reloads", async () => {
-    const { fetchPendingReviews } = require("@parisar/api-client");
-    const { getSupabase } = require("../lib/supabase");
-    const client = makeDefaultSupabaseClient();
-    getSupabase.mockImplementation(() => client);
-    fetchPendingReviews.mockResolvedValue([
-      {
-        id: "mem-8",
-        user_id: "u8",
-        flat_id: "flat-4",
-        status: "pending_review",
-        joined_at: "2026-05-01T10:00:00Z",
-        profiles: { full_name: "First Claimant" },
-        flats: { number: "601", wings: { name: "E" } },
-      },
-      {
-        id: "mem-9",
-        user_id: "u9",
-        flat_id: "flat-4",
-        status: "pending_review",
-        joined_at: "2026-05-02T10:00:00Z",
-        profiles: { full_name: "Second Claimant" },
-        flats: { number: "601", wings: { name: "E" } },
-      },
-    ]);
-
-    const ReviewQueue = require("../app/(protected)/(tabs)/review-queue").default;
-    const { findByText } = render(<ReviewQueue />);
-    const approveSecond = await findByText(/Approve second member/i);
-    await act(async () => {
-      fireEvent.press(approveSecond);
-    });
-
-    await waitFor(() => {
-      expect(client.rpc).toHaveBeenCalledWith("approve_pending_membership", {
-        p_membership_id: "mem-9",
-      });
-      expect(client.rpc).toHaveBeenCalledTimes(1);
-      expect(fetchPendingReviews.mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
   }, 10000);
 
   it("calls fetchPendingReviews with societyId on mount", async () => {
@@ -539,7 +488,7 @@ describe("RoleTransferScreen", () => {
     // Default supabase returns empty data[] — expect the no-eligible text
     const RoleTransfer = require("../app/(protected)/(tabs)/role-transfer").default;
     const { findByText } = render(<RoleTransfer />);
-    await findByText(/No eligible members found|roleTransfer.noEligible/i);
+    await findByText(/No eligible members found/i);
   });
 
   it("calls transferSecretaryRole with target userId after dialog confirm", async () => {

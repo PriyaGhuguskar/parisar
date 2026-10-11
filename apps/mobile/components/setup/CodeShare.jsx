@@ -4,8 +4,7 @@ import { useRouter } from "expo-router";
 import { Check, CircleCheck, Copy, Share2 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, Share, TouchableOpacity, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Platform, ScrollView, Share, Text, TouchableOpacity, View } from "react-native";
 import { WizardProgress } from "./WizardProgress";
 
 // WhatsApp green — per UI-SPEC, this is an intentional brand-color exception
@@ -79,7 +78,7 @@ export function CodeShare({ code }) {
               fontFamily: Platform.OS === "ios" ? "Courier New" : "monospace",
               letterSpacing: 6,
             }}
-            accessibilityLabel={t("dashboard.code.a11yCode", { code })}
+            accessibilityLabel={`Society code: ${code}`}
             selectable
           >
             {code}
@@ -111,7 +110,7 @@ export function CodeShare({ code }) {
         <TouchableOpacity
           onPress={handleShareWhatsApp}
           activeOpacity={0.85}
-          className="w-full min-h-14 py-2 rounded-xl items-center justify-center flex-row gap-3 mb-4"
+          className="w-full h-14 rounded-xl items-center justify-center flex-row gap-3 mb-4"
           style={{ backgroundColor: WHATSAPP_GREEN }}
           accessibilityRole="button"
           accessibilityLabel={t("setup.step6.shareWhatsApp")}
@@ -126,7 +125,7 @@ export function CodeShare({ code }) {
         {/* Go to Dashboard */}
         <TouchableOpacity
           onPress={() => router.replace("/(protected)/(tabs)")}
-          className="w-full min-h-14 py-2 rounded-xl border border-neutral-200 items-center justify-center"
+          className="w-full h-14 rounded-xl border border-neutral-200 items-center justify-center"
           accessibilityRole="button"
         >
           <Text className="text-base font-medium text-neutral-900">

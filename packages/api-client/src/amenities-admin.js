@@ -1,11 +1,6 @@
 // Secretary amenity management — add/edit an amenity and its status
 // (working / closed-until-date). Reads use the existing listAmenities/tenant RLS.
-//
-// Error contract: known validation / business codes are RETURNED as
-// `{ error: CODE }` (listed per function) so the UI can render localized copy;
-// any other RPC failure (network, auth, unexpected SQL error) is THROWN.
 
-/** Add or edit an amenity. Returns { ok, amenity } or { error: 'INVALID_NAME'|'NOT_SECRETARY' }. */
 export async function upsertAmenity(
   supabase,
   { societyId, id = null, name, status, closedUntil = null },
@@ -26,7 +21,6 @@ export async function upsertAmenity(
   return { ok: true, amenity: data };
 }
 
-/** Delete an amenity. Returns { ok } or { error: 'NOT_SECRETARY' }. */
 export async function deleteAmenity(supabase, id) {
   const { error } = await supabase.rpc("secretary_delete_amenity", { p_id: id });
   if (error) {

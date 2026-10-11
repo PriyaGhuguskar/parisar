@@ -8,15 +8,13 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FormError } from "../../../components/auth/FormError";
 import { PageHeader, SmallButton, SurfaceCard } from "../../../components/kit";
 import { Field, TextField } from "../../../components/onboarding/Form";
-import { Text } from "../../../components/ui/Text";
 import { useAuthStore } from "../../../lib/auth-store";
 import { getAvatarColor, initials } from "../../../lib/avatar";
-import { rpcErrorCode } from "../../../lib/rpc-error";
 import { getSupabase } from "../../../lib/supabase";
 import { refreshMyContext, useMyContext } from "../../../lib/use-my-context";
 
@@ -79,23 +77,17 @@ export default function ProfileScreen() {
         .eq("user_id", userId);
       if (e1) throw e1;
       if (me.membershipId) {
-        // society_memberships is not client-writable (migration 054).
-        const { error: e2 } = await supabase.rpc("update_my_emergency_contact", {
-          p_membership_id: me.membershipId,
-          p_emergency_contact: emergencyDraft.trim() || null,
-        });
+        const { error: e2 } = await supabase
+          .from("society_memberships")
+          .update({ emergency_contact: emergencyDraft.trim() || null })
+          .eq("id", me.membershipId);
         if (e2) throw e2;
         setEmergency(emergencyDraft.trim() || null);
       }
       await refreshMyContext();
       setEditing(false);
-    } catch (err) {
-      console.warn("[profile] save failed:", err?.message ?? err);
-      setError(
-        rpcErrorCode(err, ["INVALID_CONTACT"])
-          ? t("profile.emergencyInvalid")
-          : t("profile.saveError"),
-      );
+    } catch {
+      setError(t("profile.saveError"));
     } finally {
       setSaving(false);
     }

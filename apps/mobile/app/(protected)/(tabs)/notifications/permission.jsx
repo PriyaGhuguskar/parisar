@@ -2,45 +2,46 @@
 //
 // Per 04-UI-SPEC.md Screen 4:
 //   - Renders <NotificationPermissionPrompt /> centered.
-//   - Auto-skips if permission is already decided (no nag).
+//   - Auto-skips if permission is already granted (no nag).
 //   - "Not now" persists a flag to AsyncStorage so we don't re-prompt next launch.
-//   - "Enable" is the ONLY place the OS permission prompt is shown; on grant the
-//     push token is registered via the register_push_token RPC.
+//   - On grant, registers the push token with Supabase via the api-client helper.
 //
-// Routing: the Home screen opens this once (shouldShowPushExplainer) for a
-// signed-in user whose OS permission is still undetermined. After action,
-// router.replace(Home) so the back button doesn't return here.
+// Routing: navigated to from dashboard or post-onboarding flow. After action,
+// router.replace('/(protected)/dashboard') so back-button doesn't return here.
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { NotificationPermissionPrompt } from "../../../../components/complaints/NotificationPermissionPrompt";
-import { HOME_ROUTE } from "../../../../lib/navigation";
-import {
-  getPushPermissionStatus,
-  markPushExplainerSeen,
-  NOTIF_PROMPT_SEEN_KEY,
-  registerForPushNotifications,
-} from "../../../../lib/push-registration";
+import { registerForPushNotifications } from "../../../../lib/push-registration";
 import { getSupabase } from "../../../../lib/supabase";
+
+const NOTIF_PROMPT_SEEN_KEY = "notif_prompt_seen";
 
 export default function NotificationPermissionScreen() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
-  const [busy, setBusy] = useState(false);
 
-  // On mount: if permission was already decided, skip straight to Home.
+  // On mount: if permission was already decided, skip straight to dashboard.
   useEffect(() => {
     let active = true;
     (async () => {
-      const status = await getPushPermissionStatus();
-      if (!active) return;
-      if (status === "granted" || status === "denied") {
-        // Already decided — never re-prompt.
-        router.replace(HOME_ROUTE);
-        return;
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (!active) return;
+        if (status === "granted" || status === "denied") {
+          // Already decided — never re-prompt.
+          router.replace("/(protected)/(tabs)");
+          return;
+        }
+        setChecking(false);
+      } catch (err) {
+        // On unexpected error, fall through to dashboard.
+        console.warn("[notifications/permission] getPermissionsAsync failed:", err?.message ?? err);
+        if (active) router.replace("/(protected)/(tabs)");
       }
-      setChecking(false);
     })();
     return () => {
       active = false;
@@ -48,17 +49,22 @@ export default function NotificationPermissionScreen() {
   }, [router]);
 
   async function handleEnable() {
-    if (busy) return;
-    setBusy(true);
-    await markPushExplainerSeen();
-    // Shows the OS prompt, then registers the token when granted. Never throws.
-    await registerForPushNotifications(getSupabase(), { prompt: true });
-    router.replace(HOME_ROUTE);
+    try {
+      // Fire-and-forget — non-blocking. The helper checks permission again internally.
+      registerForPushNotifications(getSupabase());
+    } catch (err) {
+      console.warn("[notifications/permission] register failed:", err?.message ?? err);
+    }
+    router.replace("/(protected)/(tabs)");
   }
 
   async function handleSkip() {
-    await markPushExplainerSeen();
-    router.replace(HOME_ROUTE);
+    try {
+      await AsyncStorage.setItem(NOTIF_PROMPT_SEEN_KEY, "true");
+    } catch {
+      // AsyncStorage failure is non-critical; the worst case is we re-prompt next launch.
+    }
+    router.replace("/(protected)/(tabs)");
   }
 
   if (checking) {
@@ -72,5 +78,5 @@ export default function NotificationPermissionScreen() {
   return <NotificationPermissionPrompt onEnable={handleEnable} onSkip={handleSkip} />;
 }
 
-// Re-exported for screens that imported the key from here before it moved to lib.
+// Export the storage key so other screens (dashboard) can check whether the prompt has been seen.
 export { NOTIF_PROMPT_SEEN_KEY };

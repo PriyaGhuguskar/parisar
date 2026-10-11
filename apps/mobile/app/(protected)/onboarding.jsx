@@ -22,6 +22,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Text,
   View,
 } from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
@@ -36,8 +37,6 @@ import {
   StepHeader,
   TextField,
 } from "../../components/onboarding/Form";
-import { Text } from "../../components/ui/Text";
-import { clearPendingJoinCode, getPendingJoinCode } from "../../lib/join-link";
 import { setPinPending } from "../../lib/pin-pending";
 import { pinRoute, ROUTES } from "../../lib/post-login";
 import { getSupabase } from "../../lib/supabase";
@@ -135,12 +134,9 @@ export default function OnboardingScreen() {
         if (!alive) return;
         const name = profile?.full_name || prefill?.name || "";
         setForm((f) => ({ ...f, name }));
-        // An invite link (app/join.jsx) leaves its code behind for us.
-        const startCode = prefill?.code || (await getPendingJoinCode());
-        if (!alive) return;
-        if (startCode) {
-          setCode(startCode);
-          await lookupCode(startCode);
+        if (prefill?.code) {
+          setCode(prefill.code);
+          await lookupCode(prefill.code);
         }
       } finally {
         if (alive) setBooting(false);
@@ -187,7 +183,6 @@ export default function OnboardingScreen() {
         setBusy(false);
         return;
       }
-      await clearPendingJoinCode();
       // The membership was just created — re-mint the token so the auth hook
       // adds society_id/role before the app's RLS-scoped screens load.
       await supabase.auth.refreshSession();

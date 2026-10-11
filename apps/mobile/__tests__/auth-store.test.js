@@ -3,51 +3,22 @@ jest.mock("../lib/supabase", () => ({
   getSupabase: jest.fn(),
 }));
 
-// signOut() revokes the device token (T-04.1-02) through the scoped client's
-// unregister_push_token RPC (migration 055). Native modules are mocked.
-jest.mock("expo-constants", () => ({
-  __esModule: true,
-  default: { expoConfig: { extra: { eas: { projectId: "proj-1" } } } },
-}));
-jest.mock("expo-notifications", () => ({
-  getExpoPushTokenAsync: jest.fn(async () => ({ data: "ExponentPushToken[dev]" })),
-}));
-// "unregister" = the RPC call on the scoped client.
-const mockUnregisterPushTokenForDevice = jest.fn().mockResolvedValue({ data: true, error: null });
-
-// signOut builds a throwaway client bound to the captured access token for the
-// post-sign-out push cleanup.
-const mockScopedClient = {
-  scoped: true,
-  rpc: (...args) => mockUnregisterPushTokenForDevice(...args),
-};
-const mockCreateClient = jest.fn(() => mockScopedClient);
-jest.mock("@supabase/supabase-js", () => ({
-  createClient: (...args) => mockCreateClient(...args),
-}));
-
-const mockDashboardReset = jest.fn();
-jest.mock("../lib/dashboard-summary-store", () => ({
-  useDashboardSummary: { getState: () => ({ reset: mockDashboardReset }) },
-}));
-
-const mockResetMyContext = jest.fn();
-jest.mock("../lib/use-my-context", () => ({
-  resetMyContext: (...args) => mockResetMyContext(...args),
+// Mock the push-registration helper so signOut() can revoke the device token
+// (T-04.1-02) without touching expo-notifications native modules in the test env.
+const mockUnregisterPushTokenForDevice = jest.fn().mockResolvedValue(undefined);
+jest.mock("../lib/push-registration", () => ({
+  unregisterPushTokenForDevice: (...args) => mockUnregisterPushTokenForDevice(...args),
 }));
 
 const mockUnsubscribe = jest.fn();
 const mockSignOut = jest.fn().mockResolvedValue({});
 const mockGetSession = jest.fn().mockResolvedValue({ data: { session: null } });
-const SESSION_WITH_TOKEN = { data: { session: { access_token: "tok-abc" } } };
 const mockOnAuthStateChange = jest.fn().mockReturnValue({
   data: { subscription: { unsubscribe: mockUnsubscribe } },
 });
 
 const { getSupabase } = require("../lib/supabase");
 getSupabase.mockReturnValue({
-  supabaseUrl: "http://sb.test",
-  supabaseKey: "anon-key",
   auth: {
     getSession: mockGetSession,
     onAuthStateChange: mockOnAuthStateChange,
@@ -65,21 +36,18 @@ describe("useAuthStore", () => {
     jest.clearAllMocks();
     // Re-apply mocks after clearAllMocks
     getSupabase.mockReturnValue({
-      supabaseUrl: "http://sb.test",
-      supabaseKey: "anon-key",
       auth: {
         getSession: mockGetSession,
         onAuthStateChange: mockOnAuthStateChange,
         signOut: mockSignOut,
       },
     });
-    mockCreateClient.mockImplementation(() => mockScopedClient);
     mockSignOut.mockResolvedValue({});
     mockGetSession.mockResolvedValue({ data: { session: null } });
     mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: mockUnsubscribe } },
     });
-    mockUnregisterPushTokenForDevice.mockReset().mockResolvedValue({ data: true, error: null });
+    mockUnregisterPushTokenForDevice.mockReset().mockResolvedValue(undefined);
   });
 
   it("Test 1: initial state is { session: null, loading: true }", () => {
@@ -103,19 +71,13 @@ describe("useAuthStore", () => {
     expect(typeof result).toBe("function");
   });
 
-  // CODE-REVIEW M12: sign out FIRST (nothing may keep the user signed in),
-  // then revoke this device's push token best-effort, bounded by a timeout,
-  // using the access token captured before signing out.
+  // T-04.1-02 mitigation: sign-out must revoke this device's push token BEFORE
+  // clearing the Supabase session so a signed-out device stops receiving pushes.
   describe("signOut push-token revocation (T-04.1-02)", () => {
-    beforeEach(() => {
-      mockGetSession.mockResolvedValue(SESSION_WITH_TOKEN);
-    });
-
-    it("signs out BEFORE revoking the device push token", async () => {
+    it("revokes the device push token BEFORE supabase.auth.signOut", async () => {
       const callOrder = [];
       mockUnregisterPushTokenForDevice.mockImplementation(async () => {
         callOrder.push("unregister");
-        return { data: true, error: null };
       });
       mockSignOut.mockImplementation(async () => {
         callOrder.push("signOut");
@@ -125,31 +87,15 @@ describe("useAuthStore", () => {
       useAuthStore.setState({ session: { user: { id: "abc" } }, loading: false });
       await useAuthStore.getState().signOut();
 
-      expect(callOrder).toEqual(["signOut", "unregister"]);
+      expect(mockUnregisterPushTokenForDevice).toHaveBeenCalledTimes(1);
+      expect(mockSignOut).toHaveBeenCalledTimes(1);
+      expect(callOrder).toEqual(["unregister", "signOut"]);
     });
 
-    it("revokes with a client bound to the captured access token", async () => {
-      useAuthStore.setState({ session: { user: { id: "abc" } }, loading: false });
-      await useAuthStore.getState().signOut();
-
-      expect(mockCreateClient).toHaveBeenCalledWith(
-        "http://sb.test",
-        "anon-key",
-        expect.objectContaining({
-          global: { headers: { Authorization: "Bearer tok-abc" } },
-        }),
-      );
-      expect(mockUnregisterPushTokenForDevice).toHaveBeenCalledWith("unregister_push_token", {
-        p_token: "ExponentPushToken[dev]",
-      });
-    });
-
-    it("clears the session and per-user caches", async () => {
+    it("clears the session via set({ session: null }) after signOut", async () => {
       useAuthStore.setState({ session: { user: { id: "abc" } }, loading: false });
       await useAuthStore.getState().signOut();
       expect(useAuthStore.getState().session).toBeNull();
-      expect(mockDashboardReset).toHaveBeenCalledTimes(1);
-      expect(mockResetMyContext).toHaveBeenCalledTimes(1);
     });
 
     it("still signs out even if push-token revoke throws (defensive)", async () => {
@@ -160,27 +106,6 @@ describe("useAuthStore", () => {
 
       expect(mockSignOut).toHaveBeenCalledTimes(1);
       expect(useAuthStore.getState().session).toBeNull();
-    });
-
-    it("does not wait forever for a hung push revoke", async () => {
-      jest.useFakeTimers();
-      try {
-        mockUnregisterPushTokenForDevice.mockImplementation(() => new Promise(() => {}));
-        useAuthStore.setState({ session: { user: { id: "abc" } }, loading: false });
-        const done = useAuthStore.getState().signOut();
-        await jest.advanceTimersByTimeAsync(3100);
-        await expect(done).resolves.toBeUndefined();
-        expect(useAuthStore.getState().session).toBeNull();
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-
-    it("skips the revoke when there was no session token", async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
-      await useAuthStore.getState().signOut();
-      expect(mockSignOut).toHaveBeenCalledTimes(1);
-      expect(mockUnregisterPushTokenForDevice).not.toHaveBeenCalled();
     });
   });
 });

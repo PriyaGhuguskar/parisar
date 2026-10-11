@@ -10,8 +10,9 @@
 // the standard 56px content + safe-area inset.
 //
 // Red-dot badge (UI-SPEC §Screen 6): the My Complaints tab carries a tabBarBadge
-// driven by fetchUnreadComplaintCount() (responses by others since the user last
-// opened My Complaints — lib/complaint-unread.js).
+// driven by fetchUnreadComplaintCount(). The v1 stub returns 0 so the dot is
+// hidden; Phase 5 swaps the stub for a real query and the dot lights up with no
+// layout change here.
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
@@ -21,7 +22,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "../../../lib/auth-store";
-import { fetchUnreadComplaintCount, onComplaintsSeen } from "../../../lib/complaint-unread";
+import { fetchUnreadComplaintCount } from "../../../lib/complaint-unread";
 import { getSupabase } from "../../../lib/supabase";
 
 // Locked nav tokens (UI-SPEC §Color, §Badge Color Contract).
@@ -33,8 +34,9 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation("dashboard");
 
-  // My Complaints red-dot — driven by the unread-complaint helper; hidden
-  // (tabBarBadge undefined) while the count is 0.
+  // My Complaints red-dot — driven by the unread-complaint helper. v1 stub
+  // returns 0, so the badge is hidden (tabBarBadge undefined). Phase 5 wires
+  // the real signal and the dot appears automatically.
   const userId = useAuthStore((s) => s.session?.user?.id);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -48,13 +50,8 @@ export default function TabsLayout() {
       .catch(() => {
         if (!cancelled) setUnreadCount(0);
       });
-    // Opening My Complaints marks everything seen — clear the dot right away.
-    const unsubscribe = onComplaintsSeen((seenUserId) => {
-      if (!cancelled && seenUserId === userId) setUnreadCount(0);
-    });
     return () => {
       cancelled = true;
-      unsubscribe();
     };
   }, [userId]);
 

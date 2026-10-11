@@ -8,12 +8,12 @@ import {
   Pressable,
   ScrollView,
   Switch,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { FormError } from "../auth/FormError";
-import { Text } from "../ui/Text";
 import { WizardProgress } from "./WizardProgress";
 
 /**
@@ -31,7 +31,7 @@ export function WingsForm({ onNext, onBack }) {
     const name = wingInput.trim();
     if (!name) return;
     if (name.length > 20) {
-      setError(t("setup.step2.wingTooLong", { max: 20 }));
+      setError("Wing name must be 20 characters or fewer.");
       return;
     }
     if (wings.some((w) => w.toLowerCase() === name.toLowerCase())) {
@@ -89,7 +89,7 @@ export function WingsForm({ onNext, onBack }) {
             <View className="mb-3">
               <View className="flex-row gap-2 mb-3">
                 <TextInput
-                  className="flex-1 min-h-12 py-2 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
+                  className="flex-1 h-12 rounded-lg bg-neutral-50 border border-neutral-200 px-3 text-base text-neutral-900"
                   value={wingInput}
                   onChangeText={(v) => {
                     setError(null);
@@ -104,11 +104,11 @@ export function WingsForm({ onNext, onBack }) {
                 />
                 <TouchableOpacity
                   onPress={addWing}
-                  className="min-h-10 py-2 px-4 rounded-lg border border-brand-500 items-center justify-center self-center"
+                  className="h-10 px-4 rounded-lg border border-brand-500 items-center justify-center self-center"
                   accessibilityRole="button"
-                  accessibilityLabel={t("profile.addWing")}
+                  accessibilityLabel="Add wing"
                 >
-                  <Text className="text-sm font-medium text-brand-500">{t("authority.add")}</Text>
+                  <Text className="text-sm font-medium text-brand-500">Add</Text>
                 </TouchableOpacity>
               </View>
 
@@ -125,7 +125,7 @@ export function WingsForm({ onNext, onBack }) {
                         onPress={() => removeWing(wing)}
                         className="p-1"
                         accessibilityRole="button"
-                        accessibilityLabel={t("setup.step4.removeMember", { name: wing })}
+                        accessibilityLabel={`Remove wing ${wing}`}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <X size={14} color="#12715A" />
@@ -158,7 +158,7 @@ export function WingsForm({ onNext, onBack }) {
 
           {noWings && (
             <Text className="text-sm text-neutral-500 mt-1 mb-2">
-              {t("setup.step2.singleBlockHint")}
+              All flats will be under one block.
             </Text>
           )}
 
@@ -169,10 +169,10 @@ export function WingsForm({ onNext, onBack }) {
           <View className="flex-row gap-3 mt-6">
             <TouchableOpacity
               onPress={onBack}
-              className="flex-1 min-h-14 py-2 rounded-xl border border-neutral-200 items-center justify-center"
+              className="flex-1 h-14 rounded-xl border border-neutral-200 items-center justify-center"
               accessibilityRole="button"
             >
-              <Text className="text-base font-medium text-neutral-900">{t("auth.obBack")}</Text>
+              <Text className="text-base font-medium text-neutral-900">Back</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -180,7 +180,7 @@ export function WingsForm({ onNext, onBack }) {
               disabled={loading}
               activeOpacity={0.8}
               className={[
-                "flex-1 min-h-14 py-2 rounded-xl items-center justify-center",
+                "flex-1 h-14 rounded-xl items-center justify-center",
                 loading ? "bg-neutral-200" : "bg-brand-500",
               ].join(" ")}
               accessibilityRole="button"

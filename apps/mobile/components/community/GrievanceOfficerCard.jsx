@@ -4,9 +4,7 @@
 
 import { Scale } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
-import { openExternalUrl } from "../../lib/safe-link";
-import { Text } from "../ui/Text";
+import { Linking, Pressable, Text, View } from "react-native";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,7 +13,7 @@ function contactHref(contact) {
   if (!v) return null;
   if (EMAIL_RE.test(v)) return `mailto:${v}`;
   // Otherwise treat as a phone number.
-  return `tel:${v.replace(/[\s\-().]/g, "")}`;
+  return `tel:${v.replace(/[\s-]/g, "")}`;
 }
 
 /**
@@ -30,7 +28,7 @@ export function GrievanceOfficerCard({ officer }) {
   const href = contactHref(contact);
 
   const openContact = () => {
-    if (href) openExternalUrl(href).catch(() => {});
+    if (href) Linking.openURL(href).catch(() => {});
   };
 
   return (

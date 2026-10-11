@@ -19,7 +19,6 @@ import {
   POST_KIND,
   REPORT_TARGET_KIND,
   reportContent,
-  reportErrorCode,
   restoreContent,
   setGrievanceOfficer,
 } from "../community.js";
@@ -212,48 +211,7 @@ describe("reportContent", () => {
       p_reason: "spam",
       p_note: "obvious scam",
     });
-    expect(result).toEqual({
-      report_id: "r-1",
-      already_reported: false,
-      hidden: true,
-      report_count: null,
-    });
-  });
-
-  it("a single member report is NOT hidden (055: hides at 3 reporters / board report)", async () => {
-    const supabase = makeRpcClient(async () => ({
-      data: { report_id: "r-2", already_reported: false, hidden: false, report_count: 1 },
-      error: null,
-    }));
-    const result = await reportContent(supabase, {
-      targetKind: "post",
-      targetId: "p-1",
-      reason: "spam",
-    });
-    expect(result.hidden).toBe(false);
-    expect(result.report_count).toBe(1);
-  });
-
-  it("treats already_reported as a success, and maps REPORT_RATE_LIMITED", async () => {
-    const dup = makeRpcClient(async () => ({
-      data: { report_id: "r-1", already_reported: true, hidden: false },
-      error: null,
-    }));
-    expect(
-      (await reportContent(dup, { targetKind: "post", targetId: "p", reason: "x" }))
-        .already_reported,
-    ).toBe(true);
-
-    const limited = makeRpcClient(async () => ({
-      data: null,
-      error: new Error("REPORT_RATE_LIMITED"),
-    }));
-    const err = await reportContent(limited, {
-      targetKind: "post",
-      targetId: "p",
-      reason: "x",
-    }).catch((e) => e);
-    expect(reportErrorCode(err)).toBe("REPORT_RATE_LIMITED");
+    expect(result).toEqual({ report_id: "r-1", hidden: true });
   });
 
   it("defaults note to null", async () => {

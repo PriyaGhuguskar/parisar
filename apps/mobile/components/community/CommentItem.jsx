@@ -8,9 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Flag, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
-import { useDateLocale } from "../hooks/use-date-locale";
-import { Text } from "../ui/Text";
+import { Pressable, Text, View } from "react-native";
 
 const DANGER_500 = "#c81e1e";
 const NEUTRAL_400 = "#64748B";
@@ -22,10 +20,10 @@ function formatFlat(flatJoin) {
   return [wing, num].filter(Boolean).join("-") || "—";
 }
 
-function safeAge(iso, locale) {
+function safeAge(iso) {
   if (!iso) return "";
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
   } catch {
     return "";
   }
@@ -40,13 +38,12 @@ function safeAge(iso, locale) {
  * }} props
  */
 export function CommentItem({ comment, onReport, onDelete, currentUserId = null }) {
-  const { t } = useTranslation(["community", "auth"]);
-  const dateLocale = useDateLocale();
+  const { t } = useTranslation("community");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const name = comment?.author?.full_name ?? "—";
   const flat = formatFlat(comment?.author_flat);
-  const age = safeAge(comment?.created_at, dateLocale);
+  const age = safeAge(comment?.created_at);
   const byLine = t("community.commentBy", { name, flat, age });
 
   const isAuthor = !!currentUserId && comment?.author_id === currentUserId;
@@ -62,7 +59,7 @@ export function CommentItem({ comment, onReport, onDelete, currentUserId = null 
           <Pressable
             onPress={() => setConfirmingDelete((v) => !v)}
             accessibilityRole="button"
-            accessibilityLabel={t("community.deleteComment")}
+            accessibilityLabel="Delete comment"
             className="p-1"
           >
             <Trash2 size={14} color={NEUTRAL_400} />
@@ -100,7 +97,7 @@ export function CommentItem({ comment, onReport, onDelete, currentUserId = null 
             <Pressable
               onPress={() => setConfirmingDelete(false)}
               accessibilityRole="button"
-              accessibilityLabel={t("auth:common.cancel")}
+              accessibilityLabel="Cancel"
               className="flex-1 h-10 rounded-lg items-center justify-center border border-neutral-200"
             >
               <Text className="text-base text-neutral-600">Cancel</Text>

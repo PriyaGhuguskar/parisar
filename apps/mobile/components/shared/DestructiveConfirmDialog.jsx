@@ -6,10 +6,10 @@ import {
   Modal,
   Platform,
   Pressable,
+  Text,
   TextInput,
   View,
 } from "react-native";
-import { Text } from "../ui/Text";
 
 /**
  * DestructiveConfirmDialog — typed-name gate for irreversible actions (mobile).
@@ -53,10 +53,7 @@ export function DestructiveConfirmDialog({
     }
   }, [open]);
 
-  // An empty/whitespace match text must never satisfy the guard (an empty
-  // input would otherwise "match" and unlock the destructive action).
-  const expected = (confirmMatchText ?? "").trim().toLowerCase();
-  const matches = expected.length > 0 && typed.trim().toLowerCase() === expected;
+  const matches = typed.trim().toLowerCase() === (confirmMatchText ?? "").trim().toLowerCase();
   const showMismatch = typed.length > 0 && !matches;
 
   const canConfirm = matches && !isLoading;

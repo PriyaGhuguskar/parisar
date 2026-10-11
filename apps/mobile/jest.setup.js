@@ -77,10 +77,6 @@ jest.mock("expo-localization", () => ({
 //
 // Interpolation: `{{name}}` → params.name; absent params fall back to literal token.
 // Missing key → returns the key itself (matches i18next default behavior).
-//
-// STRICT MODE (I18N_STRICT=1, set in CI): a key that resolves in no shard and has
-// no defaultValue is recorded, and the afterEach hook at the end of this file FAILS
-// the test that rendered it.
 jest.mock("react-i18next", () => {
   const enAuth = require("@parisar/i18n/locales/en.json");
   const SHARDS = {
@@ -143,12 +139,6 @@ jest.mock("react-i18next", () => {
         if (params && typeof params.defaultValue === "string") {
           return interpolate(params.defaultValue, params);
         }
-        if (process.env.I18N_STRICT === "1") {
-          globalThis.__i18nMissingKeys = [
-            ...(globalThis.__i18nMissingKeys ?? []),
-            `${ns.join(",")} → ${String(key)}`,
-          ];
-        }
         return key;
       }
       return interpolate(resolved, params);
@@ -172,16 +162,4 @@ jest.mock("react-i18next", () => {
     Trans: ({ children, i18nKey }) => children ?? i18nKey ?? null,
     I18nextProvider: ({ children }) => children,
   };
-});
-
-// I18N_STRICT=1: fail the current test if it looked up any key missing from the
-// English shards (collected by the react-i18next mock above).
-afterEach(() => {
-  const missing = globalThis.__i18nMissingKeys ?? [];
-  globalThis.__i18nMissingKeys = [];
-  if (missing.length > 0) {
-    throw new Error(
-      `I18N_STRICT: missing i18n key(s) (namespaces → key):\n  ${[...new Set(missing)].join("\n  ")}`,
-    );
-  }
 });

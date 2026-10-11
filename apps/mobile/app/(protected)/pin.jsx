@@ -2,85 +2,34 @@
 // The PIN step after OTP — the mobile port of the website's verify page
 // stages "pin" and "setpin" (apps/web/app/(auth)/verify/page.jsx):
 //
-//   mode=enter  enter the existing 4-digit PIN (second factor). Checked by the
-//               pin-login Edge Function, which counts failures and locks the
-//               phone after 5; on success it returns a session we adopt.
-//               "Forgot your PIN?" switches to set mode — this login's OTP is
-//               the proof the server needs to accept a new PIN.
-//   mode=set    choose a PIN (no 1234 / four the same), confirm it, save — also
-//               through pin-login, which takes the phone from the session.
+//   mode=enter  enter the existing 4-digit PIN (second factor), checked against
+//               the real credential with signInWithPassword. "Forgot your PIN?"
+//               switches to set mode — OTP has already proved who they are.
+//   mode=set    choose a PIN (no 1234 / four the same), confirm it, save.
 //
-// The app never computes or sees the stored credential (it is peppered on the
-// server — supabase/functions/pin-login/pin-core.js).
+// The PIN is stored as the account password via the shared derivePinSecret
+// (same format as the website), and profiles.pin_set is flagged.
 // `next` = where to go afterwards.
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
+import { derivePinSecret } from "@parisar/api-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyRound } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
 import { FormError } from "../../components/auth/FormError";
 import { OtpInput } from "../../components/auth/OtpInput";
 import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { LogoutButton } from "../../components/LogoutButton";
-import { Text } from "../../components/ui/Text";
 import { clearPinPending } from "../../lib/pin-pending";
 import { ROUTES } from "../../lib/post-login";
 import { getSupabase } from "../../lib/supabase";
 
 function weakPin(p) {
   return p === "1234" || /^(\d)\1{3}$/.test(p);
-}
-
-/**
- * Call the pin-login Edge Function. Business errors come back as non-2xx with
- * a JSON body ({ error, retry_after_seconds? }) — read it off the response.
- * @returns {Promise<object>} the JSON body, or { error: "NETWORK" }
- */
-async function callPinLogin(body) {
-  try {
-    const { data, error } = await getSupabase().functions.invoke("pin-login", { body });
-    if (!error) return data ?? {};
-    const res = error.context;
-    if (res && typeof res.json === "function") {
-      const j = await res.json().catch(() => null);
-      if (j?.error) return j;
-    }
-    return { error: "NETWORK" };
-  } catch {
-    return { error: "NETWORK" };
-  }
-}
-
-/** Localized message for a pin-login error body. */
-function pinErrorMessage(t, body) {
-  switch (body?.error) {
-    case "PIN_INVALID":
-    case "INVALID_INPUT":
-    case "INVALID_PIN":
-      return t("auth.pinWrong");
-    case "WEAK_PIN":
-      return t("auth.setPinWeak");
-    case "LOCKED":
-      return t("auth.pinLocked", {
-        minutes: String(Math.max(1, Math.ceil((body.retry_after_seconds ?? 900) / 60))),
-        defaultValue: "Too many wrong PINs. Try again in {{minutes}} minutes.",
-      });
-    case "RATE_LIMITED":
-      return t("auth.rateLimited", {
-        minutes: String(Math.max(1, Math.ceil((body.retry_after_seconds ?? 60) / 60))),
-      });
-    case "REAUTH_REQUIRED":
-    case "AUTH_REQUIRED":
-      return t("auth.reauthRequired", {
-        defaultValue: "For your security, please verify your number again.",
-      });
-    default:
-      return t("auth.networkError");
-  }
 }
 
 export default function PinScreen() {
@@ -91,10 +40,23 @@ export default function PinScreen() {
 
   const [mode, setMode] = useState(params.mode === "set" ? "set" : "enter");
   const [forgot, setForgot] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [userId, setUserId] = useState(null);
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getSupabase()
+      .auth.getUser()
+      .then(({ data }) => {
+        const u = data?.user;
+        if (!u) return;
+        setUserId(u.id);
+        setPhone(u.phone ? `+${String(u.phone).replace(/\D/g, "")}` : "");
+      });
+  }, []);
 
   async function finish() {
     await clearPinPending();
@@ -104,23 +66,20 @@ export default function PinScreen() {
   // --- enter the existing PIN ----------------------------------------------
   async function submitEnter(code) {
     const value = typeof code === "string" ? code : pin;
-    if (value.length !== 4 || busy) return;
+    if (value.length !== 4 || busy || !phone) return;
     setErr(null);
     setBusy(true);
-    // The function takes the phone from this session's access token.
-    const body = await callPinLogin({ action: "login", pin: value });
-    if (!body?.access_token || !body?.refresh_token) {
-      setErr(pinErrorMessage(t, body));
-      setPin("");
-      setBusy(false);
-      return;
-    }
     try {
-      const { error } = await getSupabase().auth.setSession({
-        access_token: body.access_token,
-        refresh_token: body.refresh_token,
+      const { error } = await getSupabase().auth.signInWithPassword({
+        phone,
+        password: derivePinSecret(phone, value),
       });
-      if (error) throw error;
+      if (error) {
+        setErr(error.status === 429 ? t("auth.rateLimited", { minutes: "1" }) : t("auth.pinWrong"));
+        setPin("");
+        setBusy(false);
+        return;
+      }
       await finish();
     } catch {
       setErr(t("auth.networkError"));
@@ -133,14 +92,19 @@ export default function PinScreen() {
     setErr(null);
     if (!/^\d{4}$/.test(pin) || weakPin(pin)) return setErr(t("auth.setPinWeak"));
     if (pin !== pin2) return setErr(t("auth.setPinMismatch"));
+    if (!phone || !userId) return setErr(t("auth.networkError"));
     setBusy(true);
-    const body = await callPinLogin({ action: "set", pin });
-    if (!body?.ok) {
-      setErr(pinErrorMessage(t, body));
-      setBusy(false);
-      return;
-    }
     try {
+      const supabase = getSupabase();
+      const { error } = await supabase.auth.updateUser({
+        password: derivePinSecret(phone, pin),
+      });
+      if (error) throw error;
+      const { error: flagErr } = await supabase
+        .from("profiles")
+        .update({ pin_set: true, pin_set_at: new Date().toISOString() })
+        .eq("user_id", userId);
+      if (flagErr) throw flagErr;
       await finish();
     } catch {
       setErr(t("auth.networkError"));

@@ -169,12 +169,6 @@ describe("waiveFine", () => {
     expect(result).toEqual({ ok: false, reason: "insufficient_role" });
   });
 
-  it("maps 054's FLAT_ACTION_NOT_FOUND (cross-society id) to {ok:false, reason:'not_found'}", async () => {
-    const err = new Error("FLAT_ACTION_NOT_FOUND");
-    const supabase = makeRpcClient(async () => ({ data: null, error: err }));
-    expect(await waiveFine(supabase, "fa-other")).toEqual({ ok: false, reason: "not_found" });
-  });
-
   it("still throws on a non-role transport error", async () => {
     const err = new Error("network down");
     const supabase = makeRpcClient(async () => ({ data: null, error: err }));
@@ -197,9 +191,7 @@ describe("subscribeFlatActions", () => {
       ...handlers,
     });
 
-    expect(client.channel).toHaveBeenCalledWith(
-      expect.stringMatching(/^flat-actions-soc-1-flat-1:/),
-    );
+    expect(client.channel).toHaveBeenCalledWith("flat-actions-soc-1-flat-1");
     expect(onFn.mock.calls[0][1]).toMatchObject({
       event: "INSERT",
       schema: "public",
@@ -218,7 +210,7 @@ describe("subscribeFlatActions", () => {
   it("scopes by society only (board, all flats) when flatId is omitted", () => {
     const { client, onFn } = makeChannelClient();
     subscribeFlatActions(client, { societyId: "soc-1", onInsert: vi.fn() });
-    expect(client.channel).toHaveBeenCalledWith(expect.stringMatching(/^flat-actions-soc-1:/));
+    expect(client.channel).toHaveBeenCalledWith("flat-actions-soc-1");
     expect(onFn.mock.calls[0][1].filter).toBe("society_id=eq.soc-1");
   });
 });

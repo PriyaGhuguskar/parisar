@@ -20,6 +20,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Text,
   View,
 } from "react-native";
 import { AuthShell } from "../../components/auth/AuthShell";
@@ -28,7 +29,6 @@ import { PrimaryButton } from "../../components/auth/PrimaryButton";
 import { LogoutButton } from "../../components/LogoutButton";
 import { DashedButton, Field, StepHeader, TextField } from "../../components/onboarding/Form";
 import { FloorFlats } from "../../components/structure/FloorFlats";
-import { Text } from "../../components/ui/Text";
 import { buildFlats, initialFloors } from "../../lib/flats/floors";
 import { getSupabase } from "../../lib/supabase";
 

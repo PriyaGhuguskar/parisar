@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { TextInput, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, TextInput, View } from "react-native";
 
 /**
  * Phone number input row: locked +91 selector + 10-digit input.

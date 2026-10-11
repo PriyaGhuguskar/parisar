@@ -12,8 +12,7 @@
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
-import { Switch, View } from "react-native";
-import { Text } from "../ui/Text";
+import { Switch, Text, View } from "react-native";
 
 const BRAND_500 = "#12715A";
 const NEUTRAL_200 = "#E2E8F0";
@@ -46,7 +45,7 @@ export function PreferenceToggleRow({ icon: Icon, label, muted, onChangeMuted, i
         trackColor={{ false: NEUTRAL_200, true: BRAND_500 }}
         thumbColor="#ffffff"
         accessibilityRole="switch"
-        accessibilityLabel={label}
+        accessibilityLabel={`${label} notifications`}
         accessibilityState={{ checked }}
       />
     </View>

@@ -13,8 +13,7 @@
 
 import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import { Text } from "../ui/Text";
+import { Text, View } from "react-native";
 
 const SUCCESS_500 = "#047857";
 const SUCCESS_50 = "#ecfdf5";

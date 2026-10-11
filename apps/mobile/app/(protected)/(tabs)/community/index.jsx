@@ -20,9 +20,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Plus, ShieldAlert, Users2, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, Pressable, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { PostCard } from "../../../../components/community/PostCard";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
 import { getSupabase } from "../../../../lib/supabase";
 
@@ -206,7 +205,7 @@ function ErrorState({ t, onRetry }) {
         className="h-10 px-4 rounded-lg border border-neutral-200 items-center justify-center mt-2"
         accessibilityRole="button"
       >
-        <Text className="text-sm font-semibold text-neutral-900">{t("community.tryAgain")}</Text>
+        <Text className="text-sm font-semibold text-neutral-900">Try again</Text>
       </Pressable>
     </View>
   );

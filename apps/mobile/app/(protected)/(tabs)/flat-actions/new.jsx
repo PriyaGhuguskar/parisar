@@ -11,12 +11,10 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from "react-native";
 import { IssueActionForm } from "../../../../components/flat-actions/IssueActionForm";
 import { BackArrow } from "../../../../components/kit";
-import { Text } from "../../../../components/ui/Text";
 import { useAuthStore } from "../../../../lib/auth-store";
-import { goBack } from "../../../../lib/navigation";
 import { getSupabase } from "../../../../lib/supabase";
 
 const ADMIN_ROLES = new Set(["co_secretary", "secretary"]);
@@ -61,10 +59,10 @@ export default function NewFlatActionScreen() {
       {/* Header */}
       <View className="px-4 pt-12 pb-3 bg-white border-b border-neutral-100 flex-row items-center gap-3">
         <Pressable
-          onPress={() => goBack(router)}
+          onPress={() => router.back()}
           className="p-2"
           accessibilityRole="button"
-          accessibilityLabel={t("flatAction.back")}
+          accessibilityLabel="Go back"
         >
           <BackArrow />
         </Pressable>
@@ -85,7 +83,7 @@ export default function NewFlatActionScreen() {
           supabase={getSupabase()}
           societyId={societyId}
           flats={flats}
-          onSuccess={() => goBack(router)}
+          onSuccess={() => router.back()}
         />
       )}
     </KeyboardAvoidingView>
