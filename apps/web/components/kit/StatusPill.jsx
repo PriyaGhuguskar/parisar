@@ -3,35 +3,36 @@
 // Status chip. Tone is carried by BOTH colour and a leading dot, because colour
 // alone is not an accessible signal — a colour-blind board member still needs to
 // tell "open" from "resolved" at a glance.
+//
+// For onboarding statuses use StatusBadge, which picks the tone and label for you.
 
-const TONES = {
-  open: { bg: "#E7F0FB", fg: "#1F5FA0", dot: "#2F7DD1" },
-  progress: { bg: "#FDF0DF", fg: "#8A4708", dot: "#D08A20" },
-  done: {
-    bg: "var(--color-brand-50)",
-    fg: "var(--color-brand-700)",
-    dot: "var(--color-brand-500)",
-  },
-  danger: { bg: "#FCE9E6", fg: "#94291A", dot: "var(--color-danger)" },
-  neutral: {
-    bg: "var(--color-neutral-100)",
-    fg: "var(--color-neutral-600)",
-    dot: "var(--color-neutral-400)",
-  },
+const TONE_CLASS = {
+  success: "bg-status-success-bg text-status-success-fg",
+  warning: "bg-status-warning-bg text-status-warning-fg",
+  danger: "bg-status-danger-bg text-status-danger-fg",
+  info: "bg-status-info-bg text-status-info-fg",
+  neutral: "bg-status-neutral-bg text-status-neutral-fg",
 };
 
+const DOT_CLASS = {
+  success: "bg-status-success-solid",
+  warning: "bg-status-warning-solid",
+  danger: "bg-status-danger-solid",
+  info: "bg-status-info-solid",
+  neutral: "bg-status-neutral-solid",
+};
+
+// Older names, still used by existing screens.
+const ALIASES = { open: "info", progress: "warning", done: "success" };
+
 export function StatusPill({ tone = "neutral", children }) {
-  const t = TONES[tone] ?? TONES.neutral;
+  const resolved = ALIASES[tone] ?? tone;
+  const key = TONE_CLASS[resolved] ? resolved : "neutral";
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold"
-      style={{ backgroundColor: t.bg, color: t.fg }}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold ${TONE_CLASS[key]}`}
     >
-      <span
-        aria-hidden="true"
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: t.dot }}
-      />
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[key]}`} />
       {children}
     </span>
   );

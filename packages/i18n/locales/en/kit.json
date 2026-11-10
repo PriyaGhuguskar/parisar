@@ -1,0 +1,144 @@
+{
+  "_meta": { "locale": "en", "namespace": "kit" },
+  "form": {
+    "required": "required",
+    "optional": "Optional"
+  },
+  "phone": {
+    "countryCode": "India, country code +91",
+    "placeholder": "98765 43210",
+    "invalid": "Enter a 10-digit mobile number starting with 6, 7, 8 or 9."
+  },
+  "date": {
+    "placeholder": "Select a date",
+    "clear": "Clear date",
+    "nav": "Change month",
+    "nextMonth": "Next month",
+    "previousMonth": "Previous month",
+    "monthDropdown": "Month",
+    "yearDropdown": "Year",
+    "today": "Today, {{date}}",
+    "selectedDay": "{{date}}, selected",
+    "loadFailed": "The calendar couldn't load. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "select": {
+    "placeholder": "Select an option",
+    "searchPlaceholder": "Type to search",
+    "noResults": "No matches. Try a different search.",
+    "clear": "Clear selection",
+    "loading": "Loading options…",
+    "results": "{{n}} options available"
+  },
+  "file": {
+    "choose": "Choose a file",
+    "drop": "or drag it here",
+    "constraints": "{{types}}, up to {{size}}",
+    "constraintsSizeOnly": "Up to {{size}}",
+    "errorType": "This file type isn't allowed. Use {{types}}.",
+    "errorSize": "This file is {{actual}}. The limit is {{size}}.",
+    "errorEmpty": "This file is empty. Choose another file.",
+    "errorUpload": "Upload failed. Check your connection and try again.",
+    "uploading": "Uploading {{name}}",
+    "uploaded": "Uploaded",
+    "retry": "Try again",
+    "cancel": "Cancel upload",
+    "remove": "Remove file"
+  },
+  "stepper": {
+    "label": "Progress",
+    "stepOf": "Step {{current}} of {{total}}",
+    "completed": "Completed",
+    "current": "Current step",
+    "upcoming": "Not started",
+    "error": "Needs attention"
+  },
+  "table": {
+    "search": "Search",
+    "filterAll": "All",
+    "results": "{{from}}–{{to}} of {{total}}",
+    "noResultsTitle": "No matching results",
+    "noResultsBody": "Try a different search or clear the filters.",
+    "clearFilters": "Clear filters",
+    "emptyTitle": "Nothing here yet",
+    "previous": "Previous",
+    "next": "Next",
+    "pagination": "Pagination",
+    "page": "Page {{page}} of {{total}}",
+    "actions": "Actions"
+  },
+  "confirm": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "working": "Working…",
+    "failed": "That didn't complete. Try again."
+  },
+  "loading": {
+    "default": "Loading…"
+  },
+  "error": {
+    "title": "This couldn't load",
+    "body": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "copy": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "failed": "Couldn't copy. Select the text and copy it yourself."
+  },
+  "notice": {
+    "dismiss": "Dismiss"
+  },
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…"
+  },
+  "status": {
+    "new": "New",
+    "contacted": "Contacted",
+    "call_scheduled": "Call scheduled",
+    "rescheduled": "Rescheduled",
+    "registered": "Registered",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "closed": "Closed",
+    "not_started": "Not started",
+    "draft": "Draft",
+    "in_progress": "In progress",
+    "submitted": "Submitted",
+    "completed": "Completed",
+    "invited": "Invited",
+    "invite_expired": "Invite expired",
+    "invite_revoked": "Invite cancelled",
+    "pending": "Pending",
+    "pending_verification": "Pending verification",
+    "pending_review": "Pending review",
+    "pending_owner_approval": "Awaiting owner approval",
+    "pending_committee_approval": "Awaiting committee approval",
+    "pending_documents": "Documents needed",
+    "verified": "Verified",
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Suspended",
+    "declined": "Declined",
+    "removed": "Removed",
+    "moved_out": "Moved out",
+    "missing": "Missing",
+    "uploaded": "Uploaded",
+    "under_review": "Under review",
+    "expired": "Expired",
+    "queued": "Queued",
+    "validating": "Checking",
+    "valid": "Valid",
+    "invalid": "Invalid",
+    "importing": "Importing",
+    "imported": "Imported",
+    "partial": "Partly imported",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "duplicate": "Duplicate"
+  }
+}

@@ -1,0 +1,17 @@
+===== Error message leakage =====
+--- A) protected table without auth (anon) ---
+{"code":"42501","details":null,"hint":null,"message":"permission denied for table profiles"}
+[HTTP 401]
+
+--- B) malformed JSON body to RPC ---
+{"code":"PGRST102","details":null,"hint":null,"message":"Empty or invalid json"}
+[HTTP 400]
+
+--- C) RPC with wrong param type ---
+{"error": "REQUEST_NOT_FOUND"}
+[HTTP 200]
+
+--- D) web app: nonexistent protected page while unauth (redirect vs leak) ---
+   /dashboard (no cookie) -> HTTP 307 redirect=http://localhost:3000/dev-login?next=%2Fdashboard
+--- E) web app: force a server error via bad route param ---
+

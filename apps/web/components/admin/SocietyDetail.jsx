@@ -13,6 +13,7 @@
 
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AdminFeatureRequests } from "./insights/AdminFeatureRequests";
 import { AdminHistory } from "./insights/AdminHistory";
@@ -23,8 +24,10 @@ import { FeaturesPane } from "./society-detail/FeaturesPane";
 import { NotesPane } from "./society-detail/NotesPane";
 import { OverviewPane } from "./society-detail/OverviewPane";
 import { PaymentsPane } from "./society-detail/PaymentsPane";
+import { RegistrationPane } from "./society-detail/RegistrationPane";
 
 export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }) {
+  const { t } = useTranslation("platform");
   // Billing & payments are admin-only. The RPC already omits that data for
   // sales; this hides the tabs so it is not even offered.
   const PANES = ALL_PANES.filter((p) => isAdmin || !p.adminOnly);
@@ -225,7 +228,7 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* Tabs: wrap into rows on phones, a vertical list on wider screens — never scroll sideways. */}
         <nav className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--color-neutral-200)] p-3 md:w-[210px] md:flex-col md:flex-nowrap md:overflow-y-auto md:border-b-0 md:border-r">
-          {PANES.map(({ id, label, icon: Icon }) => {
+          {PANES.map(({ id, label, labelKey, icon: Icon }) => {
             const on = pane === id;
             return (
               <button
@@ -240,7 +243,7 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
                 }}
               >
                 <Icon size={14} strokeWidth={2.3} aria-hidden="true" />
-                {label}
+                {labelKey ? t(labelKey) : label}
                 {id === "requests" && pendingRequests > 0 ? (
                   <span className="ml-0.5 rounded-full bg-[#FDF0DF] px-1.5 text-[11px] tabular-nums text-[#8A4708]">
                     {pendingRequests}
@@ -269,6 +272,8 @@ export function SocietyDetail({ societyId, isAdmin = false, onClose, onChanged }
               setPane={setPane}
             />
           ) : null}
+
+          {pane === "registration" ? <RegistrationPane societyId={societyId} /> : null}
 
           {/* ---------------- features ---------------- */}
           {pane === "features" ? (

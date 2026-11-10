@@ -149,6 +149,8 @@ export function PreferencesClient({ societyId, initialPrefs }) {
     setField("cap_per_day", num);
   }
 
+  const allMuted = MUTE_ROWS.every((r) => state[r.col]);
+
   return (
     <div className="flex flex-col gap-4">
       {allMuted ? (

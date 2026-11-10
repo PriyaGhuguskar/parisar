@@ -22,13 +22,38 @@
 //
 // JavaScript only — no TypeScript per CLAUDE.md.
 
-import { getDashboardSummary } from "@parisar/api-client";
+import {
+  getDashboardSummary,
+  mySocietyFeatures,
+  residentDashboard,
+  societyAdminDashboard,
+} from "@parisar/api-client";
 import { redirect } from "next/navigation";
 import { isManagerRole } from "../../../lib/auth/activeSociety";
+import { needsPersonalOnboarding } from "../../../lib/auth/personalOnboarding";
 import { loadSocietyContext } from "../../../lib/auth/societyContext";
 import { getServerT } from "../../../lib/i18n/server";
+import { enabledFeatureKeys } from "../../../lib/nav/sidebarNav";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { DashboardClient } from "./DashboardClient";
+
+/**
+ * Run one dashboard RPC for the first paint. Returns { data } or { error: true };
+ * the client offers a retry for the error. Raw messages stay in the server log.
+ */
+async function loadOverview(label, fn) {
+  try {
+    const res = await fn();
+    if (!res || res.error) {
+      console.error(`[dashboard] ${label}:`, res?.error ?? "empty");
+      return { error: true, code: res?.error ?? null };
+    }
+    return { data: res };
+  } catch (err) {
+    console.error(`[dashboard] ${label} failed:`, err?.message ?? err);
+    return { error: true };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -66,12 +91,17 @@ export default async function DashboardPage() {
   // A society authority must finish onboarding before the app opens: set up the
   // society's wings/flats first if there are none, then join as a resident
   // (their authority membership has no flat until then).
+  // An authority who chose "Continue without a flat" is finished (setup_state
+  // 'complete') and stays on the dashboard.
   if (isManagerRole(role) && activeMembership && !activeMembership.flat_id) {
     const { count } = await supabase
       .from("flats")
       .select("id", { count: "exact", head: true })
       .eq("society_id", societyId);
-    redirect((count ?? 0) === 0 ? "/setup/structure" : "/onboarding");
+    if ((count ?? 0) === 0) redirect("/setup");
+    if (await needsPersonalOnboarding(supabase, societyId, activeMembership)) {
+      redirect("/onboarding");
+    }
   }
 
   const resolvedSocietyName =
@@ -87,17 +117,37 @@ export default async function DashboardPage() {
   try {
     // An authority's home is the resident view (management is on the Society
     // Dashboard), so ask for the resident summary to match its tiles.
-    const isAuthority = isManagerRole(role);
     initialSummary = await getDashboardSummary(supabase, {
-      view: isAuthority ? "member" : null,
+      view: isManagerRole(role) ? "member" : null,
     });
   } catch (err) {
     console.error("[dashboard] summary load failed:", err?.message ?? err);
     initialSummary = null;
   }
 
+  // Role dashboards (docs/onboarding/API.md §12) and the society's switched-on
+  // features, which hide tiles and cards for modules that are off. A failed
+  // feature load leaves `features` null: only core modules then count as on for
+  // the cards, and the tiles keep their previous behaviour.
+  const isAuthority = isManagerRole(role);
+  const [featuresRes, adminOverview, residentOverview] = await Promise.all([
+    mySocietyFeatures(supabase, societyId).catch((err) => {
+      console.error("[dashboard] features failed:", err?.message ?? err);
+      return null;
+    }),
+    isAuthority
+      ? loadOverview("society_admin_dashboard", () => societyAdminDashboard(supabase, societyId))
+      : Promise.resolve(undefined),
+    loadOverview("resident_dashboard", () => residentDashboard(supabase, societyId)),
+  ]);
+  const enabled = enabledFeatureKeys(featuresRes);
+  const features = enabled ? [...enabled] : null;
+
   return (
     <DashboardClient
+      features={features}
+      adminOverview={adminOverview}
+      residentOverview={residentOverview}
       userId={user.id}
       role={role}
       societyId={societyId}

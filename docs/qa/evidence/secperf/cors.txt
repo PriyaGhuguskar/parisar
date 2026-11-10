@@ -1,0 +1,17 @@
+# OPTIONS /rest/v1/complaints Origin evil
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: authorization,apikey,content-type
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT
+# OPTIONS /auth/v1/token Origin evil
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: authorization,apikey,content-type
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT
+# OPTIONS /storage/v1/object/list/parisar-proofs Origin evil
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: authorization,apikey,content-type
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT
+# web app OPTIONS
+HTTP/1.1 400 Bad Request

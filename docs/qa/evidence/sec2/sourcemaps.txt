@@ -1,0 +1,29 @@
+===== Source maps served by dev server =====
+sample chunk: /_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_49a6ea35._.js
+chunk .js -> HTTP 200
+chunk .js.map -> HTTP 200
+--- local .map files in .next (dev build) ---
+count of .map files in .next/static: 249
+===== Public env exposed to client =====
+--- grep NEXT_PUBLIC usage in source ---
+NEXT_PUBLIC_APP_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SUPABASE_URL
+--- scan .next/static chunks for secret ENV NAMES (not values) ---
+apps/web/.next/static/chunks/apps_web_7b60d763._.js.map
+apps/web/.next/static/chunks/node_modules_@supabase_auth-js_dist_module_e7678214._.js
+apps/web/.next/static/chunks/apps_web_cb2cda9c._.js.map
+apps/web/.next/static/chunks/apps_web_abd28b26._.js.map
+apps/web/.next/static/chunks/_0a821c49._.js.map
+(empty above = no secret env names found in client bundle)
+--- count occurrences of the public anon JWT role in bundle (expected present) ---
+chunks referencing supabase: 127
+--- context of SERVICE_ROLE/etc matches (names only, values redacted) ---
+r expose your `service_role
+r. Requires a `service_role
+s.env.SUPABASE_SERVICE_ROLE_KEY
+--- check map files reference only env NAMES not literal eyJ... JWT values (count of eyJ tokens >200 chars) ---
+longest JWT-like strings in maps (lengths): 70015 9750 7800
+(a service_role JWT would be ~200+ chars; anon key is also a JWT ~200 chars and is PUBLIC)
+RESULT: lines above (if any) name files leaking a secret VALUE; empty = none leaked
+files containing the PUBLIC anon key (expected >0): 12

@@ -7,6 +7,7 @@
 // society code is pre-filled, and the PIN step is skipped if they already set one
 // during wings/flats setup. Anyone who already has a flat goes to the dashboard.
 
+import { myOnboardingState } from "@parisar/api-client";
 import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { sanitizeSocietyCode } from "@/lib/join-link";
@@ -31,6 +32,15 @@ export default async function OnboardingPage({ searchParams }) {
   // Already a resident (any membership that is not a flat-less authority one).
   if (rows.length > 0 && !flatless) redirect("/dashboard");
 
+  // Someone with nothing yet may already be expected: details the society imported
+  // for this verified phone, or a tenant / household request still in progress.
+  // ?manual=1 skips this, so a person can still join another society with a code.
+  const query = (await searchParams) ?? {};
+  if (!flatless && query.manual !== "1") {
+    const next = await pendingDestination(supabase);
+    if (next) redirect(next);
+  }
+
   // Prefill the name if we already have one (a profile from an earlier step, or
   // the name captured at sign-up). Brand-new residents start blank — we don't
   // know their name yet. The mobile, however, is always known and shown by the wizard.
@@ -45,14 +55,13 @@ export default async function OnboardingPage({ searchParams }) {
   // set up yet, that comes first (any authority can do it); otherwise fill in the
   // society code for them so they go straight to picking their flat.
   // A share link (/join/code?code=…) forwards here with the code; pre-fill it.
-  const query = (await searchParams) ?? {};
   let initialCode = sanitizeSocietyCode(query.code);
   if (flatless) {
     const { count: flatCount } = await supabase
       .from("flats")
       .select("id", { count: "exact", head: true })
       .eq("society_id", flatless.society_id);
-    if ((flatCount ?? 0) === 0) redirect("/setup/structure");
+    if ((flatCount ?? 0) === 0) redirect("/setup");
 
     const { data: code } = await supabase
       .from("society_codes")
@@ -84,6 +93,25 @@ export default async function OnboardingPage({ searchParams }) {
       initialName={initialName}
       initialCode={initialCode}
       pinAlreadySet={Boolean(flatless && profile?.pin_set)}
+      authorityMode={Boolean(flatless)}
     />
   );
+}
+
+const OPEN_RECORD = new Set(["pending", "needs_correction"]);
+const OPEN_TENANT = new Set(["registered", "owner_approved", "admin_approved"]);
+
+/** Where an expected person should go instead of the code wizard, or null. */
+async function pendingDestination(supabase) {
+  let state;
+  try {
+    state = await myOnboardingState(supabase);
+  } catch {
+    return null; // an outage must not block the code path
+  }
+  if (!state || state.error) return null;
+  if ((state.resident_records ?? []).some((r) => OPEN_RECORD.has(r.status))) return "/verification";
+  const tenantOpen = (state.tenant_registrations ?? []).some((r) => OPEN_TENANT.has(r.status));
+  const householdOpen = (state.household_requests ?? []).some((r) => r.status === "pending");
+  return tenantOpen || householdOpen ? "/onboarding/status" : null;
 }

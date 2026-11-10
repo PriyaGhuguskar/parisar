@@ -66,6 +66,10 @@ beforeEach(() => {
 describe("setPin / setMyPin (C2: no client-supplied identity)", () => {
   it("ignores the userId/phone arguments and uses the cookie session's token", async () => {
     mockRunSetPin.mockResolvedValue({ ok: true });
+    mockRunPinLogin.mockResolvedValue({
+      ok: true,
+      session: { access_token: "a2", refresh_token: "r2", user: { id: USER.id } },
+    });
     const r = await setPin("victim-uuid", "+919000000001", "4821");
     expect(r).toEqual({ ok: true });
     expect(mockRunSetPin).toHaveBeenCalledWith(
@@ -73,6 +77,36 @@ describe("setPin / setMyPin (C2: no client-supplied identity)", () => {
       expect.objectContaining({ pepper: "p" }),
     );
     expect(JSON.stringify(mockRunSetPin.mock.calls)).not.toContain("victim-uuid");
+  });
+
+  // GoTrue ends every session when an admin sets the password (the PIN
+  // credential), so the OTP session must be replaced or the next refresh signs
+  // the person out.
+  it("replaces the ended OTP session with a fresh PIN session", async () => {
+    mockRunSetPin.mockResolvedValue({ ok: true });
+    mockRunPinLogin.mockResolvedValue({
+      ok: true,
+      session: { access_token: "a2", refresh_token: "r2", user: { id: USER.id } },
+    });
+    await expect(setMyPin("4821")).resolves.toEqual({ ok: true });
+    expect(mockRunPinLogin).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: USER.phone, pin: "4821" }),
+      expect.anything(),
+    );
+    expect(mockSetSession).toHaveBeenCalledWith({ access_token: "a2", refresh_token: "r2" });
+  });
+
+  it("still reports the PIN as saved when the fresh sign-in fails", async () => {
+    mockRunSetPin.mockResolvedValue({ ok: true });
+    mockRunPinLogin.mockResolvedValue({ error: "SERVER_ERROR" });
+    await expect(setMyPin("4821")).resolves.toEqual({ ok: true, reauth: true });
+    expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
+  it("does not sign in again when saving the PIN failed", async () => {
+    mockRunSetPin.mockResolvedValue({ error: "WEAK_PIN" });
+    await expect(setMyPin("1111")).resolves.toEqual({ error: "WEAK_PIN" });
+    expect(mockRunPinLogin).not.toHaveBeenCalled();
   });
 
   it("refuses without a session", async () => {
@@ -232,6 +266,13 @@ describe("safeNextPath (LOW 8: no open redirect)", () => {
     ["//evil.com", "/dashboard"],
     ["/\\evil.com", "/dashboard"],
     ["https://evil.com", "/dashboard"],
+    // searchParams.get decodes %09 / %0A; browsers strip tab and newline, so
+    // "/\t/evil.com" would become "//evil.com".
+    ["/\t/evil.com", "/dashboard"],
+    ["/\n/evil.com", "/dashboard"],
+    ["/\r//evil.com", "/dashboard"],
+    ["/ /evil.com", "/dashboard"],
+    ["/x\\evil", "/dashboard"],
     [null, "/dashboard"],
   ])("%s → %s", (input, out) => {
     expect(safeNextPath(input)).toBe(out);

@@ -1,0 +1,61 @@
+{
+ "field_button_rows": 107,
+ "bugs": 24,
+ "bugs_by_severity": {
+  "Critical": 1,
+  "High": 7,
+  "Medium": 5,
+  "Low": 11
+ },
+ "counts": {
+  "test_cases": 396,
+  "passed": 268,
+  "failed": 20,
+  "blocked": 2,
+  "not_tested": 106
+ },
+ "counts_by_area": {
+  "core": {
+   "test_cases": 34,
+   "passed": 24,
+   "failed": 8,
+   "blocked": 1,
+   "not_tested": 1
+  },
+  "notexecuted": {
+   "test_cases": 105,
+   "passed": 0,
+   "failed": 0,
+   "blocked": 0,
+   "not_tested": 105
+  },
+  "onboarding": {
+   "test_cases": 29,
+   "passed": 27,
+   "failed": 1,
+   "blocked": 1,
+   "not_tested": 0
+  },
+  "roles": {
+   "test_cases": 208,
+   "passed": 205,
+   "failed": 3,
+   "blocked": 0,
+   "not_tested": 0
+  },
+  "secperf": {
+   "test_cases": 20,
+   "passed": 12,
+   "failed": 8,
+   "blocked": 0,
+   "not_tested": 0
+  }
+ },
+ "features": 29,
+ "features_by_class": {
+  "Not Implemented": 12,
+  "Fully Working": 12,
+  "Partially Working": 3,
+  "Blocked": 2
+ }
+}

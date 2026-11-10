@@ -1,0 +1,10 @@
+# ss -ltnp
+LISTEN 0      4096         0.0.0.0:54322      0.0.0.0:*                                                
+LISTEN 0      4096         0.0.0.0:54321      0.0.0.0:*                                                
+LISTEN 0      511                *:3000             *:*    users:(("next-server (v1",pid=746344,fd=22))
+LISTEN 0      4096            [::]:54322         [::]:*                                                
+LISTEN 0      4096            [::]:54321         [::]:*                                                
+# LAN dev-login
+307 -> http://localhost:3000/dashboard
+LAN 54321: 200
+LAN 54322 open

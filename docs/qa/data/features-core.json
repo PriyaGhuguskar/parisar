@@ -1,0 +1,114 @@
+[
+ {
+  "module": "Vehicles",
+  "feature": "Vehicles",
+  "classification": "Not Implemented",
+  "evidence": "no route under apps/web/app; no nav item",
+  "notes": "none"
+ },
+ {
+  "module": "Parking",
+  "feature": "Parking",
+  "classification": "Not Implemented",
+  "evidence": "lib/nav/sidebarNav.js HIDDEN_NAV_ITEMS",
+  "notes": "HIDDEN_NAV_ITEMS security.parking"
+ },
+ {
+  "module": "Maintenance billing / dues",
+  "feature": "Maintenance billing / dues",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS finance.maintenance_dues"
+ },
+ {
+  "module": "Payments",
+  "feature": "Payments",
+  "classification": "Not Implemented",
+  "evidence": "no route",
+  "notes": "none (fines recorded only, CLAUDE.md \"No payments\")"
+ },
+ {
+  "module": "Accounting",
+  "feature": "Accounting",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS finance.accounting"
+ },
+ {
+  "module": "Events",
+  "feature": "Events",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js (platform_features \"bookings\" is named \"Events & Bookings\" but has no event entity)",
+  "notes": "HIDDEN_NAV_ITEMS communication.events"
+ },
+ {
+  "module": "Vendors",
+  "feature": "Vendors",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS services.vendors, finance.vendor_payments"
+ },
+ {
+  "module": "Documents",
+  "feature": "Documents",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS documents.society_documents"
+ },
+ {
+  "module": "Reports",
+  "feature": "Reports",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS reports.reports"
+ },
+ {
+  "module": "Deliveries",
+  "feature": "Deliveries",
+  "classification": "Not Implemented",
+  "evidence": "no route",
+  "notes": "none"
+ },
+ {
+  "module": "Expected visitors / staff attendance",
+  "feature": "Expected visitors / staff attendance",
+  "classification": "Not Implemented",
+  "evidence": "sidebarNav.js",
+  "notes": "HIDDEN_NAV_ITEMS security.*"
+ },
+ {
+  "module": "Complaints",
+  "feature": "File complaint with photo",
+  "classification": "Fully Working",
+  "evidence": "CORE-TC loop; complaints 7b1d7588",
+  "notes": "Photo orphan issue CORE-007"
+ },
+ {
+  "module": "Complaints",
+  "feature": "Board claim/respond/status",
+  "classification": "Fully Working",
+  "evidence": "loop-07, rt-04",
+  "notes": "Atomic claim, owned-by lock"
+ },
+ {
+  "module": "Complaints",
+  "feature": "Realtime status to resident / new complaint to board",
+  "classification": "Partially Working",
+  "evidence": "rt-01, rt-03",
+  "notes": "Responses stream live; complaint row inserts/updates do not"
+ },
+ {
+  "module": "Complaints",
+  "feature": "Resident notification of status",
+  "classification": "Blocked",
+  "evidence": "push_outbox unprocessed",
+  "notes": "No push worker locally; no in-app inbox on web"
+ },
+ {
+  "module": "Complaints",
+  "feature": "Search / filter / pagination",
+  "classification": "Not Implemented",
+  "evidence": "UI has only Open/Resolved tabs",
+  "notes": "API supports cursor, UI shows first 30"
+ }
+]

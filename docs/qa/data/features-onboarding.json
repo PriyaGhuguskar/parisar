@@ -1,0 +1,37 @@
+[
+  {
+    "module": "Public website",
+    "feature": "Landing page",
+    "classification": "Fully Working",
+    "evidence": "docs/qa/evidence/onboarding/landing-1280.png",
+    "notes": "1280 and 375 verified"
+  },
+  {
+    "module": "Public website",
+    "feature": "/enroll redirect to /connect",
+    "classification": "Fully Working",
+    "evidence": "docs/qa/evidence/onboarding/enroll-1280.png",
+    "notes": ""
+  },
+  {
+    "module": "Authentication",
+    "feature": "Signed-out redirect of protected routes",
+    "classification": "Blocked",
+    "evidence": "docs/qa/evidence/onboarding/setup-signedout-1280.png",
+    "notes": "Dev routes enabled; signed-out visits auto-sign-in via /dev-login"
+  },
+  {
+    "module": "Public website",
+    "feature": "Connect With Us request (validation, authority numbers, schedule, duplicate check)",
+    "classification": "Fully Working",
+    "evidence": "docs/qa/evidence/onboarding/connect-filled-1280.png",
+    "notes": "DB row verified"
+  },
+  {
+    "module": "Public website",
+    "feature": "Request success page and status lookup",
+    "classification": "Fully Working",
+    "evidence": "docs/qa/evidence/onboarding/connect-success-1280.png",
+    "notes": ""
+  }
+]

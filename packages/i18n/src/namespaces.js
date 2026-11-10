@@ -15,6 +15,15 @@ export const NAMESPACES = [
   "flat-actions",
   "community",
   "moderation",
+  // Society onboarding (docs/onboarding/PLAN.md). One shard per domain so the
+  // builders never edit the same file.
+  "connect",
+  "platform",
+  "setup-wizard",
+  "resident-onboarding",
+  "staff-nav",
+  // Default copy for components/kit (required marker, pagination, status labels).
+  "kit",
 ];
 
 export const AUTH_NAMESPACE = "auth";

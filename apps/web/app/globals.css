@@ -1,9 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* Exposes tokens.css to Tailwind as utilities (bg-primary, text-status-danger-fg,
+   shadow-card, rounded-xl...). Values live in tokens.css, not here. */
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
@@ -23,6 +26,7 @@
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
+    --color-destructive-foreground: var(--destructive-foreground);
     --color-destructive: var(--destructive);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
@@ -30,6 +34,9 @@
     --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
     --color-secondary: var(--secondary);
+    --color-primary-soft-foreground: var(--primary-soft-foreground);
+    --color-primary-soft: var(--primary-soft);
+    --color-primary-hover: var(--primary-hover);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
     --color-popover-foreground: var(--popover-foreground);
@@ -38,6 +45,26 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-status-success-fg: var(--status-success-fg);
+    --color-status-success-bg: var(--status-success-bg);
+    --color-status-success-border: var(--status-success-border);
+    --color-status-success-solid: var(--status-success-solid);
+    --color-status-warning-fg: var(--status-warning-fg);
+    --color-status-warning-bg: var(--status-warning-bg);
+    --color-status-warning-border: var(--status-warning-border);
+    --color-status-warning-solid: var(--status-warning-solid);
+    --color-status-danger-fg: var(--status-danger-fg);
+    --color-status-danger-bg: var(--status-danger-bg);
+    --color-status-danger-border: var(--status-danger-border);
+    --color-status-danger-solid: var(--status-danger-solid);
+    --color-status-info-fg: var(--status-info-fg);
+    --color-status-info-bg: var(--status-info-bg);
+    --color-status-info-border: var(--status-info-border);
+    --color-status-info-solid: var(--status-info-solid);
+    --color-status-neutral-fg: var(--status-neutral-fg);
+    --color-status-neutral-bg: var(--status-neutral-bg);
+    --color-status-neutral-border: var(--status-neutral-border);
+    --color-status-neutral-solid: var(--status-neutral-solid);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -45,75 +72,9 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-:root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --shadow-card: var(--shadow-card);
+    --shadow-raised: var(--shadow-raised);
+    --shadow-overlay: var(--shadow-overlay);
 }
 
 @layer base {
@@ -126,62 +87,6 @@
   html {
     @apply font-sans;
     }
-
-  :root {
-    --color-brand-50:  #DCEFE6;
-    --color-brand-500: #12715A;
-    --color-brand-600: #0E5A48;
-    --color-brand-700: #0A4436;
-
-    --color-neutral-0:   #ffffff;
-    --color-neutral-50:  #F8FAFC;
-    --color-neutral-100: #F1F5F9;
-    --color-neutral-200: #E2E8F0;
-    --color-neutral-400: #64748B;
-    --color-neutral-600: #475569;
-    --color-neutral-900: #1E293B;
-
-    --color-success: #12715A;
-    --color-warning: #B25107;
-    --color-danger:  #C0341B;
-
-    /* Scale aliases that 9 files already referenced but which were never
-       defined — so every setup-form validation error rendered with NO colour,
-       making a failed field look identical to a passing one. Verified AA:
-       danger 5.51:1, neutral-700 10.33:1, warning 5.07:1 on the app ground. */
-    --color-danger-500:  #C0341B;
-    --color-warning-500: #B25107;
-    --color-neutral-300: #CBD5E1; /* decorative borders only — never text */
-    --color-neutral-700: #334155;
-    --color-brand-200:   #A8D8C4; /* decorative borders only — never text */
-
-    /* Phase 3 semantic alias — pending_review status */
-    --color-pending: var(--color-warning);
-    --pending:       var(--color-warning);
-    --pending-foreground: var(--color-neutral-0);
-
-    /* shadcn semantic aliases for auth screens */
-    --background:     var(--color-neutral-50);
-    --foreground:     var(--color-neutral-900);
-    --card:           var(--color-neutral-0);
-    --card-foreground: var(--color-neutral-900);
-    --primary:        var(--color-brand-500);
-    --primary-foreground: var(--color-neutral-0);
-    --muted:          var(--color-neutral-100);
-    --muted-foreground: var(--color-neutral-600);
-    --border:         var(--color-neutral-200);
-    --input:          var(--color-neutral-200);
-    --destructive:    var(--color-danger);
-    --destructive-foreground: var(--color-neutral-0);
-    --ring:           var(--color-brand-500);
-
-    --font-sans: var(--font-inter), var(--font-noto-sans), var(--font-noto-devanagari), sans-serif;
-
-    /* Phase 4 — complaint status semantic aliases (04-UI-SPEC.md) */
-    --color-checking:  var(--color-brand-500);
-    --color-resolved:  var(--color-success);
-    --color-need-info: var(--color-warning);
-  }
 }
 
 @keyframes shake {

@@ -1,0 +1,144 @@
+{
+  "_meta": { "locale": "mr", "namespace": "kit" },
+  "form": {
+    "required": "आवश्यक",
+    "optional": "पर्यायी"
+  },
+  "phone": {
+    "countryCode": "भारत, देश कोड +91",
+    "placeholder": "98765 43210",
+    "invalid": "6, 7, 8 किंवा 9 ने सुरू होणारा 10 अंकी मोबाइल नंबर टाका."
+  },
+  "date": {
+    "placeholder": "तारीख निवडा",
+    "clear": "तारीख काढा",
+    "nav": "महिना बदला",
+    "nextMonth": "पुढील महिना",
+    "previousMonth": "मागील महिना",
+    "monthDropdown": "महिना",
+    "yearDropdown": "वर्ष",
+    "today": "आज, {{date}}",
+    "selectedDay": "{{date}}, निवडले",
+    "loadFailed": "कॅलेंडर लोड झाले नाही. तुमचे कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.",
+    "retry": "पुन्हा प्रयत्न करा"
+  },
+  "select": {
+    "placeholder": "एक पर्याय निवडा",
+    "searchPlaceholder": "शोधण्यासाठी टाइप करा",
+    "noResults": "काहीही जुळले नाही. वेगळा शोध घ्या.",
+    "clear": "निवड काढा",
+    "loading": "पर्याय लोड होत आहेत…",
+    "results": "{{n}} पर्याय उपलब्ध"
+  },
+  "file": {
+    "choose": "फाइल निवडा",
+    "drop": "किंवा इथे ओढून आणा",
+    "constraints": "{{types}}, जास्तीत जास्त {{size}}",
+    "constraintsSizeOnly": "जास्तीत जास्त {{size}}",
+    "errorType": "या प्रकारच्या फाइलला परवानगी नाही. {{types}} वापरा.",
+    "errorSize": "ही फाइल {{actual}} ची आहे. मर्यादा {{size}} आहे.",
+    "errorEmpty": "ही फाइल रिकामी आहे. दुसरी फाइल निवडा.",
+    "errorUpload": "अपलोड झाले नाही. तुमचे कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.",
+    "uploading": "{{name}} अपलोड होत आहे",
+    "uploaded": "अपलोड झाली",
+    "retry": "पुन्हा प्रयत्न करा",
+    "cancel": "अपलोड रद्द करा",
+    "remove": "फाइल काढा"
+  },
+  "stepper": {
+    "label": "प्रगती",
+    "stepOf": "टप्पा {{current}} / {{total}}",
+    "completed": "पूर्ण झाले",
+    "current": "सध्याचा टप्पा",
+    "upcoming": "सुरू झाले नाही",
+    "error": "लक्ष देणे आवश्यक"
+  },
+  "table": {
+    "search": "शोधा",
+    "filterAll": "सर्व",
+    "results": "{{total}} पैकी {{from}}–{{to}}",
+    "noResultsTitle": "जुळणारे निकाल नाहीत",
+    "noResultsBody": "वेगळा शोध घ्या किंवा फिल्टर काढा.",
+    "clearFilters": "फिल्टर काढा",
+    "emptyTitle": "इथे अजून काही नाही",
+    "previous": "मागील",
+    "next": "पुढील",
+    "pagination": "पान बदला",
+    "page": "पान {{page}} / {{total}}",
+    "actions": "कृती"
+  },
+  "confirm": {
+    "cancel": "रद्द करा",
+    "confirm": "पुष्टी करा",
+    "working": "होत आहे…",
+    "failed": "हे पूर्ण झाले नाही. पुन्हा प्रयत्न करा."
+  },
+  "loading": {
+    "default": "लोड होत आहे…"
+  },
+  "error": {
+    "title": "हे लोड झाले नाही",
+    "body": "तुमचे कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.",
+    "retry": "पुन्हा प्रयत्न करा"
+  },
+  "copy": {
+    "copy": "कॉपी करा",
+    "copied": "कॉपी झाले",
+    "failed": "कॉपी झाले नाही. मजकूर निवडून स्वतः कॉपी करा."
+  },
+  "notice": {
+    "dismiss": "बंद करा"
+  },
+  "actions": {
+    "back": "मागे",
+    "cancel": "रद्द करा",
+    "save": "जतन करा",
+    "saving": "जतन होत आहे…"
+  },
+  "status": {
+    "new": "नवीन",
+    "contacted": "संपर्क केला",
+    "call_scheduled": "कॉल ठरला आहे",
+    "rescheduled": "वेळ बदलली",
+    "registered": "नोंदणीकृत",
+    "approved": "मंजूर",
+    "rejected": "नाकारले",
+    "cancelled": "रद्द",
+    "closed": "बंद",
+    "not_started": "सुरू झाले नाही",
+    "draft": "मसुदा",
+    "in_progress": "सुरू आहे",
+    "submitted": "सादर केले",
+    "completed": "पूर्ण झाले",
+    "invited": "आमंत्रित",
+    "invite_expired": "आमंत्रण संपले",
+    "invite_revoked": "आमंत्रण रद्द",
+    "pending": "प्रलंबित",
+    "pending_verification": "पडताळणी प्रलंबित",
+    "pending_review": "तपासणी प्रलंबित",
+    "pending_owner_approval": "मालकाच्या मंजुरीची प्रतीक्षा",
+    "pending_committee_approval": "समितीच्या मंजुरीची प्रतीक्षा",
+    "pending_documents": "कागदपत्रे हवीत",
+    "verified": "पडताळले",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय",
+    "suspended": "निलंबित",
+    "declined": "नाकारले",
+    "removed": "काढले",
+    "moved_out": "घर सोडले",
+    "missing": "उपलब्ध नाही",
+    "uploaded": "अपलोड झाले",
+    "under_review": "तपासणी सुरू",
+    "expired": "संपले",
+    "queued": "रांगेत",
+    "validating": "तपासणी सुरू",
+    "valid": "वैध",
+    "invalid": "अवैध",
+    "importing": "आयात सुरू",
+    "imported": "आयात झाले",
+    "partial": "अंशतः आयात",
+    "failed": "अयशस्वी",
+    "skipped": "वगळले",
+    "duplicate": "पुनरावृत्ती"
+  }
+}

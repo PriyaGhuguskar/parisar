@@ -110,12 +110,37 @@ export async function setMyPin(pin) {
   } = await ctx.supabase.auth.getSession();
   if (!session?.access_token) return { error: "AUTH_REQUIRED" };
 
-  const deps = serverDeps(await callerIp());
+  const ip = await callerIp();
+  const deps = serverDeps(ip);
   if (!deps) return { error: "SERVER_ERROR" };
 
   // runSetPin re-validates the token with GoTrue and checks sub === user.id,
   // so the cookie session (not any argument) decides whose PIN this is.
-  return runSetPin({ accessToken: session.access_token, pin: String(pin ?? "") }, deps);
+  const result = await runSetPin(
+    { accessToken: session.access_token, pin: String(pin ?? "") },
+    deps,
+  );
+  if (!result?.ok) return result;
+
+  // Writing the PIN credential is a password change, and GoTrue ends every
+  // session of the user when an admin changes the password. The OTP session in
+  // these cookies is now dead: its refresh token is gone, so the next
+  // refreshSession() signs the person out and the next page bounces to /login.
+  // Sign in again with the PIN just set and put that session in the cookies.
+  const relogin = await runPinLogin(
+    { phone: ctx.user.phone, pin: String(pin), ip },
+    { ...deps, log: (m) => console.warn(`[codeLogin] ${m}`) },
+  );
+  const s = relogin?.ok ? (relogin.session ?? {}) : null;
+  if (!s?.access_token || (s.user?.id && s.user.id !== ctx.user.id)) {
+    // The PIN is saved; the person signs in with it on the next screen.
+    return { ok: true, reauth: true };
+  }
+  const { error } = await ctx.supabase.auth.setSession({
+    access_token: s.access_token,
+    refresh_token: s.refresh_token,
+  });
+  return error ? { ok: true, reauth: true } : { ok: true };
 }
 
 /**

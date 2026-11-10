@@ -1,0 +1,21 @@
+===== Rate limit: get_connect_request_status (limit 10/600s per code) =====
+using probe code: QATRL6671
+req 1: {"error": "REQUEST_NOT_FOUND"}
+req 2: {"error": "REQUEST_NOT_FOUND"}
+req 3: {"error": "REQUEST_NOT_FOUND"}
+req 4: {"error": "REQUEST_NOT_FOUND"}
+req 5: {"error": "REQUEST_NOT_FOUND"}
+req 6: {"error": "REQUEST_NOT_FOUND"}
+req 7: {"error": "REQUEST_NOT_FOUND"}
+req 8: {"error": "REQUEST_NOT_FOUND"}
+req 9: {"error": "REQUEST_NOT_FOUND"}
+req 10: {"error": "REQUEST_NOT_FOUND"}
+req 11: {"code":"P0001","details":null,"hint":null,"message":"RATE_LIMITED"}
+req 12: {"code":"P0001","details":null,"hint":null,"message":"RATE_LIMITED"}
+req 13: {"code":"P0001","details":null,"hint":null,"message":"RATE_LIMITED"}
+===== Rate limit: submit_connect_request (per-phone 3/hour) =====
+req 1: {"status": "new", "call_now": true, "created_at": "2026-11-10T10:31:29.987049+00:00", "alternate_at": null, "preferred_at": null, "request_code": "PR-XRZQ-VTG3", "scheduled_at": null, "preferred_slot"
+req 2: {"error": "REQUEST_ALREADY_OPEN"}
+req 3: {"error": "REQUEST_ALREADY_OPEN"}
+req 4: {"code":"P0001","details":null,"hint":null,"message":"RATE_LIMITED"}
+req 5: {"code":"P0001","details":null,"hint":null,"message":"RATE_LIMITED"}

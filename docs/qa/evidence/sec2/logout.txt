@@ -1,0 +1,18 @@
+===== Logout / token invalidation =====
+1) token works BEFORE logout:
+   GET /auth/v1/user -> HTTP 200
+2) performing global logout (POST /auth/v1/logout):
+   logout -> HTTP 204
+3) REUSE same access token AFTER logout:
+   user endpoint body head: {"code":403,"error_code":"session_not_found","msg":"Session from session_id claim in JWT does not exist"}
+4) REUSE access token against a data RPC (resident_dashboard) after logout:
+   rpc/resident_dashboard -> HTTP 400
+5) try refresh with old refresh token after logout:
+   token?grant_type=refresh_token -> HTTP 400
+6) baseline BEFORE logout: GET society_memberships
+   -> HTTP 200
+   logout global -> HTTP 204
+7) AFTER logout, reuse access token on PostgREST table + rpc (full bodies):
+   society_memberships -> HTTP []200
+   rpc/resident_dashboard body: {"code":"P0001","details":null,"hint":null,"message":"NOT_A_MEMBER"}
+   token exp (UTC): 2026-11-10T11:32:09 | iat 2026-11-10T10:32:09 | ttl_sec 3600 | session_id present: True

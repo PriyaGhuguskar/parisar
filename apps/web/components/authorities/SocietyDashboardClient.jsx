@@ -15,7 +15,9 @@ import {
   MessageSquareWarning,
   Scale,
   ShieldAlert,
+  Upload,
   Users,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
@@ -23,8 +25,11 @@ import { AuthorityEntry } from "@/components/dashboard/AuthorityEntry";
 import { PageHeader, PageShell, SurfaceCard } from "@/components/kit";
 import { AuthoritiesSection } from "./AuthoritiesSection";
 import { SocietyFeaturesSection } from "./SocietyFeaturesSection";
+import { SocietyMetrics } from "./SocietyMetrics";
 
 const MANAGE_LINKS = [
+  { href: "/setup", icon: Workflow, labelKey: "setup-wizard:links.setup" },
+  { href: "/import", icon: Upload, labelKey: "setup-wizard:links.import" },
   { href: "/complaints", icon: MessageSquareWarning, labelKey: "dashboard:tiles.allComplaints" },
   { href: "/bookings", icon: CalendarCheck, labelKey: "dashboard:tiles.bookings" },
   { href: "/society", icon: Building2, labelKey: "auth:profile.societyProfile" },
@@ -42,7 +47,13 @@ const MANAGE_LINKS = [
 ];
 
 export function SocietyDashboardClient({ societyId, userId }) {
-  const { t } = useTranslation(["auth", "dashboard", "notifications", "moderation"]);
+  const { t } = useTranslation([
+    "auth",
+    "dashboard",
+    "notifications",
+    "moderation",
+    "setup-wizard",
+  ]);
 
   return (
     <PageShell>
@@ -54,6 +65,8 @@ export function SocietyDashboardClient({ societyId, userId }) {
         description={t("authority.societyDashboardLead")}
       />
       <div className="flex flex-col gap-10">
+        <SocietyMetrics societyId={societyId} />
+
         <AuthoritiesSection societyId={societyId} userId={userId} />
 
         <SocietyFeaturesSection societyId={societyId} />

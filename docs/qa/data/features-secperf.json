@@ -1,0 +1,58 @@
+[
+  {
+    "module": "Security",
+    "feature": "OTP login (dev test_otp)",
+    "classification": "Fully Working",
+    "evidence": "docs/qa/evidence/secperf/auth-login.txt",
+    "notes": "Dev stub only; real SMS provider not chosen"
+  },
+  {
+    "module": "Security",
+    "feature": "PIN as second step",
+    "classification": "Partially Working",
+    "evidence": "docs/qa/evidence/secperf/pin-bypass.txt",
+    "notes": "Enforced in the web UI only; API accepts OTP-only session (SEC-003)"
+  },
+  {
+    "module": "Security",
+    "feature": "PIN hashing (peppered HMAC + bcrypt)",
+    "classification": "Partially Working",
+    "evidence": "code review lib/auth/pinCore.js",
+    "notes": "Legacy pk1 fallback still on (SEC-004)"
+  },
+  {
+    "module": "Security",
+    "feature": "Security headers (CSP, XFO, nosniff, Referrer-Policy, Permissions-Policy)",
+    "classification": "Fully Working",
+    "evidence": "PARISAR_SECURITY_TESTING.md SEC-TC-14",
+    "notes": "HSTS production-only, not verified"
+  },
+  {
+    "module": "Security",
+    "feature": "Open-redirect protection on next=",
+    "classification": "Fully Working",
+    "evidence": "SEC-TC-11",
+    "notes": ""
+  },
+  {
+    "module": "Security",
+    "feature": "Signed-out route protection",
+    "classification": "Fully Working",
+    "evidence": "SEC-TC-12, SEC-TC-13",
+    "notes": "In dev redirects to auto-login /dev-login"
+  },
+  {
+    "module": "Security",
+    "feature": "RLS on all public tables / anon isolation",
+    "classification": "Fully Working",
+    "evidence": "SEC-TC-18, SEC-TC-19",
+    "notes": "anon still holds grants (SEC-006)"
+  },
+  {
+    "module": "Security",
+    "feature": "SECURITY DEFINER search_path pinning",
+    "classification": "Fully Working",
+    "evidence": "SEC-TC-15",
+    "notes": "208 functions checked"
+  }
+]

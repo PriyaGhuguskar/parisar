@@ -10,7 +10,7 @@ export function Sidebar({
   inRequests,
   requestsOpen,
   setRequestsOpen,
-  leads,
+  requestCount = 0,
   onSelect,
 }) {
   return (
@@ -81,19 +81,19 @@ export function Sidebar({
                   <Icon size={16} strokeWidth={2.2} />
                 </span>
                 {label}
-                {leads.length > 0 ? (
+                {requestCount > 0 ? (
                   <span
                     className="ml-auto rounded-full px-1.5 py-0.5 font-bold text-[11px] tabular-nums"
                     style={{ backgroundColor: "#FDF0DF", color: "#8A4708" }}
                   >
-                    {leads.length}
+                    {requestCount}
                   </span>
                 ) : null}
                 <ChevronRight
                   size={15}
                   strokeWidth={2.4}
                   aria-hidden="true"
-                  className={`${leads.length > 0 ? "" : "ml-auto"} transition-transform duration-200`}
+                  className={`${requestCount > 0 ? "" : "ml-auto"} transition-transform duration-200`}
                   style={{ transform: expanded ? "rotate(90deg)" : "none" }}
                 />
               </button>
@@ -171,7 +171,8 @@ export function MobileSectionNav({ isAdmin, section, onSelect }) {
           key={id}
           type="button"
           onClick={() => onSelect(id)}
-          className="shrink-0 rounded-full px-3.5 py-2 font-bold text-[13px]"
+          aria-current={section === id ? "page" : undefined}
+          className="min-h-11 shrink-0 rounded-full px-3.5 py-2 font-bold text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
           style={{
             backgroundColor: section === id ? "var(--color-brand-500)" : "transparent",
             color: section === id ? "#fff" : "var(--color-neutral-600)",

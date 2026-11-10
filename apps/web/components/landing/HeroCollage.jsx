@@ -499,14 +499,14 @@ function PollTile() {
 // Heights are carried over from the photo version — the stagger was the one
 // thing about the old collage that was working.
 const COL_A = [
-  { key: "rangoli", h: 168, dur: "9s", delay: "0ms", Art: RangoliTile },
+  { key: "rangoli", h: 144, dur: "9s", delay: "0ms", Art: RangoliTile },
   { key: "notice", h: 228, dur: "11s", delay: "800ms", Art: NoticeTile },
-  { key: "courtyard", h: 156, dur: "10s", delay: "1600ms", Art: CourtyardTile },
+  { key: "courtyard", h: 132, dur: "10s", delay: "1600ms", Art: CourtyardTile },
 ];
 const COL_B = [
-  { key: "tower", h: 210, dur: "12s", delay: "400ms", Art: TowerTile },
-  { key: "trail", h: 162, dur: "9.5s", delay: "1200ms", Art: TrailTile },
-  { key: "poll", h: 196, dur: "10.5s", delay: "2000ms", Art: PollTile },
+  { key: "tower", h: 178, dur: "12s", delay: "400ms", Art: TowerTile },
+  { key: "trail", h: 138, dur: "9.5s", delay: "1200ms", Art: TrailTile },
+  { key: "poll", h: 166, dur: "10.5s", delay: "2000ms", Art: PollTile },
 ];
 
 export function HeroCollage() {

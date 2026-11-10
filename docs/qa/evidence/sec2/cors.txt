@@ -1,0 +1,11 @@
+===== CORS: Supabase REST with evil Origin =====
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT
+--- GET with Origin ---
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: Content-Encoding, Content-Location, Content-Range, Content-Type, Date, Location, Server, Transfer-Encoding, Range-Unit
+===== CORS: Web app =====
+HTTP/1.1 200 OK
+(web app: if no ACAO header, no CORS exposure)

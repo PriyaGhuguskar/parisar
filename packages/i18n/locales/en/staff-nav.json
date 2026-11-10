@@ -1,0 +1,325 @@
+{
+  "_meta": {
+    "locale": "en",
+    "namespace": "staff-nav"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "featuresFailed": "Some menu items could not load.",
+    "retry": "Try again",
+    "home": "Home",
+    "societyDashboard": "Society Dashboard",
+    "societyProfile": "Society profile",
+    "setup": "Society setup",
+    "societyCode": "Society code",
+    "owners": "Owners",
+    "tenants": "Tenants",
+    "family": "Family members",
+    "directory": "Member directory",
+    "importResidents": "Import residents",
+    "verification": "Resident verification",
+    "approvals": "Approvals",
+    "joinRequests": "Join requests",
+    "household": "My household",
+    "visitors": "Visitors",
+    "staffManage": "Staff management",
+    "staffDirectory": "Staff directory",
+    "complaints": "Complaints",
+    "myComplaints": "My Complaints",
+    "facilities": "Facility calendar",
+    "bookings": "Bookings",
+    "flatActions": "Flat actions",
+    "notices": "Notices",
+    "polls": "Polls",
+    "community": "Community",
+    "notifications": "Notification settings",
+    "grievanceOfficer": "Grievance officer",
+    "roleTransfer": "Hand over secretary role",
+    "profile": "Profile"
+  },
+  "group": {
+    "main": "Main",
+    "society": "Society",
+    "residents": "Residents",
+    "security": "Security",
+    "services": "Services",
+    "communication": "Communication",
+    "settings": "Settings",
+    "myHome": "My home"
+  },
+  "adminDash": {
+    "title": "Society overview",
+    "todayNote": "Visitor counts are for today",
+    "loadFailed": "We couldn't load the society overview.",
+    "noFlatsTitle": "No flats yet",
+    "noFlatsBody": "Add wings, floors and flats so residents can join.",
+    "noFlatsAction": "Continue setup",
+    "underConstruction": "{{count}} under construction",
+    "underMaintenance": "{{count}} under maintenance",
+    "pendingBreakdown": "Join {{memberships}} · Household {{household}} · Tenant {{tenants}}",
+    "metric": {
+      "residents": "Total residents",
+      "flats": "Total flats",
+      "occupied": "Occupied flats",
+      "vacant": "Vacant flats",
+      "pendingRequests": "Pending resident requests",
+      "pendingVerification": "Pending verification",
+      "openComplaints": "Open complaints",
+      "todaysVisitors": "Today's visitors"
+    }
+  },
+  "residentDash": {
+    "title": "My home",
+    "loadFailed": "We couldn't load your home summary.",
+    "myFlat": "My flat",
+    "noFlat": "No flat is linked to your account yet.",
+    "household": "{{count}} in household",
+    "householdWaiting": "Household requests waiting for you: {{count}}",
+    "tenantsWaiting": "Tenant requests waiting for your approval: {{count}}",
+    "review": "Review",
+    "emergency": "Emergency",
+    "emergencyHint": "Alert the gate, the committee or your neighbours.",
+    "metric": {
+      "visitorsWaiting": "Visitors waiting",
+      "myComplaints": "My open complaints",
+      "upcomingBookings": "Upcoming bookings",
+      "noticesWeek": "Notices this week",
+      "openPolls": "Open polls"
+    }
+  },
+  "security": {
+    "title": "Today at the gate",
+    "newVisitor": "New visitor",
+    "loadFailed": "We couldn't load today's numbers.",
+    "tile": {
+      "today": "Today's visitors",
+      "waiting": "Waiting for approval",
+      "allowed": "Allowed in",
+      "emergency": "Emergency alerts"
+    }
+  },
+  "residentType": {
+    "owner": "Owner",
+    "tenant": "Tenant",
+    "family_member": "Family member"
+  },
+  "societyTitle": {
+    "resident": "Resident",
+    "chairman": "Chairman",
+    "secretary": "Secretary",
+    "treasurer": "Treasurer",
+    "committee_member": "Committee member"
+  },
+  "residents": {
+    "tabsLabel": "Resident type",
+    "tab": {
+      "owners": "Owners",
+      "tenants": "Tenants",
+      "family": "Family members"
+    },
+    "title": {
+      "owners": "Owners",
+      "tenants": "Tenants",
+      "family": "Family members"
+    },
+    "lead": {
+      "owners": "Everyone recorded as an owner, including co-owners who do not use the app.",
+      "tenants": "Active tenants and tenancy requests at every step of approval.",
+      "family": "Family members listed by residents, and family members who joined the app."
+    },
+    "empty": {
+      "owners": {
+        "title": "No owners yet",
+        "body": "Owners appear here when they join or are imported."
+      },
+      "tenants": {
+        "title": "No tenants yet",
+        "body": "Tenants appear here when they register or join."
+      },
+      "family": {
+        "title": "No family members yet",
+        "body": "Family members appear here when residents add them."
+      }
+    },
+    "col": {
+      "name": "Name",
+      "flat": "Flat",
+      "status": "Status",
+      "primary": "Primary owner",
+      "verified": "Ownership",
+      "membershipNumber": "Membership no.",
+      "agreementEnd": "Agreement ends",
+      "police": "Police verification",
+      "relationship": "Relationship",
+      "addedBy": "Added by"
+    },
+    "status": {
+      "active": "On the app",
+      "not_on_app": "Not on the app",
+      "registered": "Waiting for owner",
+      "owner_approved": "Waiting for committee",
+      "admin_approved": "Approved, starts later",
+      "rejected": "Rejected"
+    },
+    "police": {
+      "not_submitted": "Not submitted",
+      "submitted": "Submitted",
+      "verified": "Verified",
+      "rejected": "Rejected"
+    },
+    "relationship": {
+      "spouse": "Spouse",
+      "parent": "Parent",
+      "child": "Child",
+      "sibling": "Sibling",
+      "other": "Other"
+    },
+    "allStatuses": "All statuses",
+    "searchPlaceholder": "Search by name, flat or membership no.",
+    "loadFailed": "We couldn't load this list.",
+    "noName": "Name not given",
+    "yes": "Yes",
+    "verified": "Verified",
+    "notVerified": "Not verified",
+    "notRecorded": "No owner record",
+    "importAction": "Import residents",
+    "reviewApprovals": "Review approvals"
+  },
+  "staffRole": {
+    "security": "Security",
+    "plumber": "Plumber",
+    "electrician": "Electrician",
+    "cleaner": "Cleaner",
+    "gardener": "Gardener",
+    "maintenance_staff": "Maintenance staff",
+    "other": "Other",
+    "maid": "Maid",
+    "driver": "Driver",
+    "cook": "Cook"
+  },
+  "shift": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "night": "Night",
+    "general": "General",
+    "rotational": "Rotational"
+  },
+  "idProof": {
+    "aadhaar": "Aadhaar",
+    "pan": "PAN card",
+    "voter_id": "Voter ID",
+    "driving_licence": "Driving licence",
+    "passport": "Passport",
+    "other": "Other"
+  },
+  "staffList": {
+    "title": "Staff management",
+    "lead": "Society staff with their work details. Residents see only name, type and phone in the staff directory.",
+    "add": "Add staff",
+    "allTypes": "All staff types",
+    "searchPlaceholder": "Search by name, employee ID or agency",
+    "loadFailed": "We couldn't load the staff list.",
+    "emptyTitle": "No staff yet",
+    "emptyBody": "Add security, cleaning, maintenance and other staff who work for the society.",
+    "col": {
+      "name": "Name",
+      "category": "Staff type",
+      "phone": "Mobile",
+      "shift": "Shift",
+      "employeeId": "Employee ID",
+      "vendor": "Agency",
+      "idProof": "ID proof"
+    }
+  },
+  "staffForm": {
+    "addTitle": "Add staff",
+    "addLead": "Fields marked required must be filled. You can upload the ID proof after saving.",
+    "addSubmit": "Add staff",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "choose": "Choose…",
+    "notSet": "Not set",
+    "loadFailed": "We couldn't load this staff record.",
+    "noAccessNote": "Adding staff does not give them a login or any access to Parisar. Gate guards are added from the Society profile.",
+    "proofAfterSave": "Save the staff member first. The ID proof upload appears here after that.",
+    "saved": {
+      "created": "Staff member added",
+      "createdBody": "You can upload the ID proof below.",
+      "updated": "Changes saved"
+    },
+    "section": {
+      "details": "Details",
+      "work": "Work",
+      "emergency": "Emergency contact",
+      "idProof": "ID proof"
+    },
+    "field": {
+      "name": "First name",
+      "lastName": "Last name",
+      "category": "Staff type",
+      "phone": "Mobile number",
+      "email": "Email",
+      "joiningDate": "Joining date",
+      "employeeId": "Employee ID",
+      "vendorName": "Agency or contractor",
+      "shift": "Shift",
+      "emergencyContactName": "Contact name",
+      "emergencyContactPhone": "Contact mobile",
+      "idProofType": "ID proof type"
+    },
+    "hint": {
+      "category": "The kind of work they do. It does not grant any permission.",
+      "vendorName": "Name only. There is no vendor module yet."
+    },
+    "error": {
+      "nameRequired": "Enter the first name.",
+      "nameLength": "Name must be 2 to 80 characters.",
+      "lastNameLength": "Last name can be at most 80 characters.",
+      "categoryRequired": "Choose a staff type.",
+      "categoryInvalid": "Choose a staff type from the list.",
+      "phoneInvalid": "Enter a valid 10-digit Indian mobile number.",
+      "emailInvalid": "Enter a valid email address.",
+      "joiningDateTooLate": "Joining date can be at most a year from today.",
+      "employeeIdLength": "Employee ID can be at most 40 characters.",
+      "employeeIdTaken": "Another staff member already has this employee ID.",
+      "vendorLength": "Agency name can be at most 120 characters.",
+      "shiftInvalid": "Choose a shift from the list.",
+      "contactNameLength": "Contact name can be at most 80 characters.",
+      "contactNameRequired": "Enter the contact's name.",
+      "contactInvalid": "Check the emergency contact's name and mobile number.",
+      "idProofTypeInvalid": "Choose an ID proof type from the list.",
+      "staffNotFound": "This staff record no longer exists.",
+      "notManager": "Only the society's authorities can manage staff.",
+      "serviceStopped": "Your society's service is paused, so changes cannot be saved.",
+      "saveFailed": "Something went wrong. Try again."
+    }
+  },
+  "proofs": {
+    "uploadLabel": "Upload ID proof",
+    "uploadHint": "PDF or photo, up to 10 MB. Up to 10 files per staff member.",
+    "loading": "Loading documents…",
+    "loadFailed": "We couldn't load the documents.",
+    "none": "No ID proof uploaded yet.",
+    "unnamed": "Document",
+    "view": "View",
+    "remove": "Remove",
+    "removeTitle": "Remove this document?",
+    "removeBody": "{{name}} will be deleted. This cannot be undone.",
+    "removeFailed": "We couldn't remove the document. Try again.",
+    "removed": "Document removed.",
+    "fileStuck": "The document was removed from the record, but the file could not be deleted from storage.",
+    "uploaded": "ID proof uploaded.",
+    "viewFailed": "We couldn't open the document. Try again.",
+    "popupBlocked": "Your browser blocked the new tab.",
+    "openLink": "Open the document",
+    "error": {
+      "tooMany": "This staff member already has 10 documents. Remove one first.",
+      "alreadyAttached": "This file is already attached.",
+      "uploadFailed": "The upload failed. Check the file and try again.",
+      "serviceStopped": "Your society's service is paused, so files cannot be added.",
+      "attachFailed": "The file uploaded but could not be attached. Try again."
+    }
+  }
+}

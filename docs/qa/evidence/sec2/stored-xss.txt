@@ -1,0 +1,110 @@
+===== Stored XSS: static analysis of HTML sinks =====
+--- dangerouslySetInnerHTML usages (app + components + packages) ---
+   (count: 0)
+--- other sinks: innerHTML / insertAdjacentHTML / document.write / eval ---
+   (none above = user content rendered only via JSX auto-escaping)
+--- profile update path ---
+packages/api-client/src/bookings.js:77:        requester:requester_id ( user_id, full_name ),
+packages/api-client/src/complaints.js:63:        reporter:reporter_id ( user_id, full_name ),
+packages/api-client/src/complaints.js:65:        owner:owner_id ( user_id, full_name )
+packages/api-client/src/complaints.js:96:        reporter:reporter_id ( user_id, full_name ),
+packages/api-client/src/complaints.js:98:        owner:owner_id ( user_id, full_name )
+packages/api-client/src/complaints.js:115:        responder:responder_id ( user_id, full_name ),
+packages/api-client/src/flat-actions.js:83:        issuer:issuer_id ( user_id, full_name ),
+packages/api-client/src/flat-actions.js:118:        issuer:issuer_id ( user_id, full_name ),
+packages/api-client/src/notifications.js:64:        author:author_id ( user_id, full_name ),
+packages/api-client/src/notifications.js:101:        author:author_id ( user_id, full_name ),
+--- RLS update policy on profiles ---
+self_select_profile|SELECT
+self_update_profile|UPDATE
+admin_view_select|SELECT
+society_select_profile|SELECT
+===== Stored XSS: live verbatim-storage round-trip on OWN profile (29) =====
+original name captured (len 0)
+   PATCH profile -> HTTP 204
+   stored value read back: []
+   restore original -> HTTP 204
+   NOTE: value stored verbatim; web renders names via JSX (auto-escaped), 0 HTML sinks -> inert.
+--- CSV/XLSX export paths ---
+apps/web/components/import/lib/excel.js
+apps/web/components/import/ImportResidents.jsx
+packages/i18n/locales/hi/setup-wizard.json
+packages/i18n/locales/en.json
+packages/i18n/locales/mr/setup-wizard.json
+apps/web/components/auth/SocietyScene.jsx
+packages/i18n/locales/en/setup-wizard.json
+--- import (xlsx read) present, export to sheet? ---
+page.jsx
+--- excel.js: read-only or does it WRITE/export cells? ---
+8:export const MAX_FILE_BYTES = 2 * 1024 * 1024;
+9:export const MAX_ROWS = 2000;
+10:export const TEMPLATE_SHEET = "Residents";
+11:export const RESIDENT_TYPES = ["Owner", "Tenant", "Family Member"];
+15:export const COLUMNS = [
+50:export async function loadExcelJS() {
+72:export function neutraliseCell(text) {
+78:export function cellText(value) {
+102:export async function buildTemplate({ societyCode = "", instructions = [] } = {}) {
+134:export async function parseWorkbook(buffer) {
+   (if only *read/sheet_to_json* and no write/export: import parses sheets, app never writes user data back into a spreadsheet -> no CSV-formula-injection sink)
+// Excel template, parsing and error report for the resident import (/import).
+//
+// exceljs is large, so it is only ever loaded inside these functions with a
+// dynamic import (docs/onboarding/DESIGN.md, Excel). Never import it at the top
+// of a file. Parsing is a preview: import_validate_rows checks every row again
+// on the server, and import_confirm_batch checks once more before creating.
+
+export const MAX_FILE_BYTES = 2 * 1024 * 1024;
+export const MAX_ROWS = 2000;
+export const TEMPLATE_SHEET = "Residents";
+export const RESIDENT_TYPES = ["Owner", "Tenant", "Family Member"];
+
+// Column keys are the import_validate_rows row keys. Headers stay in English in
+// the file itself, so a sheet filled in any language parses the same way.
+export const COLUMNS = [
+  { key: "society_code", header: "Society Code", required: true, width: 16 },
+  { key: "wing", header: "Wing", required: true, width: 10 },
+  { key: "floor", header: "Floor", required: true, width: 8 },
+  { key: "flat", header: "Flat", required: true, width: 10 },
+  { key: "full_name", header: "Full Name", required: true, width: 28 },
+  { key: "resident_type", header: "Resident Type", required: true, width: 16 },
+  { key: "mobile", header: "Mobile", required: true, width: 16 },
+  { key: "email", header: "Email", required: false, width: 28 },
+];
+
+export function neutraliseCell(text) {
+  const s = String(text ?? "");
+  return FORMULA_START.test(s) ? `'${s}` : s;
+}
+
+/** Plain text for any exceljs cell value (rich text, links, formulas, numbers). */
+export function cellText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") {
+    const s = value.trim();
+    // Undo neutraliseCell when an error report is uploaded again.
+    return s.startsWith("'") && FORMULA_START.test(s.slice(1)) ? s.slice(1) : s;
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  if (typeof value === "boolean") return String(value);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (Array.isArray(value.richText))
+    return value.richText
+      .map((r) => r.text ?? "")
+      .join("")
+      .trim();
+  if (value.text !== undefined) return cellText(value.text);
+  if (value.result !== undefined) return cellText(value.result);
+  return "";
+}
+
+/**
+ * The template workbook as an ArrayBuffer.
+ * @param {{ societyCode?: string, instructions?: string[] }} opts
+ */
+--- where neutraliseCell is applied (export/error-report build) ---
+apps/web/components/import/lib/excel.js:72:export function neutraliseCell(text) {
+apps/web/components/import/lib/excel.js:82:    // Undo neutraliseCell when an error report is uploaded again.
+apps/web/components/import/lib/excel.js:193:      status: neutraliseCell(labels.status(row.status)),
+apps/web/components/import/lib/excel.js:195:    for (const c of COLUMNS) values[c.key] = neutraliseCell(cellText(source[c.key]));
+apps/web/components/import/lib/excel.js:196:    values.problems = neutraliseCell(labels.problems(row));

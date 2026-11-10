@@ -11,9 +11,8 @@
 //      placeholder OR be silently dropped at runtime).
 //
 // Shards covered:
-//   - 9 domain shards under locales/{en,hi,mr}/: dashboard, complaints,
-//     notifications, polls, bookings, preferences, flat-actions, community,
-//     moderation.
+//   - Every namespace in packages/i18n/src/namespaces.js, one shard under each of
+//     locales/{en,hi,mr}/. A shard holding only `_meta` passes (ready, not yet used).
 //   - The flat top-level <lng>.json (auth + setup + dashboard-legacy + removal
 //     + roleTransfer + join + amenity + codeRotation + reviewQueue + directory).
 //
@@ -24,22 +23,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { NAMESPACES } from "../packages/i18n/src/namespaces.js";
 
 const REPO_ROOT = path.resolve(process.cwd());
 const LOCALE_DIR = path.join(REPO_ROOT, "packages/i18n/locales");
 const LOCALES = ["en", "hi", "mr"];
 
-const DOMAIN_SHARDS = [
-  "dashboard",
-  "complaints",
-  "notifications",
-  "polls",
-  "bookings",
-  "preferences",
-  "flat-actions",
-  "community",
-  "moderation",
-];
+// Read from the runtime's own list so a registered namespace can never skip this gate.
+const DOMAIN_SHARDS = NAMESPACES;
 
 const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
 

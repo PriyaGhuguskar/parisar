@@ -9,6 +9,10 @@
 //   family  -> OTP -> claim flat -> set PIN -> in (pre-entered family member)
 //   code    -> OTP -> society code -> onboard     (brand-new resident)
 //
+// Authorities use this same screen: there is no separate "Society authority"
+// choice. /verify checks AFTER the OTP whether the number is on a society's
+// authority list and, if so, runs the authority claim.
+//
 // WHY NOTHING IS LOOKED UP BEFORE THE OTP: a pre-OTP lookup tells anyone who
 // types a number whether it belongs to staff, a guard or an authority. Deciding
 // after the OTP means only the number's owner ever learns that.
@@ -26,7 +30,7 @@ import { otpErrorCode, otpErrorKey } from "../../../lib/auth/otpErrors";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
 
 function LoginForm() {
-  const { t } = useTranslation("auth");
+  const { t } = useTranslation(["auth", "setup-wizard"]);
   const router = useRouter();
   const params = useSearchParams();
   // Where the middleware was sending them before it bounced them to /login.

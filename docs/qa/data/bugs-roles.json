@@ -1,0 +1,50 @@
+[
+  {
+    "id": "API-001",
+    "module": "Complaints",
+    "screen": "/complaints/new (RPC file_complaint)",
+    "title": "A member can file a complaint attributed to any other flat in the society",
+    "steps": "1. Sign in as 9000000007 (owner of A-202, QA-T Lotus Society). 2. POST /rest/v1/rpc/file_complaint with p_reporter_flat_id = id of flat A-101 (the chairman's flat), p_kind=society, p_description='QA-T lift not working'. 3. select reporter_flat_id from complaints.",
+    "expected": "INVALID_FLAT: the reporter flat must be a flat the caller holds an active membership on.",
+    "actual": "200 {complaint_id: fc45ddee-...}. complaints row has reporter_id = 9000000007 but reporter_flat_id = A-101. file_complaint only checks that the flat is in the caller's society (flats.society_id = v_society_id), not that the caller lives there. The status trail would show the complaint as coming from A-101.",
+    "severity": "High",
+    "priority": "P1",
+    "environment": "local Supabase, branch feat/saas-onboarding, 2026-11-10",
+    "screenshot": "",
+    "api_error": "none (200)",
+    "status": "Open",
+    "test_id": "TC-API-402"
+  },
+  {
+    "id": "API-002",
+    "module": "Visitors",
+    "screen": "/visitors (table visitor_requests)",
+    "title": "Every resident can read every flat's visitor log, including visitor phone numbers",
+    "steps": "1. Guard 9000000006 logs a visit for flat A-201 (guard_create_visit, visitor_phone 9876500000). 2. Sign in as 9000000007 (plain member, flat A-202). 3. GET /rest/v1/visitor_requests?select=visitor_name,visitor_phone,flat_id.",
+    "expected": "0 rows: a resident sees only visits for their own flat; managers may see all.",
+    "actual": "200 with the A-201 visit, visitor name and phone. RLS policy visitor_requests_secretary_read is USING (society_id = current_society_id()) with no role check, so it admits every member, board member and family member of the society. Committee member 9000000004 also read a visit to A-202 (TC-API-446).",
+    "severity": "Medium",
+    "priority": "P1",
+    "environment": "local Supabase, 2026-11-10",
+    "screenshot": "",
+    "api_error": "none (200)",
+    "status": "Open",
+    "test_id": "TC-API-460, TC-API-446"
+  },
+  {
+    "id": "API-003",
+    "module": "SOS",
+    "screen": "/c/g8s4muv security screen (RPC resolve_sos)",
+    "title": "A guard cannot resolve an SOS addressed to guards",
+    "steps": "1. Member 9000000007 raises SOS with p_audience='watchman'. 2. Guard 9000000006 sees it in security_dashboard.active_sos. 3. Guard calls resolve_sos(p_id).",
+    "expected": "The guard who responds can mark it handled (or the UI says only the raiser/manager can).",
+    "actual": "400 NOT_ALLOWED. Only the raiser or a secretary/co_secretary can resolve; the guard dashboard keeps counting it as active until then.",
+    "severity": "Low",
+    "priority": "P3",
+    "environment": "local Supabase, 2026-11-10",
+    "screenshot": "",
+    "api_error": "NOT_ALLOWED",
+    "status": "Open",
+    "test_id": "TC-API-457"
+  }
+]

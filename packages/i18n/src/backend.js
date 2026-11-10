@@ -8,7 +8,7 @@
 //   - Webpack/Turbopack on the web side also tree-shakes the unused-locale chunks
 //     cleanly with this shape.
 //
-// The map covers the 9 domain shards × 3 locales + the flat top-level <lng>.json
+// The map covers every entry in NAMESPACES × 3 locales + the flat top-level <lng>.json
 // loaded under the synthetic "auth" namespace.
 
 import resourcesToBackend from "i18next-resources-to-backend";
@@ -41,6 +41,24 @@ const STATIC = {
   "en/moderation": () => import("../locales/en/moderation.json"),
   "hi/moderation": () => import("../locales/hi/moderation.json"),
   "mr/moderation": () => import("../locales/mr/moderation.json"),
+  "en/connect": () => import("../locales/en/connect.json"),
+  "hi/connect": () => import("../locales/hi/connect.json"),
+  "mr/connect": () => import("../locales/mr/connect.json"),
+  "en/platform": () => import("../locales/en/platform.json"),
+  "hi/platform": () => import("../locales/hi/platform.json"),
+  "mr/platform": () => import("../locales/mr/platform.json"),
+  "en/setup-wizard": () => import("../locales/en/setup-wizard.json"),
+  "hi/setup-wizard": () => import("../locales/hi/setup-wizard.json"),
+  "mr/setup-wizard": () => import("../locales/mr/setup-wizard.json"),
+  "en/resident-onboarding": () => import("../locales/en/resident-onboarding.json"),
+  "hi/resident-onboarding": () => import("../locales/hi/resident-onboarding.json"),
+  "mr/resident-onboarding": () => import("../locales/mr/resident-onboarding.json"),
+  "en/staff-nav": () => import("../locales/en/staff-nav.json"),
+  "hi/staff-nav": () => import("../locales/hi/staff-nav.json"),
+  "mr/staff-nav": () => import("../locales/mr/staff-nav.json"),
+  "en/kit": () => import("../locales/en/kit.json"),
+  "hi/kit": () => import("../locales/hi/kit.json"),
+  "mr/kit": () => import("../locales/mr/kit.json"),
   "en/auth": () => import("../locales/en.json"),
   "hi/auth": () => import("../locales/hi.json"),
   "mr/auth": () => import("../locales/mr.json"),

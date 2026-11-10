@@ -51,6 +51,19 @@ export async function updateSession(request) {
   const { pathname, search } = request.nextUrl;
   // Dev-only routes need NODE_ENV=development AND ENABLE_DEV_ROUTES=1 (lib/devRoutes.js).
   const isDev = devRoutesEnabled();
+
+  const moved = publicRedirectFor(pathname);
+  if (moved) {
+    const target = request.nextUrl.clone();
+    target.pathname = moved;
+    // Temporary (307): a browser caches a permanent redirect indefinitely, which would
+    // outlive any later change of mind. `search` stays on the clone, so links keep
+    // their query string.
+    const redirect = NextResponse.redirect(target, 307);
+    for (const c of response.cookies.getAll()) redirect.cookies.set(c);
+    return redirect;
+  }
+
   if (!user && !isPublicPath(pathname, { isDev })) {
     const target = request.nextUrl.clone();
     // Dev keeps the (protected) layout's convenience of auto-signing in.
@@ -75,6 +88,8 @@ const PUBLIC_EXACT = new Set([
   "/login",
   "/verify",
   "/enroll",
+  "/connect",
+  "/connect/success",
   "/work-with-us",
   "/api/health",
   "/manifest.webmanifest",
@@ -86,6 +101,11 @@ const PUBLIC_EXACT = new Set([
 // /login?next=/join/code?code=… by the redirect above, so the code survives the
 // sign-in (the (protected) layout's own redirect would drop it).
 const PUBLIC_PREFIXES = ["/_next/"];
+// One token segment only, so nothing nested under an invite link becomes public by
+// accident. The route itself validates the token server-side.
+const PUBLIC_PATTERNS = [/^\/invite\/[^/]+$/];
+// Old public URLs that now live elsewhere. Links already shared keep working.
+const PUBLIC_REDIRECTS = new Map([["/enroll", "/connect"]]);
 const DEV_ONLY = new Set(["/dev-login", "/dev-preview"]);
 // Files from /public (images, icons, fonts) — never sensitive.
 const STATIC_FILE_RE = /\/[^/]+\.[A-Za-z0-9]{1,8}$/;
@@ -101,7 +121,18 @@ export function isPublicPath(pathname, { isDev = false } = {}) {
   if (PUBLIC_EXACT.has(normalized)) return true;
   if (isDev && DEV_ONLY.has(normalized)) return true;
   if (PUBLIC_PREFIXES.some((pre) => normalized.startsWith(pre))) return true;
+  if (PUBLIC_PATTERNS.some((re) => re.test(normalized))) return true;
   return STATIC_FILE_RE.test(normalized);
+}
+
+/**
+ * @param {string} pathname
+ * @returns {string | null} where a moved public path now lives, or null.
+ */
+export function publicRedirectFor(pathname) {
+  const p = String(pathname || "/");
+  const normalized = p.length > 1 ? p.replace(/\/+$/, "") : p;
+  return PUBLIC_REDIRECTS.get(normalized) ?? null;
 }
 
 /**

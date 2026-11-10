@@ -175,7 +175,7 @@ function AmenityDialog({ societyId, editing, onClose, onSaved }) {
   );
 }
 
-export function AmenitiesSection({ societyId }) {
+export function AmenitiesSection({ societyId, embedded = false }) {
   const { t, i18n } = useTranslation("auth");
   const [amenities, setAmenities] = useState([]);
   const [loadError, setLoadError] = useState(false);
@@ -215,15 +215,18 @@ export function AmenitiesSection({ societyId }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
-            {t("profile.amenitiesTitle")}
-          </h2>
-          <p className="mt-0.5 text-[14px] text-[var(--color-neutral-600)]">
-            {t("profile.amenitiesLead")}
-          </p>
-        </div>
+      {/* embedded: the host card already titles this section (setup wizard). */}
+      <div className={embedded ? "flex justify-end" : "flex items-end justify-between gap-3"}>
+        {embedded ? null : (
+          <div>
+            <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-[var(--color-neutral-900)]">
+              {t("profile.amenitiesTitle")}
+            </h2>
+            <p className="mt-0.5 text-[14px] text-[var(--color-neutral-600)]">
+              {t("profile.amenitiesLead")}
+            </p>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setDialog({})}
