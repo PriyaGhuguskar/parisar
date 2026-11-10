@@ -1,0 +1,6 @@
+# Origin: http://evil.example
+HTTP/1.1 500 Internal Server Error
+# Origin: http://localhost:3000
+HTTP/1.1 200 OK
+# no Origin header
+200

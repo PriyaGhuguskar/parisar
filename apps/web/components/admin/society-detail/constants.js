@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardList,
   CreditCard,
+  FileText,
   History,
   IndianRupee,
   MessageSquare,
@@ -13,6 +14,8 @@ import {
 
 export const ALL_PANES = [
   { id: "overview", label: "Overview", icon: Building2 },
+  // labelKey: translated from the `platform` shard (newer panes are internationalised).
+  { id: "registration", label: "Registration", labelKey: "registration.pane", icon: FileText },
   { id: "features", label: "Features", icon: Check },
   { id: "requests", label: "Requests", icon: ClipboardList },
   { id: "monthly", label: "Monthly", icon: CalendarRange },

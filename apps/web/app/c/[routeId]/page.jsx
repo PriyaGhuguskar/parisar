@@ -105,36 +105,26 @@ export default async function SurfacePage({ params }) {
  * cannot reach finance data by editing the prop in their browser.
  */
 async function renderConsole(supabase, isAdmin) {
-  // Leads come through RLS (enrollment_staff_read) — the policy is the security
-  // boundary, not the query. Societies and stats come through SECURITY DEFINER
-  // RPCs instead: every policy on societies / society_memberships is
-  // tenant-scoped, and widening those to admit staff would put the entire tenant
-  // boundary behind one admin check. The RPCs return only what this console
-  // renders — no resident names, no resident phone numbers.
-  const [{ data: leads }, { data: societies }, { data: stats }, { data: features }] =
-    await Promise.all([
-      supabase
-        .from("society_enrollment_requests")
-        .select(
-          "id, society_name, contact_name, phone, preferred_slot, preferred_at, call_now, status, created_at",
-        )
-        .in("status", ["new", "contacted"])
-        .order("call_now", { ascending: false })
-        .order("preferred_at", { ascending: true, nullsFirst: false }),
-      supabase.rpc("admin_list_societies"),
-      supabase.rpc("admin_stats"),
-      // The catalogue is readable by any signed-in user (a chairman should be
-      // able to see what exists and what it costs), so a plain select is fine.
-      supabase
-        .from("platform_features")
-        .select("key, name, description, price_monthly, is_core")
-        .order("sort_order"),
-    ]);
+  // Societies and stats come through SECURITY DEFINER RPCs: every policy on
+  // societies / society_memberships is tenant-scoped, and widening those to
+  // admit staff would put the entire tenant boundary behind one admin check.
+  // The RPCs return only what this console renders — no resident names, no
+  // resident phone numbers. Connect requests are loaded by the console itself
+  // through admin_list_connect_requests, so they are not fetched here.
+  const [{ data: societies }, { data: stats }, { data: features }] = await Promise.all([
+    supabase.rpc("admin_list_societies"),
+    supabase.rpc("admin_stats"),
+    // The catalogue is readable by any signed-in user (a chairman should be
+    // able to see what exists and what it costs), so a plain select is fine.
+    supabase
+      .from("platform_features")
+      .select("key, name, description, price_monthly, is_core")
+      .order("sort_order"),
+  ]);
 
   return (
     <AdminConsole
       isAdmin={isAdmin}
-      initialLeads={leads ?? []}
       initialSocieties={societies ?? []}
       initialStats={stats ?? {}}
       initialFeatures={features ?? []}

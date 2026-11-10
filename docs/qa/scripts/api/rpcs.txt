@@ -1,0 +1,404 @@
+_add_society_authority(p_society_id uuid, p_name text, p_phone text, p_actor uuid)|false|false|true
+_feature_enabled(p_society_id uuid, p_feature_key text)|false|false|true
+acknowledge_fine(p_action_id uuid)|false|true|true
+add_comment(p_post_id uuid, p_body text, p_comment_id uuid)|false|true|true
+add_complaint_response(p_complaint_id uuid, p_response_kind complaint_status, p_free_text text)|false|true|true
+add_facility_event(p_society_id uuid, p_category text, p_title text, p_note text, p_starts_at timestamp with time zone)|false|true|true
+add_family_members(p_membership_id uuid, p_members jsonb)|false|true|true
+add_society_authority(p_society_id uuid, p_name text, p_phone text)|false|true|true
+add_society_staff(p_society_id uuid, p_name text, p_phone text, p_category text)|false|true|true
+admin_add_note(p_society_id uuid, p_body text)|false|true|true
+admin_add_society_authority(p_society_id uuid, p_name text, p_phone text)|false|true|true
+admin_create_platform_user(p_user_id uuid, p_role platform_role, p_note text)|false|true|true
+admin_create_society(p_name text, p_address_line text, p_city text, p_state text, p_pincode text, p_landmark text, p_authorities jsonb, p_request_id uuid)|false|true|true
+admin_decide_feature_request(p_request_id uuid, p_approve boolean, p_note text)|false|true|true
+admin_delete_payment(p_payment_id uuid)|false|true|true
+admin_end_view()|false|true|true
+admin_feature_catalogue()|false|true|true
+admin_get_connect_request(p_request_id uuid)|false|true|true
+admin_list_connect_requests(p_search text, p_status text, p_from timestamp with time zone, p_to timestamp with time zone, p_limit integer, p_offset integer)|false|true|true
+admin_list_platform_audit(p_limit integer)|false|true|true
+admin_list_platform_users()|false|true|true
+admin_list_societies()|false|true|true
+admin_mark_connect_called(p_request_id uuid, p_note text)|false|true|true
+admin_onboarding_metrics()|false|true|true
+admin_record_payment(p_society_id uuid, p_amount integer, p_paid_on date, p_method payment_method, p_reference text, p_note text)|false|true|true
+admin_register_society(p_name text, p_address_line text, p_city text, p_state text, p_pincode text, p_landmark text, p_authorities jsonb, p_request_id uuid, p_registration_number text, p_society_type text, p_registration_date date, p_official_email text, p_official_phone text, p_country text, p_features text[])|false|true|true
+admin_reject_connect_request(p_request_id uuid, p_reason text)|false|true|true
+admin_reschedule_connect_request(p_request_id uuid, p_scheduled_at timestamp with time zone, p_note text)|false|true|true
+admin_revoke_platform_user(p_user_id uuid)|false|true|true
+admin_set_billing(p_society_id uuid, p_plan text, p_status billing_status, p_amount integer, p_next_due date, p_last_paid date, p_notes text)|false|true|true
+admin_set_feature(p_society_id uuid, p_feature_key text, p_enabled boolean, p_price_override integer)|false|true|true
+admin_set_feature_price(p_feature_key text, p_price integer)|false|true|true
+admin_set_society_service(p_society_id uuid, p_status text, p_reason text)|false|true|true
+admin_society_authorities(p_society_id uuid)|false|true|true
+admin_society_detail(p_society_id uuid)|false|true|true
+admin_society_feature_requests(p_society_id uuid)|false|true|true
+admin_society_history(p_society_id uuid, p_limit integer)|false|true|true
+admin_society_monthly(p_society_id uuid)|false|true|true
+admin_society_service(p_society_id uuid)|false|true|true
+admin_start_view(p_society_id uuid)|false|true|true
+admin_stats()|false|true|true
+admin_update_chairman(p_society_id uuid, p_name text, p_phone text)|false|true|true
+admin_update_society_authority(p_authority_id uuid, p_name text, p_phone text)|false|true|true
+admin_update_society_registration(p_society_id uuid, p_registration_number text, p_society_type text, p_registration_date date, p_official_email text, p_official_phone text, p_country text)|false|true|true
+admin_viewing_society()|false|true|true
+approve_booking(p_booking_id uuid)|false|true|true
+approve_pending_membership(p_membership_id uuid)|false|true|true
+attach_proof(p_subject_kind text, p_subject_id uuid, p_doc_type text, p_storage_path text, p_file_name text)|false|true|true
+auth_throttle_attempt(p_key text, p_max integer, p_window_seconds integer, p_lock_seconds integer)|false|false|true
+auth_throttle_success(p_key text, p_mode text)|false|false|true
+authority_skip_personal_onboarding(p_society_id uuid)|false|true|true
+bootstrap_society_structure(p_society_id uuid, p_wings jsonb, p_flats jsonb)|false|true|true
+can_read_attachment_object(p_name text)|false|true|false
+can_read_proof_object(p_name text)|false|true|true
+can_see_booking(p_booking bookings)|false|true|false
+can_see_complaint(p_complaint complaints)|false|true|false
+can_see_flat_action(p_action flat_actions)|false|true|false
+can_write_attachment_object(p_name text)|false|true|false
+can_write_proof_object(p_name text)|false|true|true
+cash_dist(money, money)|true|true|false
+claim_authority_for_society(p_society_id uuid)|false|true|true
+claim_chairman()|false|false|true
+claim_complaint(p_complaint_id uuid, p_response_kind complaint_status, p_free_text text)|false|true|true
+claim_family_membership()|false|true|true
+claim_guard(p_society_id uuid)|false|true|true
+claim_society_authority()|false|true|true
+close_poll(p_poll_id uuid)|false|true|true
+confirm_takedown(p_target_kind report_target_kind, p_target_id uuid)|false|true|true
+create_post(p_kind post_kind, p_body text, p_post_id uuid, p_photo_keys text[])|false|true|true
+create_society_with_secretary(p_name text, p_address text, p_co_secretary_phone text)|false|false|true
+current_guard_society_id()|false|true|true
+current_membership_role()|false|true|false
+current_society_id()|false|true|true
+date_dist(date, date)|true|true|false
+delete_comment(p_comment_id uuid)|false|true|true
+delete_facility_event(p_id uuid)|false|true|true
+delete_post(p_post_id uuid)|false|true|true
+delete_society_staff(p_id uuid)|false|true|true
+dev_peek_otp(p_phone text)|false|false|true
+dev_send_sms(event jsonb)|false|false|true
+eligible_push_recipients(p_notification_id uuid)|false|false|true
+enrollment_validate_slot()|true|true|false
+family_invite_accept(p_token text)|false|true|true
+family_invite_create(p_society_id uuid, p_full_name text, p_relationship text, p_phone text)|false|true|true
+family_invite_list(p_society_id uuid)|false|true|true
+family_invite_preview(p_token text)|false|true|true
+family_invite_revoke(p_invite_id uuid)|false|true|true
+file_complaint(p_kind complaint_kind, p_description text, p_reporter_flat_id uuid, p_language_code text, p_complaint_id uuid, p_storage_key text, p_mime_type text, p_byte_size integer)|false|true|true
+file_notification(p_title text, p_body text, p_category notification_category, p_notification_id uuid, p_storage_key text, p_mime_type text, p_byte_size integer, p_poll_question text, p_poll_options text[])|false|true|true
+finalize_society_setup(p_society_id uuid, p_flat_id uuid)|false|false|true
+find_user_id_by_phone(p_phone text)|false|false|true
+flat_action_recipients(p_flat_action_id uuid)|false|false|true
+float4_dist(real, real)|true|true|false
+float8_dist(double precision, double precision)|true|true|false
+gbt_bit_compress(internal)|true|true|false
+gbt_bit_consistent(internal, bit, smallint, oid, internal)|true|true|false
+gbt_bit_penalty(internal, internal, internal)|true|true|false
+gbt_bit_picksplit(internal, internal)|true|true|false
+gbt_bit_same(gbtreekey_var, gbtreekey_var, internal)|true|true|false
+gbt_bit_union(internal, internal)|true|true|false
+gbt_bool_compress(internal)|true|true|false
+gbt_bool_consistent(internal, boolean, smallint, oid, internal)|true|true|false
+gbt_bool_fetch(internal)|true|true|false
+gbt_bool_penalty(internal, internal, internal)|true|true|false
+gbt_bool_picksplit(internal, internal)|true|true|false
+gbt_bool_same(gbtreekey2, gbtreekey2, internal)|true|true|false
+gbt_bool_union(internal, internal)|true|true|false
+gbt_bpchar_compress(internal)|true|true|false
+gbt_bpchar_consistent(internal, character, smallint, oid, internal)|true|true|false
+gbt_bytea_compress(internal)|true|true|false
+gbt_bytea_consistent(internal, bytea, smallint, oid, internal)|true|true|false
+gbt_bytea_penalty(internal, internal, internal)|true|true|false
+gbt_bytea_picksplit(internal, internal)|true|true|false
+gbt_bytea_same(gbtreekey_var, gbtreekey_var, internal)|true|true|false
+gbt_bytea_union(internal, internal)|true|true|false
+gbt_cash_compress(internal)|true|true|false
+gbt_cash_consistent(internal, money, smallint, oid, internal)|true|true|false
+gbt_cash_distance(internal, money, smallint, oid, internal)|true|true|false
+gbt_cash_fetch(internal)|true|true|false
+gbt_cash_penalty(internal, internal, internal)|true|true|false
+gbt_cash_picksplit(internal, internal)|true|true|false
+gbt_cash_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_cash_union(internal, internal)|true|true|false
+gbt_date_compress(internal)|true|true|false
+gbt_date_consistent(internal, date, smallint, oid, internal)|true|true|false
+gbt_date_distance(internal, date, smallint, oid, internal)|true|true|false
+gbt_date_fetch(internal)|true|true|false
+gbt_date_penalty(internal, internal, internal)|true|true|false
+gbt_date_picksplit(internal, internal)|true|true|false
+gbt_date_same(gbtreekey8, gbtreekey8, internal)|true|true|false
+gbt_date_union(internal, internal)|true|true|false
+gbt_decompress(internal)|true|true|false
+gbt_enum_compress(internal)|true|true|false
+gbt_enum_consistent(internal, anyenum, smallint, oid, internal)|true|true|false
+gbt_enum_fetch(internal)|true|true|false
+gbt_enum_penalty(internal, internal, internal)|true|true|false
+gbt_enum_picksplit(internal, internal)|true|true|false
+gbt_enum_same(gbtreekey8, gbtreekey8, internal)|true|true|false
+gbt_enum_union(internal, internal)|true|true|false
+gbt_float4_compress(internal)|true|true|false
+gbt_float4_consistent(internal, real, smallint, oid, internal)|true|true|false
+gbt_float4_distance(internal, real, smallint, oid, internal)|true|true|false
+gbt_float4_fetch(internal)|true|true|false
+gbt_float4_penalty(internal, internal, internal)|true|true|false
+gbt_float4_picksplit(internal, internal)|true|true|false
+gbt_float4_same(gbtreekey8, gbtreekey8, internal)|true|true|false
+gbt_float4_union(internal, internal)|true|true|false
+gbt_float8_compress(internal)|true|true|false
+gbt_float8_consistent(internal, double precision, smallint, oid, internal)|true|true|false
+gbt_float8_distance(internal, double precision, smallint, oid, internal)|true|true|false
+gbt_float8_fetch(internal)|true|true|false
+gbt_float8_penalty(internal, internal, internal)|true|true|false
+gbt_float8_picksplit(internal, internal)|true|true|false
+gbt_float8_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_float8_union(internal, internal)|true|true|false
+gbt_inet_compress(internal)|true|true|false
+gbt_inet_consistent(internal, inet, smallint, oid, internal)|true|true|false
+gbt_inet_penalty(internal, internal, internal)|true|true|false
+gbt_inet_picksplit(internal, internal)|true|true|false
+gbt_inet_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_inet_union(internal, internal)|true|true|false
+gbt_int2_compress(internal)|true|true|false
+gbt_int2_consistent(internal, smallint, smallint, oid, internal)|true|true|false
+gbt_int2_distance(internal, smallint, smallint, oid, internal)|true|true|false
+gbt_int2_fetch(internal)|true|true|false
+gbt_int2_penalty(internal, internal, internal)|true|true|false
+gbt_int2_picksplit(internal, internal)|true|true|false
+gbt_int2_same(gbtreekey4, gbtreekey4, internal)|true|true|false
+gbt_int2_union(internal, internal)|true|true|false
+gbt_int4_compress(internal)|true|true|false
+gbt_int4_consistent(internal, integer, smallint, oid, internal)|true|true|false
+gbt_int4_distance(internal, integer, smallint, oid, internal)|true|true|false
+gbt_int4_fetch(internal)|true|true|false
+gbt_int4_penalty(internal, internal, internal)|true|true|false
+gbt_int4_picksplit(internal, internal)|true|true|false
+gbt_int4_same(gbtreekey8, gbtreekey8, internal)|true|true|false
+gbt_int4_union(internal, internal)|true|true|false
+gbt_int8_compress(internal)|true|true|false
+gbt_int8_consistent(internal, bigint, smallint, oid, internal)|true|true|false
+gbt_int8_distance(internal, bigint, smallint, oid, internal)|true|true|false
+gbt_int8_fetch(internal)|true|true|false
+gbt_int8_penalty(internal, internal, internal)|true|true|false
+gbt_int8_picksplit(internal, internal)|true|true|false
+gbt_int8_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_int8_union(internal, internal)|true|true|false
+gbt_intv_compress(internal)|true|true|false
+gbt_intv_consistent(internal, interval, smallint, oid, internal)|true|true|false
+gbt_intv_decompress(internal)|true|true|false
+gbt_intv_distance(internal, interval, smallint, oid, internal)|true|true|false
+gbt_intv_fetch(internal)|true|true|false
+gbt_intv_penalty(internal, internal, internal)|true|true|false
+gbt_intv_picksplit(internal, internal)|true|true|false
+gbt_intv_same(gbtreekey32, gbtreekey32, internal)|true|true|false
+gbt_intv_union(internal, internal)|true|true|false
+gbt_macad8_compress(internal)|true|true|false
+gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal)|true|true|false
+gbt_macad8_fetch(internal)|true|true|false
+gbt_macad8_penalty(internal, internal, internal)|true|true|false
+gbt_macad8_picksplit(internal, internal)|true|true|false
+gbt_macad8_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_macad8_union(internal, internal)|true|true|false
+gbt_macad_compress(internal)|true|true|false
+gbt_macad_consistent(internal, macaddr, smallint, oid, internal)|true|true|false
+gbt_macad_fetch(internal)|true|true|false
+gbt_macad_penalty(internal, internal, internal)|true|true|false
+gbt_macad_picksplit(internal, internal)|true|true|false
+gbt_macad_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_macad_union(internal, internal)|true|true|false
+gbt_numeric_compress(internal)|true|true|false
+gbt_numeric_consistent(internal, numeric, smallint, oid, internal)|true|true|false
+gbt_numeric_penalty(internal, internal, internal)|true|true|false
+gbt_numeric_picksplit(internal, internal)|true|true|false
+gbt_numeric_same(gbtreekey_var, gbtreekey_var, internal)|true|true|false
+gbt_numeric_union(internal, internal)|true|true|false
+gbt_oid_compress(internal)|true|true|false
+gbt_oid_consistent(internal, oid, smallint, oid, internal)|true|true|false
+gbt_oid_distance(internal, oid, smallint, oid, internal)|true|true|false
+gbt_oid_fetch(internal)|true|true|false
+gbt_oid_penalty(internal, internal, internal)|true|true|false
+gbt_oid_picksplit(internal, internal)|true|true|false
+gbt_oid_same(gbtreekey8, gbtreekey8, internal)|true|true|false
+gbt_oid_union(internal, internal)|true|true|false
+gbt_text_compress(internal)|true|true|false
+gbt_text_consistent(internal, text, smallint, oid, internal)|true|true|false
+gbt_text_penalty(internal, internal, internal)|true|true|false
+gbt_text_picksplit(internal, internal)|true|true|false
+gbt_text_same(gbtreekey_var, gbtreekey_var, internal)|true|true|false
+gbt_text_union(internal, internal)|true|true|false
+gbt_time_compress(internal)|true|true|false
+gbt_time_consistent(internal, time without time zone, smallint, oid, internal)|true|true|false
+gbt_time_distance(internal, time without time zone, smallint, oid, internal)|true|true|false
+gbt_time_fetch(internal)|true|true|false
+gbt_time_penalty(internal, internal, internal)|true|true|false
+gbt_time_picksplit(internal, internal)|true|true|false
+gbt_time_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_time_union(internal, internal)|true|true|false
+gbt_timetz_compress(internal)|true|true|false
+gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal)|true|true|false
+gbt_ts_compress(internal)|true|true|false
+gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal)|true|true|false
+gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal)|true|true|false
+gbt_ts_fetch(internal)|true|true|false
+gbt_ts_penalty(internal, internal, internal)|true|true|false
+gbt_ts_picksplit(internal, internal)|true|true|false
+gbt_ts_same(gbtreekey16, gbtreekey16, internal)|true|true|false
+gbt_ts_union(internal, internal)|true|true|false
+gbt_tstz_compress(internal)|true|true|false
+gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal)|true|true|false
+gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal)|true|true|false
+gbt_uuid_compress(internal)|true|true|false
+gbt_uuid_consistent(internal, uuid, smallint, oid, internal)|true|true|false
+gbt_uuid_fetch(internal)|true|true|false
+gbt_uuid_penalty(internal, internal, internal)|true|true|false
+gbt_uuid_picksplit(internal, internal)|true|true|false
+gbt_uuid_same(gbtreekey32, gbtreekey32, internal)|true|true|false
+gbt_uuid_union(internal, internal)|true|true|false
+gbt_var_decompress(internal)|true|true|false
+gbt_var_fetch(internal)|true|true|false
+gbtreekey16_in(cstring)|true|true|false
+gbtreekey16_out(gbtreekey16)|true|true|false
+gbtreekey2_in(cstring)|true|true|false
+gbtreekey2_out(gbtreekey2)|true|true|false
+gbtreekey32_in(cstring)|true|true|false
+gbtreekey32_out(gbtreekey32)|true|true|false
+gbtreekey4_in(cstring)|true|true|false
+gbtreekey4_out(gbtreekey4)|true|true|false
+gbtreekey8_in(cstring)|true|true|false
+gbtreekey8_out(gbtreekey8)|true|true|false
+gbtreekey_var_in(cstring)|true|true|false
+gbtreekey_var_out(gbtreekey_var)|true|true|false
+generate_society_code()|false|false|true
+get_connect_request_status(p_request_code text, p_phone text)|true|true|true
+get_dashboard_summary(p_view text)|false|true|true
+get_grievance_officer()|false|true|true
+get_poll_results(p_poll_id uuid)|false|true|true
+get_society_registration(p_society_id uuid)|false|true|true
+guard_create_visit(p_flat_id uuid, p_visitor_name text, p_visitor_phone text, p_purpose text)|false|true|true
+guard_list_flats()|false|true|true
+guard_society_service_write()|false|false|true
+household_cancel_request(p_request_id uuid)|false|true|true
+household_decide_request(p_request_id uuid, p_approve boolean, p_reason text)|false|true|true
+household_lookup(p_code text, p_wing text, p_floor text, p_flat text)|false|true|true
+household_my_requests()|false|true|true
+household_pending_for_me()|false|true|true
+household_request_access(p_code text, p_flat_id uuid, p_full_name text, p_relationship text, p_resident_type text, p_message text)|false|true|true
+import_cancel_batch(p_batch_id uuid)|false|true|true
+import_confirm_batch(p_batch_id uuid)|false|true|true
+import_get_batch(p_batch_id uuid, p_status text, p_limit integer, p_offset integer)|false|true|true
+import_list_batches(p_society_id uuid, p_limit integer, p_offset integer)|false|true|true
+import_validate_rows(p_society_id uuid, p_file_name text, p_rows jsonb)|false|true|true
+inject_society_claims(event jsonb)|false|false|true
+int2_dist(smallint, smallint)|true|true|false
+int4_dist(integer, integer)|true|true|false
+int8_dist(bigint, bigint)|true|true|false
+interval_dist(interval, interval)|true|true|false
+is_platform_admin()|false|true|true
+is_platform_admin_or_sales()|false|true|true
+is_platform_user()|false|true|true
+issue_flat_action(p_flat_id uuid, p_kind flat_action_kind, p_body text, p_amount numeric, p_due_date date, p_action_id uuid, p_storage_key text, p_mime_type text, p_byte_size integer)|false|true|true
+list_flat_owners(p_flat_id uuid)|false|true|true
+list_proofs(p_subject_kind text, p_subject_id uuid)|false|true|true
+list_society_structure(p_code text)|false|false|true
+manager_add_resident_record(p_society_id uuid, p_flat_id uuid, p_full_name text, p_phone text, p_resident_type text, p_email text)|false|true|true
+manager_get_staff(p_staff_id uuid)|false|true|true
+manager_list_resident_records(p_society_id uuid, p_status text, p_resident_type text, p_search text, p_flat_id uuid, p_batch_id uuid, p_limit integer, p_offset integer)|false|true|true
+manager_list_society_residents(p_society_id uuid, p_resident_type text, p_search text, p_status text, p_limit integer, p_offset integer)|false|true|true
+manager_list_staff(p_society_id uuid, p_category text, p_search text, p_limit integer, p_offset integer)|false|true|true
+manager_list_tenants(p_society_id uuid, p_status text, p_limit integer, p_offset integer)|false|true|true
+manager_prepare_resident_invite(p_record_id uuid)|false|true|true
+manager_remove_flat_owner(p_owner_id uuid)|false|true|true
+manager_resident_type_counts(p_society_id uuid)|false|true|true
+manager_review_resident_record(p_record_id uuid, p_action text, p_changes jsonb, p_flat_id uuid, p_reason text)|false|true|true
+manager_save_flat_owner(p_flat_id uuid, p_full_name text, p_phone text, p_is_primary boolean, p_start_date date, p_membership_number text, p_owner_id uuid)|false|true|true
+manager_save_staff(p_society_id uuid, p_name text, p_category text, p_phone text, p_last_name text, p_email text, p_joining_date date, p_employee_id text, p_vendor_name text, p_shift text, p_emergency_contact_name text, p_emergency_contact_phone text, p_id_proof_type text, p_staff_id uuid)|false|true|true
+manager_set_tenant_police_status(p_tenant_id uuid, p_status text, p_reference text)|false|true|true
+manager_verify_flat_owner(p_owner_id uuid, p_verified boolean)|false|true|true
+mark_pin_set()|false|false|true
+my_active_society()|false|true|true
+my_authority_societies()|false|true|true
+my_login_state()|false|true|true
+my_onboarding_state()|false|true|true
+my_resident_records()|false|true|true
+my_society_features(p_society_id uuid)|false|true|true
+my_society_service_status()|false|true|true
+my_tenant_registrations()|false|true|true
+notify_push_on_booking_decision()|false|false|true
+notify_push_on_flat_action()|false|false|true
+notify_push_on_notification()|false|false|true
+notify_push_on_response()|false|false|true
+oid_dist(oid, oid)|true|true|false
+onboard_flats_for_code(p_code text)|false|true|true
+onboard_resident(p_code text, p_flat_id uuid, p_full_name text, p_residency residency_kind, p_alt_phone text, p_family jsonb)|false|true|true
+onboard_structure_for_code(p_code text)|false|true|true
+owner_list_tenant_requests()|false|true|true
+owner_save_my_details(p_flat_id uuid, p_full_name text, p_is_primary boolean, p_start_date date, p_membership_number text)|false|true|true
+parisar_try_uuid(p text)|false|true|false
+platform_role_of()|false|true|true
+raise_sos(p_society_id uuid, p_description text, p_audience text)|false|true|true
+redeem_society_code(p_code text, p_flat_id uuid, p_residency residency_kind, p_household household_kind, p_emergency text)|false|false|true
+register_push_token(p_token text, p_platform text, p_device_label text)|false|true|true
+reject_booking(p_booking_id uuid, p_reason text)|false|true|true
+reject_pending_membership(p_membership_id uuid)|false|true|true
+remove_member(p_membership_id uuid)|false|true|true
+remove_proof(p_document_id uuid)|false|true|true
+report_content(p_target_kind report_target_kind, p_target_id uuid, p_reason text, p_note text)|false|true|true
+request_booking(p_amenity_id uuid, p_starts_at timestamp with time zone, p_ends_at timestamp with time zone, p_purpose text)|false|true|true
+request_feature_change(p_society_id uuid, p_feature_key text, p_action text, p_note text)|false|true|true
+reset_member_pin(p_target_user_id uuid)|false|true|true
+resident_confirm_record(p_record_id uuid)|false|true|true
+resident_dashboard(p_society_id uuid)|false|true|true
+resident_decide_visit(p_request_id uuid, p_approve boolean)|false|true|true
+resident_report_incorrect(p_record_id uuid, p_reason text)|false|true|true
+resident_submit_correction(p_record_id uuid, p_changes jsonb, p_note text)|false|true|true
+resolve_sos(p_id uuid)|false|true|true
+restore_content(p_target_kind report_target_kind, p_target_id uuid)|false|true|true
+resume_society_code(p_society_id uuid)|false|true|true
+reveal_phone(p_target_user_id uuid)|false|true|true
+rotate_society_code(p_society_id uuid)|false|true|true
+secretary_add_board_member(p_society_id uuid, p_phone text, p_flat_id uuid)|false|true|true
+secretary_add_guard(p_society_id uuid, p_name text, p_phone text)|false|true|true
+secretary_add_setup_amenities(p_society_id uuid, p_amenities jsonb)|false|true|true
+secretary_add_wing(p_society_id uuid, p_wing_name text, p_flat_numbers text[])|false|true|true
+secretary_delete_amenity(p_id uuid)|false|true|true
+secretary_set_highlights(p_society_id uuid, p_items jsonb)|false|true|true
+secretary_upsert_amenity(p_society_id uuid, p_id uuid, p_name text, p_status text, p_closed_until date)|false|true|true
+security_dashboard(p_society_id uuid)|false|true|true
+service_mark_pin_set(p_user_id uuid)|false|false|true
+set_active_society(p_society_id uuid)|false|true|true
+set_grievance_officer(p_name text, p_contact text)|false|true|true
+set_member_society_title(p_society_id uuid, p_target_user_id uuid, p_title text)|false|true|true
+set_membership_role(p_target_user_id uuid, p_role membership_role)|false|true|true
+setup_bulk_create_flats(p_society_id uuid, p_floor_id uuid, p_flats jsonb)|false|true|true
+setup_complete(p_society_id uuid)|false|true|true
+setup_complete_step(p_society_id uuid, p_step text)|false|true|true
+setup_delete_flat(p_flat_id uuid)|false|true|true
+setup_delete_floor(p_floor_id uuid)|false|true|true
+setup_delete_wing(p_wing_id uuid)|false|true|true
+setup_get_state(p_society_id uuid)|false|true|true
+setup_save_draft(p_society_id uuid, p_step text, p_draft jsonb)|false|true|true
+setup_skip_step(p_society_id uuid, p_step text)|false|true|true
+setup_upsert_flat(p_society_id uuid, p_wing_id uuid, p_floor_id uuid, p_number text, p_flat_type text, p_area_sqft numeric, p_bedrooms integer, p_parking_slot text, p_status text, p_flat_id uuid)|false|true|true
+setup_upsert_floor(p_society_id uuid, p_wing_id uuid, p_number integer, p_name text, p_flat_count integer, p_floor_id uuid)|false|true|true
+setup_upsert_wing(p_society_id uuid, p_name text, p_code text, p_wing_id uuid)|false|true|true
+society_accepts_joins(p_society_id uuid)|false|true|true
+society_admin_dashboard(p_society_id uuid)|false|true|true
+submit_connect_request(p_society_name text, p_contact_name text, p_phone text, p_email text, p_authority_numbers jsonb, p_preferred_at timestamp with time zone, p_call_now boolean, p_alternate_at timestamp with time zone, p_message text)|true|true|true
+svc_otp_request_try(p_phone text, p_max integer, p_window_seconds integer)|false|false|true
+svc_rate_limit_hit(p_bucket text, p_subject text, p_max integer, p_window_seconds integer)|false|false|true
+sync_last_paid()|false|false|true
+tenant_activate(p_tenant_id uuid)|false|true|true
+tenant_admin_decide(p_tenant_id uuid, p_approve boolean, p_reason text)|false|true|true
+tenant_owner_decide(p_tenant_id uuid, p_approve boolean, p_reason text)|false|true|true
+tenant_register(p_code text, p_flat_id uuid, p_full_name text, p_agreement_start date, p_agreement_end date, p_owner_name text, p_owner_phone text, p_police_status text, p_police_reference text)|false|true|true
+tenant_save_my_details(p_society_id uuid, p_full_name text, p_agreement_start date, p_agreement_end date, p_owner_name text, p_owner_phone text, p_police_status text, p_police_reference text)|false|true|true
+time_dist(time without time zone, time without time zone)|true|true|false
+transfer_secretary_role(p_new_secretary_user_id uuid)|false|true|true
+ts_dist(timestamp without time zone, timestamp without time zone)|true|true|false
+tstz_dist(timestamp with time zone, timestamp with time zone)|true|true|false
+unregister_push_token(p_token text)|false|true|true
+update_my_emergency_contact(p_membership_id uuid, p_emergency_contact text)|false|true|true
+upsert_my_profile(p_full_name text, p_signup_intent text)|false|true|true
+validate_society_code(p_code text)|false|false|true
+vote_on_poll(p_poll_id uuid, p_option_id uuid)|false|true|true
+waive_fine(p_action_id uuid)|false|true|true

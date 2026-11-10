@@ -58,35 +58,7 @@ export const STATES = [
   "Puducherry",
 ];
 
-export const input =
-  "a-field h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[14px] text-[var(--color-neutral-900)] outline-none placeholder:text-[var(--color-neutral-400)]";
-
 // Quieter than the primary "New society" CTA — these are occasional admin
 // chores, not the console's main action.
 export const secondaryCta =
   "flex items-center justify-center gap-2 rounded-xl border border-[var(--color-neutral-200)] bg-white px-3 py-2.5 text-[13px] font-semibold text-[var(--color-neutral-700)] transition-colors hover:border-[var(--color-brand-500)] hover:text-[var(--color-brand-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2";
-
-export const EMPTY_FORM = {
-  name: "",
-  addressLine: "",
-  city: "",
-  landmark: "",
-  state: "",
-  pincode: "",
-  // Society Authorities: everyone who will manage the society (name + mobile).
-  authorities: [{ name: "", phone: "" }],
-};
-
-export const PHONE_RE = /^[6-9]\d{9}$/;
-
-export function fmtWhen(lead) {
-  if (lead.call_now) return "ASAP";
-  if (!lead.preferred_at) return lead.preferred_slot ?? "—";
-  return new Date(lead.preferred_at).toLocaleString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}

@@ -17,6 +17,7 @@ import { AppSidebar } from "../../components/AppSidebar";
 import { ServiceStatusScreen } from "../../components/society/ServiceStatusScreen";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "../../components/ui/sidebar";
 import { isManagerRole } from "../../lib/auth/activeSociety";
+import { needsPersonalOnboarding } from "../../lib/auth/personalOnboarding";
 import { loadSocietyContext } from "../../lib/auth/societyContext";
 import { devRoutesEnabled } from "../../lib/devRoutes";
 import { getServerT } from "../../lib/i18n/server";
@@ -103,8 +104,11 @@ export default async function ProtectedLayout({ children }) {
   // A society authority who hasn't finished PERSONAL onboarding yet (their
   // authority membership has no flat) is in the same state: the app opens only
   // after they have joined as a resident. /dashboard sends them to /onboarding.
+  // An authority who said they only manage the society (no flat) is done.
   const onboardingIncomplete =
-    isManagerRole(activeRole) && Boolean(activeMembership) && !activeMembership.flat_id;
+    isManagerRole(activeRole) &&
+    !setupIncomplete &&
+    (await needsPersonalOnboarding(supabase, societyId, activeMembership));
 
   if (!societyId || setupIncomplete || onboardingIncomplete) {
     return <main id="main-content">{children}</main>;

@@ -3,11 +3,18 @@
 // Verify OTP, then ask the database what this person needs next
 // (my_login_state() as the just-verified user → lib/auth/loginMode.js):
 //
-//   staff  -> in
-//   pin    -> enter existing PIN (second factor) -> in
-//   setpin -> set a new PIN -> in           (onboarded, no PIN yet)
-//   family -> claim the flat a resident pre-entered -> set a PIN -> in
-//   code   -> brand-new resident -> /onboarding (society code + join)
+//   staff     -> in
+//   authority -> pick the society (if several) -> claim -> PIN -> setup wizard,
+//                own-flat choice or Society Dashboard, by setup_state
+//   pin       -> enter existing PIN (second factor) -> in
+//   setpin    -> set a new PIN -> in           (onboarded, no PIN yet)
+//   family    -> claim the flat a resident pre-entered -> set a PIN -> in
+//   code      -> brand-new resident -> /onboarding (society code + join)
+//
+// There is one sign-in for everyone. After the OTP, a number that is on a
+// society's authority list it has not claimed yet goes through the authority
+// claim. Their PIN is still asked for when one is set: the authority path
+// never skips the second factor.
 //
 // Nothing about the number is looked up before the OTP succeeds. verifyOtp
 // runs on the browser client so the session cookie lands here (RESEARCH.md
@@ -15,15 +22,23 @@
 // setMyPin): the credential is peppered, so the browser cannot compute it, and
 // failures are counted and locked server-side.
 
+import { claimAuthorityForSociety, myAuthoritySocieties } from "@parisar/api-client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import AuthShell from "../../../components/auth/AuthShell";
-import DevOtpHint from "../../../components/auth/DevOtpHint";
+import { NotAuthorityStage, PickSocietyStage } from "../../../components/auth/AuthorityStages";
+import {
+  authorityDestination,
+  claimErrorKey,
+  managerDestination,
+} from "../../../components/auth/authorityFlow";
 import FormError from "../../../components/auth/FormError";
 import OtpInput from "../../../components/auth/OtpInput";
+import { EnterPinStage, SetPinStage } from "../../../components/auth/PinStages";
 import PrimaryButton from "../../../components/auth/PrimaryButton";
+import { pinLoginErrorKey, setPinErrorKey, weakPin } from "../../../components/auth/pinErrors";
 import ResendTimer from "../../../components/auth/ResendTimer";
+import Shell from "../../../components/auth/VerifyShell";
 import { loginModeFromState, safeNextPath } from "../../../lib/auth/loginMode";
 import { otpErrorCode, otpErrorKey } from "../../../lib/auth/otpErrors";
 import { createSupabaseBrowserClient } from "../../../lib/supabase/client";
@@ -35,61 +50,17 @@ import {
   setMyPin,
 } from "../../actions/codeLogin";
 
-const PIN_FIELD =
-  "h-14 w-full rounded-2xl border bg-(--color-neutral-0) px-4 text-center text-[24px] font-bold tracking-[0.5em] outline-none transition-[border-color,box-shadow] duration-150 placeholder:tracking-[0.35em] placeholder:text-neutral-400 focus:border-(--color-brand-500) focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]";
-
-function weakPin(p) {
-  return p === "1234" || /^(\d)\1{3}$/.test(p); // 1234 or four identical
-}
-
-/** [i18n key, options] for a pinLogin error. */
-function pinLoginErrorKey(res) {
-  switch (res?.error) {
-    case "PIN_INVALID":
-    case "INVALID_INPUT":
-      return ["auth.pinWrong"];
-    case "LOCKED":
-      return [
-        "auth.pinLocked",
-        {
-          minutes: String(Math.max(1, Math.ceil((res.retryAfterSeconds ?? 900) / 60))),
-          defaultValue: "Too many wrong PINs. Try again in {{minutes}} minutes.",
-        },
-      ];
-    case "RATE_LIMITED":
-      return ["auth.rateLimited"];
-    default:
-      return ["auth.networkError"];
-  }
-}
-
-/** [i18n key, options] for a setMyPin error. */
-function setPinErrorKey(res) {
-  switch (res?.error) {
-    case "WEAK_PIN":
-      return ["auth.setPinWeak"];
-    case "INVALID_PIN":
-      return ["auth.pinWrong"];
-    case "REAUTH_REQUIRED":
-    case "AUTH_REQUIRED":
-      return [
-        "auth.reauthRequired",
-        { defaultValue: "For your security, please verify your number again." },
-      ];
-    default:
-      return ["auth.networkError"];
-  }
-}
-
 function VerifyForm() {
-  const { t } = useTranslation("auth");
+  const { t } = useTranslation(["auth", "setup-wizard"]);
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
   const resetFromUrl = params.get("reset") === "1"; // came via "Forgot PIN?"
   const nextFromUrl = safeNextPath(params.get("next"), "/dashboard");
+  const hasNext = Boolean(params.get("next"));
 
-  const [stage, setStage] = useState("otp"); // otp | resolve | pin | setpin
+  // otp | resolve | pickSociety | notAuthority | pin | setpin
+  const [stage, setStage] = useState("otp");
   const [mode, setMode] = useState(null); // decided after OTP, from the database
   const [reset, setReset] = useState(resetFromUrl); // reached setpin via "Forgot PIN?"
   const [otp, setOtp] = useState("");
@@ -98,9 +69,12 @@ function VerifyForm() {
   const [hasError, setHasError] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [societies, setSocieties] = useState([]); // authority: societies to pick from
+  const [authorityDest, setAuthorityDest] = useState(null); // authority: where PIN success lands
+  const loginStateRef = useRef(null);
 
   const isGuard = mode === "guardpin" || mode === "guardclaim"; // gate-guard login
-  const dest = isGuard ? "/guard" : nextFromUrl; // where PIN success lands
+  const dest = authorityDest ?? (isGuard ? "/guard" : nextFromUrl); // where PIN success lands
 
   function fail(key, opts) {
     setError(t(key, opts));
@@ -153,12 +127,87 @@ function VerifyForm() {
       const supabase = createSupabaseBrowserClient();
       const { data: state, error: sErr } = await supabase.rpc("my_login_state");
       if (sErr) throw sErr;
+      loginStateRef.current = state ?? null;
       const m = loginModeFromState(state);
       setMode(m);
+      // One sign-in for everyone: after the OTP, check whether this verified
+      // number is on a society's authority list that it has not claimed yet. If
+      // so, run the authority claim; otherwise continue as a normal sign-in
+      // (an authority who already claimed signs in like any member).
+      if (m !== "staff") {
+        const unclaimed = await unclaimedAuthoritySocieties(supabase);
+        if (m === "authority" || unclaimed.length > 0) {
+          await startAuthority(m, supabase, unclaimed);
+          return;
+        }
+      }
+      if ((m === "pin" || m === "setpin") && !hasNext) await preferManagerHome(state, supabase);
       await branch(m, supabase);
     } catch {
       setStage("resolve");
       fail("auth.networkError");
+    }
+  }
+
+  // --- authority (docs/onboarding/API.md section 5) ----------------------
+  async function unclaimedAuthoritySocieties(supabase) {
+    const res = await myAuthoritySocieties(supabase);
+    if (res?.error) throw new Error(res.error);
+    return (res?.societies ?? []).filter((s) => !s.claimed);
+  }
+
+  async function startAuthority(m, supabase, list) {
+    if (list.length === 0) {
+      // my_login_state saw an authority row the new RPC does not list: keep the
+      // older single-society claim working.
+      if (m === "authority") return branch(m, supabase);
+      setStage("notAuthority");
+      setLoading(false);
+      return;
+    }
+    if (list.length === 1) return claimSociety(list[0], supabase);
+    setSocieties(list);
+    setStage("pickSociety");
+    setLoading(false);
+  }
+
+  async function claimSociety(society, client) {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = client ?? createSupabaseBrowserClient();
+      const res = await claimAuthorityForSociety(supabase, society.society_id);
+      if (res?.error) {
+        setSocieties((current) => (current.length ? current : [society]));
+        setStage("pickSociety");
+        return fail(claimErrorKey(res.error));
+      }
+      // The membership was created after this JWT was minted: re-mint so the
+      // Auth Hook puts society_id and role in it before the next screen reads.
+      await supabase.auth.refreshSession();
+      setAuthorityDest(authorityDestination(res?.setup_state));
+      // A PIN already set is still the second factor; otherwise set one now.
+      setStage(loginStateRef.current?.pin_set && !reset ? "pin" : "setpin");
+      setLoading(false);
+    } catch {
+      setSocieties((current) => (current.length ? current : [society]));
+      setStage("pickSociety");
+      fail("auth.networkError");
+    }
+  }
+
+  // A returning manager whose society still needs setup (or who has no flat)
+  // lands there after the PIN rather than on the resident home. Best effort:
+  // the normal destination stands if this lookup fails.
+  async function preferManagerHome(state, supabase) {
+    // Only managers can have unfinished setup; skip the call for everyone else.
+    if (!["secretary", "co_secretary"].includes(state?.membership?.role)) return;
+    try {
+      const res = await myAuthoritySocieties(supabase);
+      const next = res?.error ? null : managerDestination(state, res?.societies);
+      if (next) setAuthorityDest(next);
+    } catch {
+      // keep the normal destination
     }
   }
 
@@ -208,7 +257,7 @@ function VerifyForm() {
       // The membership was created after this JWT was minted — re-mint so the
       // Auth Hook injects society_id/role before the next screen's RLS reads.
       await supabase.auth.refreshSession();
-      if (res.needsSetup) return router.push("/setup/structure");
+      if (res.needsSetup) return router.push("/setup");
       if (res.needsFlat) return router.push("/onboarding");
       setStage("setpin");
       setLoading(false);
@@ -318,134 +367,76 @@ function VerifyForm() {
     );
   }
 
+  if (stage === "pickSociety") {
+    return (
+      <PickSocietyStage
+        societies={societies}
+        loading={loading}
+        error={error}
+        onPick={(society) => claimSociety(society)}
+      />
+    );
+  }
+
+  if (stage === "notAuthority") {
+    return (
+      <NotAuthorityStage
+        loading={loading}
+        error={error}
+        onContinue={async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            await branch(mode, createSupabaseBrowserClient());
+          } catch {
+            fail("auth.networkError");
+          }
+        }}
+      />
+    );
+  }
+
   if (stage === "pin") {
     return (
-      <Shell heading={t("auth.pinSecondFactor")} sub={t("auth.pinStepSub")}>
-        <form onSubmit={onPin} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <input
-              // biome-ignore lint/a11y/noAutofocus: single field, opened intentionally
-              autoFocus
-              type="password"
-              inputMode="numeric"
-              autoComplete="current-password"
-              maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="••••"
-              className={PIN_FIELD}
-              style={{
-                borderColor: error ? "var(--color-danger-500)" : "var(--color-neutral-200)",
-              }}
-            />
-            <FormError message={error} />
-          </div>
-          <PrimaryButton
-            type="submit"
-            label={loading ? t("auth.verifying") : t("auth.continue")}
-            loading={loading}
-            disabled={pin.length !== 4}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              // This login's OTP is fresh, so the server accepts a new PIN
-              // (setMyPin checks the session's OTP time — no ids are sent).
-              setError(null);
-              setPin("");
-              setPin2("");
-              setReset(true);
-              setStage("setpin");
-            }}
-            className="self-center text-[13px] font-semibold text-(--color-brand-600) hover:underline"
-          >
-            {t("auth.pinForgot")}
-          </button>
-        </form>
-      </Shell>
+      <EnterPinStage
+        pin={pin}
+        onPinChange={setPin}
+        error={error}
+        loading={loading}
+        onSubmit={onPin}
+        onForgot={() => {
+          // This login's OTP is fresh, so the server accepts a new PIN
+          // (setMyPin checks the session's OTP time — no ids are sent).
+          setError(null);
+          setPin("");
+          setPin2("");
+          setReset(true);
+          setStage("setpin");
+        }}
+      />
     );
   }
 
   // setpin
   return (
-    <Shell
-      heading={t("auth.setPinTitle")}
+    <SetPinStage
       sub={
         reset
           ? t("auth.pinForgotHelp")
           : mode === "family"
             ? t("auth.familyWelcome")
-            : t("auth.setPinSub")
+            : authorityDest
+              ? t("setup-wizard:authLogin.setPinSub")
+              : t("auth.setPinSub")
       }
-    >
-      <form onSubmit={onSetPin} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-neutral-900">
-            {t("auth.pinLabel")}
-          </span>
-          <input
-            // biome-ignore lint/a11y/noAutofocus: first field of the step
-            autoFocus
-            type="password"
-            inputMode="numeric"
-            autoComplete="new-password"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="••••"
-            className={PIN_FIELD}
-            style={{ borderColor: error ? "var(--color-danger-500)" : "var(--color-neutral-200)" }}
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-neutral-900">
-            {t("auth.setPinConfirm")}
-          </span>
-          <input
-            type="password"
-            inputMode="numeric"
-            autoComplete="new-password"
-            maxLength={4}
-            value={pin2}
-            onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="••••"
-            className={PIN_FIELD}
-            style={{ borderColor: error ? "var(--color-danger-500)" : "var(--color-neutral-200)" }}
-          />
-        </label>
-        <FormError message={error} />
-        <PrimaryButton
-          type="submit"
-          label={loading ? t("auth.saving") : t("auth.setPinSave")}
-          loading={loading}
-          disabled={pin.length !== 4 || pin2.length !== 4}
-        />
-      </form>
-    </Shell>
-  );
-}
-
-function Shell({ heading, sub, extra, phone, children }) {
-  return (
-    <AuthShell>
-      <div className="flex flex-col gap-6">
-        <DevOtpHint phone={phone} />
-        <a
-          href="/login"
-          className="self-start text-[13px] font-semibold text-neutral-600 hover:underline"
-        >
-          ‹ Change number
-        </a>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-[30px] font-extrabold leading-[1.12] tracking-[-0.03em] text-neutral-900">
-            {heading}
-          </h2>
-          <p className="text-[15px] leading-relaxed text-neutral-600">{sub}</p>
-          {extra ? <p className="text-[13px] text-neutral-400">{extra}</p> : null}
-        </div>
-        {children}
-      </div>
-    </AuthShell>
+      pin={pin}
+      pin2={pin2}
+      onPinChange={setPin}
+      onPin2Change={setPin2}
+      error={error}
+      loading={loading}
+      onSubmit={onSetPin}
+    />
   );
 }
 

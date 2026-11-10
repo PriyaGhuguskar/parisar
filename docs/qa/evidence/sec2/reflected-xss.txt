@@ -1,0 +1,46 @@
+===== Reflected XSS =====
+--- GET /login?next=javascript:alert(1) ---
+   HTTP body size: 214845
+   RAW payload REFLECTED UNESCAPED: javascript:alert(1)
+--- GET /connect/success?code=<script>alert(1)</script> ---
+   HTTP body size: 202844
+   payload NOT present verbatim (escaped or not reflected)
+--- GET /import?x=%22%3E%3Csvg%20onload%3Dalert(1)%3E ---
+   HTTP body size: 85
+   payload NOT present verbatim (escaped or not reflected)
+--- reflected context of javascript:alert(1) in /login ---
+",\"b\":\"development\",\"p\":\"\",\"c\":[\"\",\"login?next=javascript:alert(1)\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"(auth)\",{\"c
+en\":[\"login\",{\"children\":[\"__PAGE__?{\\\"next\\\":\\\"javascript:alert(1)\\\"}\",{}]}]}]},\"$undefined\",\"$undefined\",true],[\"\",[
+d\",null,{\"Component\":\"$e\",\"searchParams\":{\"next\":\"javascript:alert(1)\"},\"params\":{}},null,[],1],\"$f\",[[\"$\",\"script\",\"sc
+--- how 'next' is consumed in login/verify code ---
+apps/web/app/(auth)/login/page.jsx:4:// database (my_login_state, as the just-verified user) what comes next:
+apps/web/app/(auth)/login/page.jsx:20:import { useRouter, useSearchParams } from "next/navigation";
+apps/web/app/(auth)/login/page.jsx:22:import { useTranslation } from "react-i18next";
+apps/web/app/(auth)/login/page.jsx:38:  const next = safeNextPath(params.get("next"), "");
+apps/web/app/(auth)/login/page.jsx:73:      if (next) q.set("next", next);
+apps/web/app/(auth)/verify/page.jsx:3:// Verify OTP, then ask the database what this person needs next
+apps/web/app/(auth)/verify/page.jsx:25:import { useRouter, useSearchParams } from "next/navigation";
+apps/web/app/(auth)/verify/page.jsx:27:import { useTranslation } from "react-i18next";
+apps/web/app/(auth)/verify/page.jsx:58:  const nextFromUrl = safeNextPath(params.get("next"), "/dashboard");
+apps/web/app/(auth)/verify/page.jsx:59:  const hasNext = Boolean(params.get("next"));
+apps/web/app/(auth)/verify/page.jsx:77:  const dest = authorityDest ?? (isGuard ? "/guard" : nextFromUrl); // where PIN success lands
+apps/web/app/(auth)/verify/page.jsx:176:      // Auth Hook puts society_id and role in it before the next screen reads.
+apps/web/app/(auth)/verify/page.jsx:197:      const next = res?.error ? null : managerDestination(state, res?.societies);
+apps/web/app/(auth)/verify/page.jsx:198:      if (next) setAuthorityDest(next);
+apps/web/app/(auth)/verify/page.jsx:209:      return router.push(nextFromUrl.startsWith("/join/") ? nextFromUrl : "/onboarding");
+apps/web/app/(auth)/verify/page.jsx:248:      // Auth Hook injects society_id/role before the next screen's RLS reads.
+apps/web/app/(auth)/verify/page.jsx:344:    // Signed in, but the next step couldn't be worked out (offline / server).
+safeNextPath in: apps/web/lib/auth/loginMode.js
+export function safeNextPath(next, fallback = "/dashboard") {
+  if (typeof next !== "string" || next.length > 2048) return fallback;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+  if (/[\s\\\u0000-\u001f\u007f]/.test(next)) return fallback;
+  return /^\/(?!\/)/.test(next) ? next : fallback;
+}
+--- grep the guard logic ---
+46:export function safeNextPath(next, fallback = "/dashboard") {
+47-  if (typeof next !== "string" || next.length > 2048) return fallback;
+48-  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+49-  if (/[\s\\\u0000-\u001f\u007f]/.test(next)) return fallback;
+50-  return /^\/(?!\/)/.test(next) ? next : fallback;
+51-}

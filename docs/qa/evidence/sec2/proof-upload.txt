@@ -1,0 +1,16 @@
+===== Proof bucket: live RLS-denial probes as NON-MEMBER 29 (cannot write) =====
+uid29=417d3263-70b1-41fb-bc2f-033e9da1c345 (no membership; write policy requires active membership/tenant)
+--- probe 1: valid-shaped path, declared application/pdf ---
+{"statusCode":"403","error":"Unauthorized","message":"new row violates row-level security policy"}
+   [HTTP 400]
+
+--- probe 2: disallowed mime application/x-msdownload ---
+{"statusCode":"415","error":"invalid_mime_type","message":"mime type application/x-msdownload is not supported"}
+   [HTTP 400]
+
+--- probe 3: path traversal name ---
+{"statusCode":"403","error":"Unauthorized","message":"new row violates row-level security policy"}
+   [HTTP 400]
+
+--- verify nothing was created under uid29 (read-only SQL) ---
+   objects under uid29: 0

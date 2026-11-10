@@ -153,3 +153,120 @@ export const POST_KIND_LABELS = {
   help: "Ask for help",
   general: "General",
 };
+
+// ---------------------------------------------------------------------------
+// Society onboarding (migrations 058-074). Resident type, society title and staff
+// role are separate fields: one person can hold one of each.
+// ---------------------------------------------------------------------------
+export const RESIDENT_TYPE = ["owner", "tenant", "family_member"];
+
+export const SOCIETY_TITLE = ["resident", "chairman", "secretary", "treasurer", "committee_member"];
+
+// Which membership_role each title grants. Mirrors app_private.society_title_role.
+export const SOCIETY_TITLE_ROLE = {
+  resident: "member",
+  committee_member: "board_member",
+  treasurer: "co_secretary",
+  secretary: "secretary",
+  chairman: "secretary",
+};
+
+// The brief's staff roles first; maid, driver and cook are older directory values.
+export const STAFF_ROLE = [
+  "security",
+  "plumber",
+  "electrician",
+  "cleaner",
+  "gardener",
+  "maintenance_staff",
+  "other",
+  "maid",
+  "driver",
+  "cook",
+];
+
+export const CONNECT_REQUEST_STATUS = [
+  "new",
+  "call_scheduled",
+  "rescheduled",
+  "contacted",
+  "rejected",
+  "registered",
+];
+
+export const SOCIETY_TYPE = [
+  "cooperative_housing",
+  "apartment_association",
+  "gated_community",
+  "condominium",
+  "rwa",
+  "mixed_use",
+  "commercial",
+  "other",
+];
+
+export const SETUP_STATE = ["needs_setup", "needs_personal_onboarding", "complete"];
+
+export const SETUP_STEP = [
+  "society_details",
+  "authorities",
+  "wings",
+  "floors",
+  "flats",
+  "amenities",
+  "staff",
+  "guards",
+  "residents_import",
+];
+export const SETUP_REQUIRED_STEPS = ["wings", "floors", "flats"];
+
+export const FLAT_TYPE = [
+  "1rk",
+  "1bhk",
+  "2bhk",
+  "3bhk",
+  "4bhk",
+  "5bhk_plus",
+  "studio",
+  "duplex",
+  "penthouse",
+  "shop",
+  "office",
+  "other",
+];
+
+export const FLAT_STATUS = ["occupied", "vacant", "under_construction", "maintenance"];
+
+export const RESIDENT_RECORD_STATUS = ["pending", "verified", "rejected", "needs_correction"];
+
+export const IMPORT_ROW_STATUS = ["valid", "warning", "error", "imported"];
+
+export const TENANT_STATUS = [
+  "registered",
+  "owner_approved",
+  "admin_approved",
+  "active",
+  "rejected",
+];
+
+export const POLICE_VERIFICATION_STATUS = ["not_submitted", "submitted", "verified", "rejected"];
+
+export const FAMILY_RELATIONSHIP = ["spouse", "parent", "child", "sibling", "other"];
+
+export const HOUSEHOLD_REQUEST_STATUS = ["pending", "approved", "rejected", "cancelled"];
+
+export const STAFF_SHIFT = ["morning", "afternoon", "evening", "night", "general", "rotational"];
+
+export const ID_PROOF_TYPE = ["aadhaar", "pan", "voter_id", "driving_licence", "passport", "other"];
+
+export const PROOF_DOC_TYPE = [
+  "ownership_proof",
+  "sale_deed",
+  "share_certificate",
+  "id_proof",
+  "address_proof",
+  "rent_agreement",
+  "police_verification",
+  "photo",
+  "other",
+];

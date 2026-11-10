@@ -1,0 +1,62 @@
+[
+  {
+    "id": "SEC-010",
+    "module": "Authentication / Session",
+    "screen": "Supabase data API (PostgREST) after logout",
+    "title": "Access token not invalidated on logout — reusable against the data API until it expires (~1 hour)",
+    "steps": "Login as 9000000029; confirm GET /rest/v1/society_memberships returns 200. POST /auth/v1/logout?scope=global (204). Reuse the SAME access token: GET /auth/v1/user -> 403 session_not_found; refresh grant -> 400; BUT GET /rest/v1/society_memberships -> 200 and POST /rest/v1/rpc/resident_dashboard executes (NOT_A_MEMBER), i.e. JWT still accepted by PostgREST.",
+    "expected": "After logout the session is fully revoked; a captured access token can no longer reach the data API.",
+    "actual": "GoTrue /user and the refresh token are revoked, but the stateless access JWT (ttl 3600s, carries session_id) stays valid against PostgREST for up to its 1-hour lifetime. A stolen token keeps full data access for up to ~1h post-logout. Compounds SEC-007 (non-HttpOnly 400-day cookie).",
+    "severity": "Medium",
+    "priority": "P2",
+    "environment": "local dev; Supabase local 54321; branch feat/saas-onboarding",
+    "screenshot": "docs/qa/evidence/sec2/logout.txt",
+    "api_error": "after logout: /auth/v1/user 403 session_not_found; /rest/v1 data calls still 200/execute",
+    "status": "Open"
+  },
+  {
+    "id": "SEC-011",
+    "module": "API / CORS",
+    "screen": "Supabase REST (http://127.0.0.1:54321/rest/v1/)",
+    "title": "CORS reflects Access-Control-Allow-Origin: * to arbitrary origins",
+    "steps": "curl -I -H 'Origin: https://evil.example' <api>/rest/v1/ and a GET with the same Origin.",
+    "expected": "Production must not combine a wildcard ACAO with credentials.",
+    "actual": "Access-Control-Allow-Origin: * returned for any origin; no Access-Control-Allow-Credentials. Acceptable for a bearer-token API (foreign pages cannot read a victim's authenticated responses) but noted so production never pairs ACAO:* with Allow-Credentials:true. Web app (Next.js) returns no ACAO (no exposure).",
+    "severity": "Low",
+    "priority": "P3",
+    "environment": "local dev; Supabase local 54321",
+    "screenshot": "docs/qa/evidence/sec2/cors.txt",
+    "api_error": "",
+    "status": "Open"
+  },
+  {
+    "id": "SEC-012",
+    "module": "File upload / Storage",
+    "screen": "parisar-proofs / parisar-attachments buckets",
+    "title": "Bucket MIME validation trusts declared Content-Type, not file bytes (content-sniffing bypass)",
+    "steps": "Bucket allowed_mime_types enforce the DECLARED Content-Type only (confirmed: application/x-msdownload -> 415). A file of exe bytes uploaded with a declared Content-Type: application/pdf would pass the allowlist. Live member-context confirmation was blocked by the environment's shared-resource write guard; recorded from config + code review. Same class as CORE-007 (corrupt image accepted).",
+    "expected": "Reject files whose actual content does not match an allowed type (content sniffing / magic-byte check).",
+    "actual": "Supabase Storage validates only the declared Content-Type header. An attacker-controlled declared MIME of an allowed type bypasses the allowlist regardless of bytes.",
+    "severity": "Low",
+    "priority": "P3",
+    "environment": "local dev; Supabase Storage local",
+    "screenshot": "docs/qa/evidence/sec2/proof-upload.txt",
+    "api_error": "disallowed declared mime -> 415 invalid_mime_type (works); mismatched-but-allowed declared mime -> not blocked",
+    "status": "Open"
+  },
+  {
+    "id": "SEC-013",
+    "module": "Build / Information disclosure",
+    "screen": "Production build (not verifiable in this pass)",
+    "title": "Production build must be confirmed to not serve source maps and to emit digest-only errors",
+    "steps": "Dev server serves .js.map files (sample .js.map -> 200; 249 .map files in .next/static) and verbose RSC error bodies ('env':'Server','b':'development'). QA rules forbid running next build, so a production build could not be checked here.",
+    "expected": "Production build serves no .map files and returns digest-only errors with no stack traces or SQL to the browser.",
+    "actual": "Dev behaviour is as expected (source maps + verbose errors). No secret env values leak in the dev client bundle (only the public anon key). Production build re-check outstanding.",
+    "severity": "Low",
+    "priority": "P3",
+    "environment": "local dev; next dev --turbopack",
+    "screenshot": "docs/qa/evidence/sec2/sourcemaps.txt",
+    "api_error": "",
+    "status": "Open"
+  }
+]

@@ -1,16 +1,22 @@
 "use client";
 
-// The standard content surface. `interactive` opts into the lift-and-glow hover
-// used across the product, so a card that responds always looks like one that
-// can be clicked — and one that cannot, never moves.
+// The standard content surface. `interactive` opts into the hover used across the
+// product, so a card that responds always looks like one that can be clicked — and
+// one that cannot, never moves.
 
-export function SurfaceCard({ children, className = "", interactive = false, as: Tag = "div" }) {
+export function SurfaceCard({
+  children,
+  className = "",
+  interactive = false,
+  as: Tag = "div",
+  ...props
+}) {
   return (
     <Tag
-      className={`rounded-[18px] border border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] ${
-        interactive ? "pk-tile cursor-pointer" : ""
+      {...props}
+      className={`rounded-xl border border-border bg-card shadow-card ${
+        interactive ? "focus-ring cursor-pointer transition-shadow hover:shadow-raised" : ""
       } ${className}`}
-      style={{ boxShadow: "0 1px 2px rgba(18,38,28,.05)" }}
     >
       {children}
     </Tag>

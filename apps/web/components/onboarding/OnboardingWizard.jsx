@@ -1,514 +1,329 @@
 "use client";
 
-// New-resident onboarding after OTP: society code -> your details (pick your
-// flat) -> family -> PIN. Four steps, one atomic commit each side.
+// New-resident onboarding after OTP: society code -> your details (Wing, Floor,
+// Flat, resident type) -> one branch -> PIN.
 //
-// The resident is already OTP-verified (they arrived here in `code` mode), so
-// they have a session but no membership yet. onboard_flats_for_code lets them
-// see the chairman's flats despite not being a member; onboard_resident joins
-// them, names them and pre-registers their family in one call; then setMyPin
-// (server-side; the session decides whose PIN it is).
+//   owner on a free flat, or an authority  -> family -> onboard_resident (as before)
+//   tenant                                 -> tenancy -> tenant_register (owner, then society approve)
+//   flat already has residents             -> "Are you already part of this household?"
+//        yes -> household_request_access (an owner/tenant of the flat or the society approves)
+//        no  -> owner: onboard_resident, which lands in the society's pending_review queue
 //
-// Family phones entered here become a login path — those people later sign in
-// with OTP + a PIN, no code, no re-onboarding (claim_family_membership).
+// Nothing here grants access to an occupied flat by itself. The join RPC is not
+// idempotent, so once it succeeds a retry after a failed PIN save only retries the PIN.
+// Society authorities arrive with their code pre-filled and keep the old path.
 
-import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
+import {
+  householdLookup,
+  householdRequestAccess,
+  onboardResident,
+  onboardStructureForCode,
+  tenantRegister,
+  upsertMyProfile,
+} from "@parisar/api-client";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setMyPin } from "@/app/actions/codeLogin";
+import { PageShell, Stepper } from "@/components/kit";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { errorMessage } from "./lib/errors";
+import { findFlat, findWing, lookupKeys } from "./lib/structure";
+import { PinSetup, pinErrorMessage } from "./PinSetup";
+import { CodeStep, normaliseCode } from "./wizard/CodeStep";
+import { DetailsStep } from "./wizard/DetailsStep";
+import { FamilyStep } from "./wizard/FamilyStep";
+import { HouseholdStep } from "./wizard/HouseholdStep";
+import { TenantStep } from "./wizard/TenantStep";
 
-const field =
-  "h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[15px] outline-none transition-[border-color,box-shadow] focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
-
-function weakPin(p) {
-  return p === "1234" || /^(\d)\1{3}$/.test(p);
-}
+const EXTRA_STEP = { join: "family", pending: "family", tenant: "tenant", household: "household" };
+const EMPTY_TENANT = {
+  agreementStart: "",
+  agreementEnd: "",
+  ownerName: "",
+  ownerPhone: "",
+  policeStatus: "not_submitted",
+  policeReference: "",
+};
 
 export function OnboardingWizard({
   phone,
   initialName = "",
-  // Society authorities arrive with their society's code pre-filled, and skip the
-  // PIN step if they already set one during wings/flats setup.
   initialCode = "",
   pinAlreadySet = false,
+  authorityMode = false,
 }) {
-  const { t } = useTranslation("auth");
+  const { t } = useTranslation("resident-onboarding");
   const router = useRouter();
-
-  // The number they signed in with — always known, shown read-only so it's clear
-  // which mobile they're registered under (the "Alternate" below is a backup).
   const phoneDisplay = phone ? `+91 ${phone.replace(/\D/g, "").slice(-10)}` : "";
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState("code");
+  const [path, setPath] = useState("join");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const [code, setCode] = useState(initialCode);
-  const [society, setSociety] = useState(null); // { society_id, society_name, wings }
-  const [form, setForm] = useState({ name: initialName, flatId: "", residency: "owner", alt: "" });
+  const [error, setError] = useState(null);
+  const [code, setCode] = useState(normaliseCode(initialCode));
+  const [structure, setStructure] = useState(null);
+  const [form, setForm] = useState({
+    name: initialName,
+    wingId: "",
+    floorId: "",
+    flatId: "",
+    residentType: "owner",
+    alt: "",
+  });
   const [family, setFamily] = useState([]);
-  const [pin, setPin] = useState("");
-  const [pin2, setPin2] = useState("");
-  // onboard_resident is not idempotent: once it has succeeded, a retry after a
-  // failed PIN save must ONLY retry the PIN, never re-run onboarding.
-  const [onboarded, setOnboarded] = useState(false);
+  const [tenant, setTenant] = useState(EMPTY_TENANT);
+  const [lookup, setLookup] = useState(null);
+  const [household, setHousehold] = useState({ answer: null, relationship: "", message: "" });
+  const committed = useRef(null);
 
-  // --- step 1: code ------------------------------------------------------
   async function lookupCode(raw) {
-    setErr(null);
+    setError(null);
     setBusy(true);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const norm = String(raw).toUpperCase().replace(/\s/g, "");
-      const withDash = norm.includes("-") ? norm : `${norm.slice(0, 4)}-${norm.slice(4)}`;
-      const { data } = await supabase.rpc("onboard_flats_for_code", { p_code: withDash });
-      if (!data || data.error) {
-        setErr(
-          data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obCodeInvalid"),
-        );
-        setBusy(false);
+      const res = await onboardStructureForCode(createSupabaseBrowserClient(), normaliseCode(raw));
+      if (res?.error) {
+        setError(errorMessage(t, res));
         return;
       }
-      setSociety({ ...data, code: withDash });
-      setStep(2);
-      setBusy(false);
+      setStructure({ ...res, code: normaliseCode(raw) });
+      setStep("details");
     } catch {
-      setErr(t("auth.obErr"));
+      setError(t("errors.generic"));
+    } finally {
       setBusy(false);
     }
   }
 
-  function onCode(e) {
-    e.preventDefault();
-    lookupCode(code);
-  }
-
-  // A society authority already belongs to the society — skip the code step and
-  // open straight on their details (the code is pre-filled from their society).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount for the pre-filled code
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once for a pre-filled code
   useEffect(() => {
     if (initialCode) lookupCode(initialCode);
   }, []);
 
-  function onDetails(e) {
-    e.preventDefault();
-    setErr(null);
-    if (form.name.trim().length < 2) return setErr(t("auth.obNeedName"));
-    if (!form.flatId) return setErr(t("auth.obNeedFlat"));
-    setStep(3);
-  }
-
-  function addFamily() {
-    setFamily((f) => [...f, { name: "", relation: "", phone: "" }]);
-  }
-  function setFam(i, patch) {
-    setFamily((f) => f.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  }
-
-  // --- step 4: pin -> commit everything ----------------------------------
-  async function onFinish(e) {
-    e.preventDefault();
-    setErr(null);
-    if (!/^\d{4}$/.test(pin)) return setErr(t("auth.setPinWeak"));
-    if (weakPin(pin)) return setErr(t("auth.setPinWeak"));
-    if (pin !== pin2) return setErr(t("auth.setPinMismatch"));
-    await commit();
-  }
-
-  // After the family step: straight to the commit when the PIN already exists.
-  function afterFamily() {
-    if (pinAlreadySet) {
-      setErr(null);
-      commit();
+  async function afterDetails() {
+    setError(null);
+    const wing = findWing(structure, form.wingId);
+    const flat = findFlat(wing, form.flatId);
+    if (authorityMode || (!flat.taken && form.residentType === "owner")) {
+      setPath("join");
+      setStep("extra");
       return;
     }
-    setStep(4);
-  }
-
-  async function commit() {
+    if (form.residentType === "tenant") {
+      setPath("tenant");
+      setStep("extra");
+      return;
+    }
     setBusy(true);
-    setErr(null);
     try {
-      if (!onboarded) {
-        const ok = await runOnboarding();
-        if (!ok) return;
-        setOnboarded(true);
+      const res = await householdLookup(createSupabaseBrowserClient(), {
+        code: structure.code,
+        ...lookupKeys(wing, flat),
+      });
+      if (res?.error) {
+        setError(errorMessage(t, res));
+        return;
       }
-      if (!pinAlreadySet) {
-        const res = await setMyPin(pin);
-        if (res?.error) {
-          setErr(
-            res.error === "WEAK_PIN"
-              ? t("auth.setPinWeak")
-              : res.error === "REAUTH_REQUIRED" || res.error === "AUTH_REQUIRED"
-                ? t("auth.reauthRequired", {
-                    defaultValue: "For your security, please verify your number again.",
-                  })
-                : t("auth.obErr"),
-          );
-          setBusy(false);
-          return;
-        }
-      }
-      // Onboarding just created the membership — after this session's JWT was
-      // minted at verifyOtp. Re-mint so the Auth Hook injects society_id/role;
-      // otherwise the dashboard's RLS queries run against an empty society claim.
-      await createSupabaseBrowserClient().auth.refreshSession();
-      // pending_review members still land in the app; the dashboard shows their
-      // status. No need to block them on a separate screen.
-      router.push("/dashboard");
+      setLookup(res);
+      setHousehold({ answer: null, relationship: "", message: "" });
+      setPath("household");
+      setStep("extra");
     } catch {
-      setErr(t("auth.obErr"));
+      setError(t("errors.generic"));
+    } finally {
       setBusy(false);
     }
   }
 
-  /** onboard_resident once. Returns true on success; shows the error otherwise. */
-  async function runOnboarding() {
-    const supabase = createSupabaseBrowserClient();
-    const { data, error } = await supabase.rpc("onboard_resident", {
-      p_code: society.code,
-      p_flat_id: form.flatId,
-      p_full_name: form.name.trim(),
-      p_residency: form.residency,
-      p_alt_phone: form.alt.trim() || null,
-      p_family: family
-        .filter((m) => m.name.trim())
-        .map((m) => ({
-          name: m.name.trim(),
-          relation: m.relation.trim(),
-          phone: m.phone.trim() || null,
-          is_resident: true,
-        })),
+  async function runPath(supabase, p) {
+    const base = { code: structure.code, flatId: form.flatId, fullName: form.name.trim() };
+    if (p === "join" || p === "pending") {
+      return onboardResident(supabase, {
+        ...base,
+        residency: form.residentType === "tenant" ? "tenant" : "owner",
+        altPhone: form.alt,
+        family: p === "join" ? familyPayload(family) : [],
+      });
+    }
+    const profile = await upsertMyProfile(supabase, base.fullName);
+    if (profile?.error) return profile;
+    if (p === "tenant") {
+      return tenantRegister(supabase, {
+        ...base,
+        agreementStart: tenant.agreementStart || null,
+        agreementEnd: tenant.agreementEnd || null,
+        ownerName: tenant.ownerName.trim() || null,
+        ownerPhone: tenant.ownerPhone || null,
+        policeStatus: tenant.policeStatus,
+        policeReference: tenant.policeReference.trim() || null,
+      });
+    }
+    return householdRequestAccess(supabase, {
+      ...base,
+      relationship: household.relationship,
+      residentType: form.residentType === "owner" ? "owner" : "family_member",
+      message: household.message.trim() || null,
     });
-    if (error || data?.error) {
-      setErr(data?.error === "SOCIETY_BLOCKED" ? t("service.blockedJoin") : t("auth.obErr"));
-      setBusy(false);
-      return false;
-    }
-    return true;
   }
 
-  const flats = (society?.wings ?? []).flatMap((w) => w.flats.map((f) => ({ ...f, wing: w.name })));
+  /** Join (once), then the PIN, then on. Resolves to an error message or null. */
+  async function commit(pin, p = path) {
+    const supabase = createSupabaseBrowserClient();
+    if (!committed.current) {
+      const res = await runPath(supabase, p);
+      if (res?.error) return errorMessage(t, res);
+      committed.current = { path: p, res };
+    }
+    if (pin) {
+      const pinRes = await setMyPin(pin);
+      if (pinRes?.error) return pinErrorMessage(t, pinRes.error);
+    }
+    const done = committed.current.path;
+    if (done === "join" || done === "pending") {
+      // The membership was created after this JWT was minted; re-mint it so the
+      // Auth Hook injects society_id/role before the dashboard's RLS reads.
+      await supabase.auth.refreshSession();
+      router.push("/dashboard");
+    } else {
+      router.push("/onboarding/status");
+    }
+    return null;
+  }
+
+  /** The last content step: on to the PIN, or commit now when a PIN exists. */
+  async function finishOrPin(nextPath) {
+    const p = nextPath ?? path;
+    setPath(p);
+    if (!pinAlreadySet) {
+      setStep("pin");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const message = await commit(null, p);
+      if (message) setError(message);
+    } catch {
+      setError(t("errors.generic"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const extraKey = EXTRA_STEP[path];
+  const steps = [
+    { id: "code", label: t("steps.code") },
+    { id: "details", label: t("steps.details") },
+    { id: "extra", label: t(`steps.${extraKey}`) },
+    ...(pinAlreadySet ? [] : [{ id: "pin", label: t("steps.pin") }]),
+  ];
+  const current = Math.max(
+    0,
+    steps.findIndex((s) => s.id === step),
+  );
+  const finalStep = pinAlreadySet;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--color-neutral-50)" }}>
-      <div className="mx-auto w-full max-w-lg px-5 py-10 sm:py-14">
+    <div className="min-h-screen bg-background">
+      <PageShell width="narrow">
         <div className="mb-6 flex items-center gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-2xl"
-            style={{ color: "#fff" }}
-          >
-            <Image
-              src="/parisar-mark-96.png"
-              alt=""
-              aria-hidden="true"
-              width={40}
-              height={40}
-              className="h-full w-full object-contain"
-            />
-          </span>
-          <span className="text-[13px] font-bold tabular-nums text-[var(--color-neutral-400)]">
-            {t("auth.obStep", { n: step })}
+          <Image src="/parisar-mark-96.png" alt="" aria-hidden="true" width={40} height={40} />
+          <span className="type-body-sm font-medium text-muted-foreground">
+            {t("wizard.brand")}
           </span>
         </div>
+        <h1 className="type-h1 text-foreground">
+          {t(`wizard.title.${step === "extra" ? extraKey : step}`)}
+        </h1>
+        <p className="type-body mt-1 mb-6 text-muted-foreground">
+          {step === "code"
+            ? t("wizard.sub.code")
+            : t("wizard.sub.other", { society: structure?.society_name ?? "" })}
+        </p>
+        <Stepper steps={steps} current={current} className="mb-8" />
 
-        {/* progress bar */}
-        <div className="mb-8 flex gap-1.5">
-          {[1, 2, 3, 4].map((n) => (
-            <span
-              key={n}
-              className="h-1.5 flex-1 rounded-full transition-colors"
-              style={{
-                backgroundColor: n <= step ? "var(--color-brand-500)" : "var(--color-neutral-200)",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* ---- step 1: code ---- */}
-        {step === 1 ? (
-          <form onSubmit={onCode} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <h1 className="text-[26px] font-extrabold tracking-[-0.03em] text-[var(--color-neutral-900)]">
-                {t("auth.obCodeTitle")}
-              </h1>
-              <p className="text-[15px] text-[var(--color-neutral-600)]">{t("auth.obCodeSub")}</p>
-            </div>
-            <input
-              value={code}
-              onChange={(e) =>
-                setCode(
-                  e.target.value
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9-]/g, "")
-                    .slice(0, 9),
-                )
-              }
-              placeholder="ABCD-1234"
-              autoCapitalize="characters"
-              className="h-14 w-full rounded-2xl border border-[var(--color-neutral-200)] bg-white px-4 text-center text-[20px] font-bold uppercase tracking-[0.2em] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-brand-500)_18%,transparent)]"
-              style={{ borderColor: err ? "var(--color-danger-500)" : undefined }}
-            />
-            {err ? <Err msg={err} /> : null}
-            <Primary
-              busy={busy}
-              disabled={code.replace("-", "").length !== 8}
-              label={t("auth.obNext")}
-            />
-          </form>
+        {step === "code" ? (
+          <CodeStep code={code} onCode={setCode} onSubmit={lookupCode} busy={busy} error={error} />
         ) : null}
 
-        {/* ---- step 2: details ---- */}
-        {step === 2 ? (
-          <form onSubmit={onDetails} className="flex flex-col gap-5">
-            <Head
-              back={() => setStep(1)}
-              title={t("auth.obDetailsTitle")}
-              sub={t("auth.obDetailsSub", { society: society?.society_name ?? "" })}
+        {step === "details" ? (
+          <>
+            <DetailsStep
+              structure={structure}
+              form={form}
+              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              phoneDisplay={phoneDisplay}
+              authorityMode={authorityMode}
+              onBack={authorityMode ? undefined : () => setStep("code")}
+              onNext={afterDetails}
             />
-            <Label text={t("auth.obYourMobile")}>
-              <input
-                className={field}
-                value={phoneDisplay}
-                readOnly
-                disabled
-                style={{
-                  backgroundColor: "var(--color-neutral-50)",
-                  color: "var(--color-neutral-600)",
-                }}
-              />
-            </Label>
-            <Label text={t("auth.obName")}>
-              <input
-                className={field}
-                value={form.name}
-                placeholder={t("auth.obNamePh")}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </Label>
-            <Label text={t("auth.obFlat")}>
-              <select
-                className={field}
-                value={form.flatId}
-                onChange={(e) => setForm({ ...form, flatId: e.target.value })}
-              >
-                <option value="">{t("auth.obFlatPick")}</option>
-                {flats.map((f) => (
-                  <option key={f.id} value={f.id} disabled={f.taken}>
-                    {f.wing === "Main" ? f.number : `${f.wing}-${f.number}`}
-                    {f.taken ? ` (${t("auth.obFlatTaken")})` : ""}
-                  </option>
-                ))}
-              </select>
-            </Label>
-            <Label text={t("auth.obResidency")}>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ["owner", t("auth.obOwner")],
-                  ["tenant", t("auth.obTenant")],
-                ].map(([v, lbl]) => {
-                  const on = form.residency === v;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setForm({ ...form, residency: v })}
-                      className="rounded-xl border px-4 py-3 text-[14px] font-bold transition-colors"
-                      style={{
-                        borderColor: on ? "var(--color-brand-500)" : "var(--color-neutral-200)",
-                        backgroundColor: on ? "var(--color-brand-50)" : "#fff",
-                        color: on ? "var(--color-brand-700)" : "var(--color-neutral-600)",
-                      }}
-                    >
-                      {lbl}
-                    </button>
-                  );
-                })}
-              </div>
-            </Label>
-            <Label text={t("auth.obAlt")} hint={t("auth.obAltHint")}>
-              <input
-                className={field}
-                inputMode="numeric"
-                maxLength={10}
-                value={form.alt}
-                placeholder="98765 43210"
-                onChange={(e) =>
-                  setForm({ ...form, alt: e.target.value.replace(/\D/g, "").slice(0, 10) })
-                }
-              />
-            </Label>
-            {err ? <Err msg={err} /> : null}
-            <Primary label={t("auth.obNext")} />
-          </form>
+            {error ? (
+              <p role="alert" className="type-body-sm mt-4 text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </>
         ) : null}
 
-        {/* ---- step 3: family ---- */}
-        {step === 3 ? (
-          <div className="flex flex-col gap-5">
-            <Head
-              back={() => setStep(2)}
-              title={t("auth.obFamilyTitle")}
-              sub={t("auth.obFamilySub")}
-            />
-            <div className="flex flex-col gap-3">
-              {family.map((m, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: positional rows, no id
-                <div
-                  key={i}
-                  className="rounded-2xl border border-[var(--color-neutral-200)] bg-white p-3.5"
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      className={field}
-                      value={m.name}
-                      placeholder={t("auth.obFamilyName")}
-                      onChange={(e) => setFam(i, { name: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Remove"
-                      onClick={() => setFamily((f) => f.filter((_, idx) => idx !== i))}
-                      className="pk-press rounded-lg p-2 text-[var(--color-neutral-400)] hover:bg-[var(--color-neutral-100)]"
-                    >
-                      <X size={16} strokeWidth={2.4} />
-                    </button>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <input
-                      className={field}
-                      value={m.relation}
-                      placeholder={t("auth.obFamilyRelPh")}
-                      onChange={(e) => setFam(i, { relation: e.target.value })}
-                    />
-                    <input
-                      className={field}
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={m.phone}
-                      placeholder={t("auth.obFamilyPhone")}
-                      onChange={(e) =>
-                        setFam(i, { phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addFamily}
-                className="pk-press inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-neutral-200)] py-2.5 text-[14px] font-bold text-[var(--color-brand-600)] hover:border-[var(--color-brand-500)]"
-              >
-                <Plus size={16} strokeWidth={2.6} aria-hidden="true" />
-                {family.length === 0 ? t("auth.obFamilyName") : t("auth.obFamilyAdd")}
-              </button>
-            </div>
-            {err && pinAlreadySet ? <Err msg={err} /> : null}
-            <Primary label={t("auth.obNext")} onClick={afterFamily} type="button" busy={busy} />
-            <button
-              type="button"
-              onClick={afterFamily}
-              className="text-center text-[13px] font-semibold text-[var(--color-neutral-500)] hover:underline"
-            >
-              {t("auth.obFamilyNone")}
-            </button>
-          </div>
+        {step === "extra" && (path === "join" || path === "pending") ? (
+          <FamilyStep
+            family={family}
+            onChange={setFamily}
+            onBack={() => setStep("details")}
+            onNext={() => finishOrPin()}
+            busy={busy}
+            error={error}
+            finalStep={finalStep}
+          />
         ) : null}
 
-        {/* ---- step 4: pin ---- */}
-        {step === 4 ? (
-          <form onSubmit={onFinish} className="flex flex-col gap-5">
-            <Head back={() => setStep(3)} title={t("auth.setPinTitle")} sub={t("auth.setPinSub")} />
-            <Label text={t("auth.pinLabel")}>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin}
-                placeholder="••••"
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className={`${field} h-14 text-center text-[24px] font-bold tracking-[0.5em]`}
-              />
-            </Label>
-            <Label text={t("auth.setPinConfirm")}>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin2}
-                placeholder="••••"
-                onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className={`${field} h-14 text-center text-[24px] font-bold tracking-[0.5em]`}
-              />
-            </Label>
-            {err ? <Err msg={err} /> : null}
-            <Primary
-              busy={busy}
-              disabled={pin.length !== 4 || pin2.length !== 4}
-              label={t("auth.obFinish")}
-            />
-          </form>
+        {step === "extra" && path === "tenant" ? (
+          <TenantStep
+            value={tenant}
+            onChange={(patch) => setTenant((v) => ({ ...v, ...patch }))}
+            onBack={() => setStep("details")}
+            onNext={() => finishOrPin()}
+            busy={busy}
+            error={error}
+            finalStep={finalStep}
+          />
         ) : null}
-      </div>
+
+        {step === "extra" && path === "household" && lookup ? (
+          <HouseholdStep
+            lookup={lookup}
+            residentType={form.residentType}
+            value={household}
+            onChange={(patch) => setHousehold((v) => ({ ...v, ...patch }))}
+            onBack={() => setStep("details")}
+            onRequest={() => finishOrPin()}
+            onAskSociety={() => finishOrPin("pending")}
+            busy={busy}
+            error={error}
+            finalStep={finalStep}
+          />
+        ) : null}
+
+        {step === "pin" ? (
+          <PinSetup
+            onSubmit={(pin) => commit(pin)}
+            submitLabel={t("common.finish")}
+            onBack={committed.current ? undefined : () => setStep("extra")}
+          />
+        ) : null}
+      </PageShell>
     </div>
   );
 }
 
-function Head({ back, title, sub }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={back}
-        className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-[var(--color-neutral-500)] hover:underline"
-      >
-        <ArrowLeft size={14} strokeWidth={2.4} aria-hidden="true" />
-        Back
-      </button>
-      <h1 className="text-[26px] font-extrabold tracking-[-0.03em] text-[var(--color-neutral-900)]">
-        {title}
-      </h1>
-      <p className="text-[15px] text-[var(--color-neutral-600)]">{sub}</p>
-    </div>
-  );
-}
-function Label({ text, hint, children }) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">{text}</span>
-      {children}
-      {hint ? <span className="text-[12px] text-[var(--color-neutral-400)]">{hint}</span> : null}
-    </label>
-  );
-}
-function Err({ msg }) {
-  return (
-    <p
-      role="alert"
-      className="rounded-xl px-3.5 py-2.5 text-[13px] font-medium"
-      style={{ backgroundColor: "#FCE9E6", color: "#94291A" }}
-    >
-      {msg}
-    </p>
-  );
-}
-function Primary({ busy, disabled, label, onClick, type = "submit" }) {
-  return (
-    <button
-      type={type}
-      disabled={busy || disabled}
-      onClick={onClick}
-      className="pk-press inline-flex h-12 items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
-      style={{
-        backgroundColor: busy || disabled ? "var(--color-neutral-300)" : "var(--color-brand-500)",
-      }}
-    >
-      {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
-      {label}
-    </button>
-  );
+function familyPayload(family) {
+  return family
+    .filter((m) => m.name.trim())
+    .map((m) => ({
+      name: m.name.trim(),
+      relation: m.relation.trim(),
+      phone: m.phone || null,
+      is_resident: true,
+    }));
 }

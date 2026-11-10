@@ -1,0 +1,11 @@
+# profiles.pin_set for 9000000017:
+t
+# OTP-only session, amr:
+[{"method":"otp","timestamp":1794302070}]
+# POST /rest/v1/rpc/resident_dashboard
+{"role": "member", "flat_id": "9716ba35-547b-4b90-9310-2ec812ada062", "flat_label": "A Wing-101", "open_polls": 0, "society_id": "06d44e6a-0eed-41c4-b64f-a21b30123ef7", "society_name": "QA Sunrise Heights", "resident_type": "owner", "society_title": "resident", "pending_visitors": 0, "household_memb
+# GET society_memberships
+[{"role":"secretary","resident_type":"owner"}, 
+ {"role":"secretary","resident_type":"owner"}, 
+ {"role":"secretary","resident_type":"owner"}]
+[HTTP 200]

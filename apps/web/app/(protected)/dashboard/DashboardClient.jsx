@@ -26,10 +26,13 @@ import { DashboardTile } from "@/components/dashboard/DashboardTile";
 import { DashboardTilePreview } from "@/components/dashboard/DashboardTilePreview";
 import { HighlightsStrip } from "@/components/dashboard/HighlightsStrip";
 import { ProfileMenuDropdown } from "@/components/dashboard/ProfileMenuDropdown";
+import { ResidentOverview } from "@/components/dashboard/ResidentOverview";
+import { SocietyAdminOverview } from "@/components/dashboard/SocietyAdminOverview";
 import { SocietyHeaderPill } from "@/components/dashboard/SocietyHeaderPill";
 import { SosAlerts } from "@/components/sos/SosAlerts";
 import { subscribeDashboardRealtime } from "@/lib/dashboard-realtime";
 import { useDashboardSummary } from "@/lib/dashboard-summary-store";
+import { featureChecker } from "@/lib/nav/sidebarNav";
 import { computeDaysUntilRotation, daysUntilRotationToBadge, getRoleTiles } from "@/lib/role-tiles";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -41,8 +44,42 @@ const PLACEHOLDER_PHASE_KEY = {
   10: "placeholder.phase10",
 };
 
+// Tiles whose module now has a web screen, though role-tiles.js (shared with
+// mobile, a fixed contract) still marks them as placeholders.
+const WEB_LIVE_ROUTES = { visitors: "/visitors", staff: "/staff" };
+
+// society_features key behind each tile; a switched-off module's tile is hidden.
+const TILE_FEATURE = {
+  allComplaints: "complaints",
+  myComplaints: "complaints",
+  directory: "directory",
+  notices: "notices",
+  polls: "polls",
+  bookings: "bookings",
+  community: "community",
+  flatActions: "flat_actions",
+  visitors: "visitors",
+  staff: "staff_directory",
+};
+
+/** The web tile set: placeholders with a real screen go live, disabled modules go. */
+export function webTiles(role, enabledFeatures) {
+  const isEnabled = enabledFeatures ? featureChecker(new Set(enabledFeatures)) : () => true;
+  return getRoleTiles(role)
+    .map((tile) =>
+      !tile.live && WEB_LIVE_ROUTES[tile.key]
+        ? { ...tile, live: true, phase: null, route: WEB_LIVE_ROUTES[tile.key] }
+        : tile,
+    )
+    .filter((tile) => !TILE_FEATURE[tile.key] || isEnabled(TILE_FEATURE[tile.key]));
+}
+
 /**
  * @param {object} props
+ * @param {string[]|null} [props.features] enabled feature keys (null = not loaded)
+ * @param {{data?: object, error?: boolean}} [props.adminOverview] society_admin_dashboard
+ *   result for authorities; omitted for everyone else
+ * @param {{data?: object, error?: boolean}} [props.residentOverview] resident_dashboard result
  * @param {string} props.userId
  * @param {string} props.role
  * @param {string|null} props.societyId
@@ -94,6 +131,9 @@ export function DashboardClient({
   societyName,
   fullName,
   initialSummary = null,
+  features = null,
+  adminOverview,
+  residentOverview,
 }) {
   const router = useRouter();
   const { t } = useTranslation("dashboard");
@@ -227,10 +267,11 @@ export function DashboardClient({
     };
   }, [societyId, viewRole]);
 
-  const tiles = getRoleTiles(viewRole);
+  const tiles = webTiles(viewRole, features);
+  const isEnabled = featureChecker(features ? new Set(features) : null);
 
   return (
-    <main className="bg-neutral-50 min-h-screen px-8 py-6">
+    <main className="bg-neutral-50 min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       {/* Heading row — society pill (left) + profile avatar trigger (right). */}
       <header className="flex items-center justify-between mb-6">
         <SocietyHeaderPill societyName={societyName} />
@@ -254,6 +295,14 @@ export function DashboardClient({
 
       {/* Secretary-pinned highlights (water timing, notices…) — live for residents. */}
       <HighlightsStrip societyId={societyId} role={role} />
+
+      {/* Role dashboards (real counts only). Authorities see the society first. */}
+      {adminOverview ? (
+        <SocietyAdminOverview societyId={societyId} initial={adminOverview} isEnabled={isEnabled} />
+      ) : null}
+      {residentOverview ? (
+        <ResidentOverview societyId={societyId} initial={residentOverview} isEnabled={isEnabled} />
+      ) : null}
 
       {/* Tile grid (UI-SPEC §Screen 2 — responsive columns). */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -327,7 +327,7 @@ export function LandingPage({ isSignedIn = false }) {
           readable over it. */}
       <section className="pk-hero relative overflow-hidden">
         <div
-          className={`${SHELL} relative z-10 grid gap-14 pt-14 pb-20 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:gap-14 lg:pt-20 lg:pb-24`}
+          className={`${SHELL} relative z-10 grid gap-14 pt-14 pb-20 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:gap-14 lg:pb-24`}
         >
           <div>
             <span className="pk-in inline-block" style={{ "--d": "60ms" }}>

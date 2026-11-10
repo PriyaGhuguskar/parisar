@@ -1,0 +1,10 @@
+===== CSRF: server action cross-origin Origin check (Next.js 15) =====
+sample action id found: none
+--- A) cross-origin POST (Origin: https://evil.example) with Next-Action header ---
+0:{"a":"$@1","f":"","b":"development"}
+1:E{"digest":"2540017155@E80","name":"Error","message":"Invalid Server Actions request.","stack":[],"env":"Server"}
+
+[HTTP 500]
+
+--- B) same-origin POST baseline (Origin matches Host) ---
+   same-origin -> HTTP 200

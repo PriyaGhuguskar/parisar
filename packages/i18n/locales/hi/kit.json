@@ -1,0 +1,144 @@
+{
+  "_meta": { "locale": "hi", "namespace": "kit" },
+  "form": {
+    "required": "आवश्यक",
+    "optional": "वैकल्पिक"
+  },
+  "phone": {
+    "countryCode": "भारत, देश कोड +91",
+    "placeholder": "98765 43210",
+    "invalid": "6, 7, 8 या 9 से शुरू होने वाला 10 अंकों का मोबाइल नंबर दर्ज करें।"
+  },
+  "date": {
+    "placeholder": "तारीख चुनें",
+    "clear": "तारीख हटाएं",
+    "nav": "महीना बदलें",
+    "nextMonth": "अगला महीना",
+    "previousMonth": "पिछला महीना",
+    "monthDropdown": "महीना",
+    "yearDropdown": "वर्ष",
+    "today": "आज, {{date}}",
+    "selectedDay": "{{date}}, चुना गया",
+    "loadFailed": "कैलेंडर लोड नहीं हो सका। अपना कनेक्शन जांचें और फिर से कोशिश करें।",
+    "retry": "फिर से कोशिश करें"
+  },
+  "select": {
+    "placeholder": "कोई विकल्प चुनें",
+    "searchPlaceholder": "खोजने के लिए टाइप करें",
+    "noResults": "कोई मिलान नहीं मिला। कुछ और खोजें।",
+    "clear": "चयन हटाएं",
+    "loading": "विकल्प लोड हो रहे हैं…",
+    "results": "{{n}} विकल्प उपलब्ध"
+  },
+  "file": {
+    "choose": "फ़ाइल चुनें",
+    "drop": "या यहां खींचकर लाएं",
+    "constraints": "{{types}}, अधिकतम {{size}}",
+    "constraintsSizeOnly": "अधिकतम {{size}}",
+    "errorType": "इस प्रकार की फ़ाइल की अनुमति नहीं है। {{types}} का उपयोग करें।",
+    "errorSize": "यह फ़ाइल {{actual}} की है। सीमा {{size}} है।",
+    "errorEmpty": "यह फ़ाइल खाली है। कोई दूसरी फ़ाइल चुनें।",
+    "errorUpload": "अपलोड नहीं हो सका। अपना कनेक्शन जांचें और फिर से कोशिश करें।",
+    "uploading": "{{name}} अपलोड हो रही है",
+    "uploaded": "अपलोड हो गई",
+    "retry": "फिर से कोशिश करें",
+    "cancel": "अपलोड रद्द करें",
+    "remove": "फ़ाइल हटाएं"
+  },
+  "stepper": {
+    "label": "प्रगति",
+    "stepOf": "चरण {{current}} / {{total}}",
+    "completed": "पूरा हुआ",
+    "current": "वर्तमान चरण",
+    "upcoming": "शुरू नहीं हुआ",
+    "error": "ध्यान देने की ज़रूरत है"
+  },
+  "table": {
+    "search": "खोजें",
+    "filterAll": "सभी",
+    "results": "{{total}} में से {{from}}–{{to}}",
+    "noResultsTitle": "कोई मिलता-जुलता परिणाम नहीं",
+    "noResultsBody": "कुछ और खोजें या फ़िल्टर हटाएं।",
+    "clearFilters": "फ़िल्टर हटाएं",
+    "emptyTitle": "यहां अभी कुछ नहीं है",
+    "previous": "पिछला",
+    "next": "अगला",
+    "pagination": "पृष्ठ बदलें",
+    "page": "पृष्ठ {{page}} / {{total}}",
+    "actions": "कार्रवाई"
+  },
+  "confirm": {
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "working": "हो रहा है…",
+    "failed": "यह पूरा नहीं हो सका। फिर से कोशिश करें।"
+  },
+  "loading": {
+    "default": "लोड हो रहा है…"
+  },
+  "error": {
+    "title": "यह लोड नहीं हो सका",
+    "body": "अपना कनेक्शन जांचें और फिर से कोशिश करें।",
+    "retry": "फिर से कोशिश करें"
+  },
+  "copy": {
+    "copy": "कॉपी करें",
+    "copied": "कॉपी हो गया",
+    "failed": "कॉपी नहीं हो सका। टेक्स्ट चुनकर स्वयं कॉपी करें।"
+  },
+  "notice": {
+    "dismiss": "बंद करें"
+  },
+  "actions": {
+    "back": "वापस",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "saving": "सहेजा जा रहा है…"
+  },
+  "status": {
+    "new": "नया",
+    "contacted": "संपर्क किया गया",
+    "call_scheduled": "कॉल तय है",
+    "rescheduled": "समय बदला गया",
+    "registered": "पंजीकृत",
+    "approved": "स्वीकृत",
+    "rejected": "अस्वीकृत",
+    "cancelled": "रद्द",
+    "closed": "बंद",
+    "not_started": "शुरू नहीं हुआ",
+    "draft": "ड्राफ़्ट",
+    "in_progress": "जारी है",
+    "submitted": "जमा किया गया",
+    "completed": "पूरा हुआ",
+    "invited": "आमंत्रित",
+    "invite_expired": "आमंत्रण समाप्त",
+    "invite_revoked": "आमंत्रण रद्द",
+    "pending": "लंबित",
+    "pending_verification": "सत्यापन लंबित",
+    "pending_review": "समीक्षा लंबित",
+    "pending_owner_approval": "मालिक की स्वीकृति का इंतज़ार",
+    "pending_committee_approval": "समिति की स्वीकृति का इंतज़ार",
+    "pending_documents": "दस्तावेज़ चाहिए",
+    "verified": "सत्यापित",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय",
+    "suspended": "निलंबित",
+    "declined": "अस्वीकार किया गया",
+    "removed": "हटाया गया",
+    "moved_out": "घर छोड़ दिया",
+    "missing": "उपलब्ध नहीं",
+    "uploaded": "अपलोड हो गया",
+    "under_review": "समीक्षा में",
+    "expired": "समाप्त",
+    "queued": "कतार में",
+    "validating": "जांच जारी",
+    "valid": "मान्य",
+    "invalid": "अमान्य",
+    "importing": "आयात जारी",
+    "imported": "आयात हो गया",
+    "partial": "आंशिक आयात",
+    "failed": "विफल",
+    "skipped": "छोड़ा गया",
+    "duplicate": "दोहराव"
+  }
+}

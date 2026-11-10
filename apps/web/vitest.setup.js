@@ -35,6 +35,13 @@ vi.mock("react-i18next", async () => {
   const enFlatActions = (await import("@parisar/i18n/locales/en/flat-actions.json")).default;
   const enCommunity = (await import("@parisar/i18n/locales/en/community.json")).default;
   const enModeration = (await import("@parisar/i18n/locales/en/moderation.json")).default;
+  const enConnect = (await import("@parisar/i18n/locales/en/connect.json")).default;
+  const enPlatform = (await import("@parisar/i18n/locales/en/platform.json")).default;
+  const enSetupWizard = (await import("@parisar/i18n/locales/en/setup-wizard.json")).default;
+  const enResidentOnboarding = (await import("@parisar/i18n/locales/en/resident-onboarding.json"))
+    .default;
+  const enStaffNav = (await import("@parisar/i18n/locales/en/staff-nav.json")).default;
+  const enKit = (await import("@parisar/i18n/locales/en/kit.json")).default;
   const SHARDS = {
     auth: enAuth,
     dashboard: enDashboard,
@@ -46,6 +53,12 @@ vi.mock("react-i18next", async () => {
     "flat-actions": enFlatActions,
     community: enCommunity,
     moderation: enModeration,
+    connect: enConnect,
+    platform: enPlatform,
+    "setup-wizard": enSetupWizard,
+    "resident-onboarding": enResidentOnboarding,
+    "staff-nav": enStaffNav,
+    kit: enKit,
   };
 
   function resolvePath(obj, path) {

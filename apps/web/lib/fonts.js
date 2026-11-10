@@ -1,43 +1,13 @@
+import { IBM_Plex_Mono, Manrope, Noto_Sans_Devanagari } from "next/font/google";
 import localFont from "next/font/local";
-import {
-  IBM_Plex_Mono,
-  Manrope,
-  Noto_Sans,
-  Noto_Sans_Devanagari,
-  Noto_Serif,
-  Noto_Serif_Devanagari,
-} from "next/font/google";
 
-// Latin (en). Devanagari (hi, mr). Self-hosted via next/font — no Google CDN, no FOUT.
-export const notoSans = Noto_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--font-noto-sans",
-  display: "swap",
-});
-
+// Inter is the single UI family; Noto Sans Devanagari carries hi and mr (Inter has no
+// Devanagari). Manrope and Plex Mono below remain only for the landing page until its
+// owner moves it onto the new tokens. Self-hosted via next/font: no Google CDN.
 export const notoSansDevanagari = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
   weight: ["400", "600"],
   variable: "--font-noto-devanagari",
-  display: "swap",
-});
-
-// Display face for the public landing page. Noto Serif is chosen deliberately
-// over a decorative display font because it has a real Devanagari sibling — so a
-// Hindi/Marathi headline renders in a MATCHING serif instead of falling back to
-// the sans. A trilingual product can't use a Latin-only display face.
-export const notoSerif = Noto_Serif({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-noto-serif",
-  display: "swap",
-});
-
-export const notoSerifDevanagari = Noto_Serif_Devanagari({
-  subsets: ["devanagari"],
-  weight: ["600", "700"],
-  variable: "--font-noto-serif-devanagari",
   display: "swap",
 });
 
@@ -66,9 +36,9 @@ export const manrope = Manrope({
   display: "swap",
 });
 
-// UI face for the signed-in app (sidebar, dashboard, forms). Inter is built for
-// dense, small UI text — compact and very readable at 13–14px. Like Manrope it
-// has no Devanagari, so the app stack falls back to Noto Sans Devanagari.
+// The UI face for every screen except the landing page. Inter is built for dense,
+// small UI text: compact and very readable at 13–14px. It has no Devanagari, so the
+// stack in app/tokens.css falls back to Noto Sans Devanagari.
 //
 // Self-hosted (Latin subset, variable weight 400–700, from Google Fonts, OFL)
 // rather than next/font/google: Next 15.2's Turbopack dev server fails on

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ONB-001",
+    "module": "Authentication",
+    "screen": "Verify OTP",
+    "title": "/verify opened directly shows \"Sent to +91\" with no number and an active Verify button",
+    "steps": "1. Signed out, open http://localhost:3000/verify (no ?phone).",
+    "expected": "Redirect to /login or show \"Enter your number first\".",
+    "actual": "OTP screen with blank number after +91, resend countdown running, Verify button usable.",
+    "severity": "Low",
+    "priority": "P3",
+    "environment": "Local dev: Next.js 15 dev server http://localhost:3000, local Supabase, Chrome headless (Playwright), 2026-11-10",
+    "screenshot": "docs/qa/evidence/onboarding/verify-direct-1280.png",
+    "api_error": "",
+    "status": "Open"
+  }
+]

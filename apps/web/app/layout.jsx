@@ -11,15 +11,7 @@ import "./globals.css";
 // Subpath import: keeps `react-i18next` out of the Server Component bundle.
 import { AUTH_NAMESPACE, NAMESPACES } from "@parisar/i18n/namespaces";
 import { I18nProvider } from "../components/I18nProvider";
-import {
-  inter,
-  manrope,
-  notoSans,
-  notoSansDevanagari,
-  notoSerif,
-  notoSerifDevanagari,
-  plexMono,
-} from "../lib/fonts";
+import { inter, manrope, notoSansDevanagari, plexMono } from "../lib/fonts";
 import { initTranslations, readLocaleFromCookies } from "../lib/i18n/server";
 
 export const metadata = {
@@ -47,10 +39,9 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FBF6EE" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E1F19" },
-  ],
+  // Matches --background. App screens do not follow the OS dark preference
+  // (app/tokens.css), so one colour; the landing page sets its own in app/page.jsx.
+  themeColor: "#F8FAFC",
 };
 
 export default async function RootLayout({ children }) {
@@ -69,10 +60,7 @@ export default async function RootLayout({ children }) {
       className={[
         inter.variable,
         manrope.variable,
-        notoSans.variable,
         notoSansDevanagari.variable,
-        notoSerif.variable,
-        notoSerifDevanagari.variable,
         plexMono.variable,
       ].join(" ")}
     >

@@ -12,7 +12,7 @@ import Link from "next/link";
 
 export function PageHeader({ eyebrow, title, description, actions, backHref, backLabel }) {
   return (
-    <header className="pk-in mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+    <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         {backHref ? (
           <Link
@@ -22,24 +22,18 @@ export function PageHeader({ eyebrow, title, description, actions, backHref, bac
             // — under the 24px WCAG 2.2 AA floor (2.5.8). Vertical padding plus
             // min-h-11 gives a thumb something to hit; the negative margins keep
             // the header's existing spacing and left alignment untouched.
-            className="pk-ul -mx-2 mb-1 inline-flex min-h-11 items-center gap-1.5 rounded px-2 py-2 text-sm font-semibold text-[var(--color-brand-600)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
+            className="focus-ring type-body-sm -mx-2 mb-1 inline-flex min-h-11 items-center gap-1.5 rounded px-2 py-2 font-medium text-primary hover:underline"
           >
-            <ArrowLeft size={15} strokeWidth={2.4} aria-hidden="true" />
+            <ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" />
             {backLabel}
           </Link>
         ) : null}
         {eyebrow ? (
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.13em] text-[var(--color-brand-600)]">
-            {eyebrow}
-          </p>
+          <p className="type-caption mb-1.5 font-semibold text-primary">{eyebrow}</p>
         ) : null}
-        <h1 className="text-[26px] font-extrabold leading-[1.15] tracking-[-0.025em] text-[var(--color-neutral-900)] sm:text-[30px]">
-          {title}
-        </h1>
+        <h1 className="type-h1 text-foreground">{title}</h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[var(--color-neutral-600)]">
-            {description}
-          </p>
+          <p className="type-body mt-1.5 max-w-2xl text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

@@ -7,12 +7,13 @@
 
 import { guardCreateVisit, guardListFlats } from "@parisar/api-client";
 import { Check, DoorOpen, LogOut, ShieldCheck, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SosAlerts } from "@/components/sos/SosAlerts";
 import { resetDashboardSummary } from "@/lib/dashboard-summary-store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "../shared/realtime";
+import { SecurityOverview } from "./SecurityOverview";
 
 const FIELD =
   "h-12 w-full rounded-xl border border-[var(--color-neutral-200)] bg-white px-3.5 text-[15px] outline-none focus:border-[var(--color-brand-500)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-500)_16%,transparent)]";
@@ -58,6 +59,14 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Bumped on every visitor change so the day's numbers reload with the list.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const flatSelect = useRef(null);
+
+  function focusNewVisitor() {
+    flatSelect.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    flatSelect.current?.focus();
+  }
 
   const loadRequests = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -84,7 +93,10 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "visitor_requests", ...filter },
-        () => loadRequests(),
+        () => {
+          loadRequests();
+          setRefreshKey((k) => k + 1);
+        },
       )
       .subscribe();
     return () => {
@@ -122,6 +134,7 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
       setName("");
       setPhone("");
       setPurpose("");
+      setRefreshKey((k) => k + 1);
       await loadRequests();
     } catch (err) {
       setError(t(raiseErrorKey(err?.message)));
@@ -141,7 +154,7 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--color-neutral-50)" }}>
-      <div className="mx-auto w-full max-w-lg px-5 py-8">
+      <div className="mx-auto w-full max-w-lg px-4 py-6 sm:px-5 sm:py-8 md:max-w-3xl">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -168,6 +181,13 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
           </button>
         </div>
 
+        {/* Today at the gate: large tiles plus the New visitor shortcut. */}
+        <SecurityOverview
+          societyId={societyId}
+          refreshKey={refreshKey}
+          onNewVisitor={focusNewVisitor}
+        />
+
         {/* Emergency SOS alerts targeted at the watchman */}
         <SosAlerts />
 
@@ -183,7 +203,13 @@ export function GuardClient({ guardName, societyName, societyId = null }) {
             <span className="text-[13px] font-bold text-[var(--color-neutral-900)]">
               {t("visitor.flat")}
             </span>
-            <select value={flatId} onChange={(e) => setFlatId(e.target.value)} className={FIELD}>
+            <select
+              ref={flatSelect}
+              id="gate-flat"
+              value={flatId}
+              onChange={(e) => setFlatId(e.target.value)}
+              className={FIELD}
+            >
               <option value="">{t("visitor.pickFlat")}</option>
               {wings.map((w) => (
                 <optgroup key={w.id} label={w.name}>

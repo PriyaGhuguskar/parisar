@@ -30,6 +30,7 @@
 //   /dev-login?next=/community → land somewhere other than the dashboard
 
 import { NextResponse } from "next/server";
+import { safeNextPath } from "@/lib/auth/loginMode";
 import { devRoutesEnabled } from "@/lib/devRoutes";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -54,9 +55,8 @@ export async function GET(request) {
   }
   const phone = `+91${digits}`;
   // Keep the redirect internal — never bounce to an external origin.
-  const nextParam = url.searchParams.get("next") ?? "/dashboard";
-  // "/x" only — "//evil.com" and "/\evil.com" are protocol-relative to browsers.
-  const next = /^\/(?![/\\])/.test(nextParam) ? nextParam : "/dashboard";
+  // "/x" only — "//evil.com", "/\evil.com" and "/\t/evil.com" leave the origin.
+  const next = safeNextPath(url.searchParams.get("next"), "/dashboard");
 
   const supabase = await createSupabaseServerClient();
 

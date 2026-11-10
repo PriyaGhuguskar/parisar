@@ -1,11 +1,13 @@
-import { EnrollPage } from "@/components/landing/EnrollForm";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Enroll your society — Parisar",
-  description:
-    "Tell us about your society and we'll call you back to set it up. You'll leave the call with the code your residents use to join.",
-};
-
-export default function Enroll() {
-  return <EnrollPage />;
+// /enroll moved to /connect. Middleware already redirects (lib/supabase/middleware.js,
+// PUBLIC_REDIRECTS); this covers any request that reaches the page anyway, and keeps
+// the query string so shared links still work.
+export default async function Enroll({ searchParams }) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries((await searchParams) ?? {})) {
+    for (const item of [].concat(value)) params.append(key, String(item));
+  }
+  const query = params.toString();
+  redirect(query ? `/connect?${query}` : "/connect");
 }

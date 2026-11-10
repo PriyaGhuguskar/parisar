@@ -37,7 +37,15 @@ export function loginModeFromState(s) {
   return "code";
 }
 
-/** Only same-origin paths ("/x", never "//x" or "/\x"); else the fallback. */
+/**
+ * Only same-origin paths ("/x", never "//x" or "/\x"); else the fallback.
+ * Whitespace, control characters and backslashes are refused anywhere: browsers
+ * strip tab/CR/LF from URLs and read "\" as "/", so "/\t/evil.com" (from
+ * ?next=/%09/evil.com) would otherwise land on //evil.com.
+ */
 export function safeNextPath(next, fallback = "/dashboard") {
-  return typeof next === "string" && /^\/(?![/\\])/.test(next) ? next : fallback;
+  if (typeof next !== "string" || next.length > 2048) return fallback;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+  if (/[\s\\\u0000-\u001f\u007f]/.test(next)) return fallback;
+  return /^\/(?!\/)/.test(next) ? next : fallback;
 }

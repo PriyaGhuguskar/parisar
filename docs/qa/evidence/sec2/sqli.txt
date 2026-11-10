@@ -1,0 +1,33 @@
+===== SQLi: PostgREST filter injection (authenticated owner 17) =====
+--- filter: societies?name=eq.x'or'1'='1 ---
+[]
+--- filter: societies?select=id&order=name;drop (malformed) ---
+{"code":"PGRST100","details":"unexpected ';' expecting letter, digit, \"-\", \"->>\", \"->\", delimiter (.), \",\" or end of input","hint":null,"message":"\"failed to parse order (name;drop table societies)\" (line 1, column 5)"}
+--- union-ish in filter value ---
+{"code":"42703","details":null,"hint":null,"message":"column complaints.title does not exist"}
+===== SQLi: RPC text params (public) =====
+--- get_connect_request_status with injection in code + phone ---
+{"error": "REQUEST_NOT_FOUND"}
+--- society code lookup RPC search for ;drop ---
+"list_society_structure"
+"onboard_flats_for_code"
+"onboard_structure_for_code"
+"validate_society_code"
+--- try join_society_by_code with injection (as 17, already member) ---
+candidate code RPCs: "joined_at"
+"redeem_society_code"
+"resume_society_code"
+"rotate_society_code"
+"validate_society_code"
+packages/api-client/src/society.js: * Calls: validate_society_code(p_code)
+packages/api-client/src/society.js:  const { data, error } = await supabase.rpc("validate_society_code", { p_code: formatted });
+packages/api-client/src/society.js: * Calls: redeem_society_code(p_code, p_flat_id, p_residency, p_household, p_emergency)
+packages/api-client/src/society.js:  const { data, error } = await supabase.rpc("redeem_society_code", {
+packages/api-client/src/society.js-    p_code: formatted,
+packages/api-client/src/society.js-    p_flat_id: flatId,
+packages/api-client/src/society.js-    p_residency: residency,
+--- validate_society_code with ' or 1=1-- ---
+{"code":"42501","details":null,"hint":null,"message":"permission denied for function validate_society_code"}
+{"code":"42501","details":null,"hint":null,"message":"permission denied for function validate_society_code"}
+--- union attempt ---
+{"code":"42501","details":null,"hint":null,"message":"permission denied for function validate_society_code"}

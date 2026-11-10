@@ -609,24 +609,22 @@ describe("public enrollment form throttle", () => {
     cleanup.leadPhones.push(...phones);
     await admin.from("society_enrollment_requests").delete().in("phone", phones);
 
-    for (const phone of phones.slice(0, 5)) {
-      const { error } = await anon.from("society_enrollment_requests").insert({
-        society_name: "Logic Heights",
-        contact_name: "Logic Tester",
-        phone,
-        preferred_slot: "Morning",
-        // enrollment_validate_slot (017) requires call_now or preferred_at.
-        call_now: true,
+    // 091: the table takes no direct inserts; the public RPC is the only way in,
+    // and throttle_public_lead still fires on its insert.
+    await admin.from("edge_rate_events").delete().like("bucket", "rpc:connect%");
+    const submit = (phone) =>
+      anon.rpc("submit_connect_request", {
+        p_society_name: "Logic Heights",
+        p_contact_name: "Logic Tester",
+        p_phone: phone,
+        p_call_now: true,
       });
+    for (const phone of phones.slice(0, 5)) {
+      const { data, error } = await submit(phone);
       expect(error).toBeNull();
+      expect(data.request_code).toMatch(/^PR-/);
     }
-    const { error } = await anon.from("society_enrollment_requests").insert({
-      society_name: "Logic Heights",
-      contact_name: "Logic Tester",
-      phone: phones[5],
-      preferred_slot: "Morning",
-      call_now: true,
-    });
+    const { error } = await submit(phones[5]);
     expect(errText(error)).toContain("RATE_LIMITED");
   });
 });

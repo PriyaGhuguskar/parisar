@@ -1,15 +1,20 @@
-export * from "./authorities.js";
-export { derivePinSecret } from "./auth/pin-secret.js";
 export * from "./amenities-admin.js";
+export { derivePinSecret } from "./auth/pin-secret.js";
+export * from "./authorities.js";
+export * from "./authority-login.js";
 export * from "./bookings.js";
 export * from "./community.js";
 export * from "./complaints.js";
+export * from "./connect-requests.js";
 export * from "./dashboard.js";
+export * from "./facilities.js";
+export * from "./feature-requests.js";
 // Phase 7 IN-02 — unified fine-overdue helpers (single source, 3-arg signature
 // (fineStatus, dueDate, nowMs)). Both apps re-export from this module.
 export { isOverdue, overdueDays } from "./fines/fine-overdue.js";
 export * from "./flat-actions.js";
 export * from "./highlights.js";
+export * from "./household.js";
 export {
   fileNotification,
   getNoticeDetail,
@@ -22,11 +27,10 @@ export {
   subscribeToNotices,
   uploadNoticeAttachmentWeb,
 } from "./notifications.js";
+// Society onboarding (docs/onboarding/API.md).
+export { callOnboardingRpc, onboardingErrorCode } from "./onboarding-rpc.js";
 export * from "./otp.js";
 export * from "./polls.js";
-// Six-role expansion — the single place web and mobile agree on what the roles
-// are, which surface each one lands on, and that surface's route id.
-export * from "./roles.js";
 // Phase 5 — notifications, polls, bookings, preferences.
 // preferences.js owns ensureNotificationPreferences; notifications.js re-exports it
 // for its own module consumers. Export preferences explicitly (named) so the
@@ -38,12 +42,22 @@ export {
   getNotificationPreferences,
   updateNotificationPreference,
 } from "./preferences.js";
+export * from "./resident-details.js";
+export * from "./resident-flows.js";
+export * from "./resident-import.js";
+export * from "./resident-verification.js";
+export * from "./role-dashboards.js";
+// Six-role expansion — the single place web and mobile agree on what the roles
+// are, which surface each one lands on, and that surface's route id.
+export * from "./roles.js";
 export * from "./society.js";
+export * from "./society-registration.js";
+export * from "./society-setup.js";
 export * from "./sos.js";
 export * from "./staff.js";
-export * from "./facilities.js";
-export * from "./feature-requests.js";
+export * from "./staff-dashboards.js";
+export * from "./staff-details.js";
 export * from "./supabase.js";
-export * from "./visitors.js";
 // Phase 7 WR-03 — shared grapheme helper for cross-platform avatar initials/color.
 export { graphemes } from "./text/graphemes.js";
+export * from "./visitors.js";

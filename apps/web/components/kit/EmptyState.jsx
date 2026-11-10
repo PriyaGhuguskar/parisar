@@ -8,25 +8,20 @@
 
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
-    <div className="pk-in flex flex-col items-center rounded-[18px] border border-dashed border-[var(--color-neutral-200)] bg-[var(--color-neutral-0)] px-6 py-14 text-center">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
       {Icon ? (
         <span
           aria-hidden="true"
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: "var(--color-brand-50)", color: "var(--color-brand-600)" }}
+          className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-foreground"
         >
-          <Icon size={24} strokeWidth={1.9} />
+          <Icon size={22} strokeWidth={1.9} />
         </span>
       ) : null}
-      <p className="text-[17px] font-bold tracking-[-0.01em] text-[var(--color-neutral-900)]">
-        {title}
-      </p>
+      <p className="type-h3 text-foreground">{title}</p>
       {description ? (
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--color-neutral-600)]">
-          {description}
-        </p>
+        <p className="type-body mt-1.5 max-w-sm text-muted-foreground">{description}</p>
       ) : null}
-      {action ? <div className="mt-6">{action}</div> : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }

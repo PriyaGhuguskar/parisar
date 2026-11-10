@@ -19,8 +19,9 @@
 //   · A wordmark now sits above the society switcher. Previously the first thing
 //     in the sidebar was a switcher reading "Society", so the product had no name
 //     anywhere in the signed-in app.
-//   · Nav is split into two groups. The main six are places you GO; Profile is
-//     your account. Mixing them made Profile look like a seventh society screen.
+//   · Nav is grouped by role (lib/nav/sidebarNav.js): authorities get the brief's
+//     Society Admin groups, residents a shorter set. Anything the society has
+//     switched off (my_society_features) or that has no module is not rendered.
 //   · The active item carries a brand tint AND a left accent bar, not colour
 //     alone — the same rule used for status elsewhere in the product.
 //
@@ -28,26 +29,14 @@
 
 "use client";
 
-import {
-  BarChart3,
-  Bell,
-  Building2,
-  Calendar,
-  CalendarClock,
-  DoorOpen,
-  LayoutDashboard,
-  MessageSquareWarning,
-  ShieldCheck,
-  User,
-  UserRound,
-  Users2,
-} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resetDashboardSummary } from "../lib/dashboard-summary-store";
+import { buildSidebarNav } from "../lib/nav/sidebarNav";
+import { useSocietyFeatures } from "../lib/nav/useSocietyFeatures";
 import { createSupabaseBrowserClient } from "../lib/supabase/client";
 import { ProfileMenuDropdown } from "./dashboard/ProfileMenuDropdown";
 import { SocietySwitcherDropdown } from "./dashboard/SocietySwitcherDropdown";
@@ -87,8 +76,8 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { t } = useTranslation("dashboard");
-  const { t: tv } = useTranslation("auth"); // visitor.* live in the flat "auth" file
+  const { t } = useTranslation("dashboard"); // switcher.* stays in the dashboard shard
+  const { t: tn } = useTranslation("staff-nav");
   const p = pathname || "";
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchError, setSwitchError] = useState(null);
@@ -137,74 +126,13 @@ export function AppSidebar({
     }
   }
 
-  // Built inside the component so locale changes refresh the labels (Plan 07-06).
-  const SOCIETY_NAV = [
-    { href: "/dashboard", label: t("nav.home"), icon: LayoutDashboard, active: p === "/dashboard" },
-    {
-      href: "/my-complaints",
-      label: t("nav.myComplaints"),
-      icon: MessageSquareWarning,
-      active: p.startsWith("/my-complaints"),
-    },
-    { href: "/notices", label: t("tiles.notices"), icon: Bell, active: p.startsWith("/notices") },
-    { href: "/polls", label: t("tiles.polls"), icon: BarChart3, active: p.startsWith("/polls") },
-    {
-      href: "/bookings",
-      label: t("tiles.bookings"),
-      icon: Calendar,
-      active: p.startsWith("/bookings"),
-    },
-    {
-      href: "/community",
-      label: t("tiles.community"),
-      icon: Users2,
-      active: p.startsWith("/community"),
-    },
-    {
-      href: "/visitors",
-      label: tv("visitor.inboxTitle"),
-      icon: DoorOpen,
-      active: p.startsWith("/visitors"),
-    },
-    {
-      href: "/staff",
-      label: tv("staff.title"),
-      icon: UserRound,
-      active: p.startsWith("/staff"),
-    },
-    {
-      href: "/facilities",
-      label: tv("facility.title"),
-      icon: CalendarClock,
-      active: p.startsWith("/facilities"),
-    },
-  ];
+  // Role- and feature-driven groups (lib/nav/sidebarNav.js). Items for modules the
+  // society has switched off, or that do not exist, are never rendered.
+  const features = useSocietyFeatures(societyId);
+  const groups = buildSidebarNav({ role, isEnabled: features.isEnabled, pathname: p });
 
-  // Society authorities (secretary/co-secretary role) get the Society Dashboard —
-  // their society-management hub — plus the Society profile (wings, guards,
-  // amenities), right above their personal Profile.
-  const isManager = role === "secretary" || role === "co_secretary";
-  const ACCOUNT_NAV = [
-    ...(isManager
-      ? [
-          {
-            href: "/society-dashboard",
-            label: tv("authority.societyDashboard"),
-            icon: ShieldCheck,
-            active: p.startsWith("/society-dashboard"),
-          },
-          {
-            href: "/society",
-            label: tv("profile.societyProfile"),
-            icon: Building2,
-            active: p === "/society" || p.startsWith("/society/"),
-          },
-        ]
-      : []),
-    { href: "/profile", label: t("nav.profile"), icon: User, active: p === "/profile" },
-  ];
-
-  function renderItem({ href, label, icon: Icon, active }) {
+  function renderItem({ id, href, icon: Icon, active }) {
+    const label = tn(`nav.${id}`);
     return (
       <SidebarMenuItem key={href}>
         {/* This project's shadcn layer is built on @base-ui/react, which composes
@@ -214,7 +142,7 @@ export function AppSidebar({
         <SidebarMenuButton
           render={<Link href={href} aria-current={active ? "page" : undefined} />}
           isActive={active}
-          className="group/nav relative h-9 gap-3 rounded-[8px] px-3 text-[13.5px] font-medium transition-colors"
+          className="group/nav relative min-h-11 gap-3 rounded-[8px] px-3 text-[13.5px] font-medium transition-colors md:min-h-9"
           style={
             active
               ? {
@@ -279,7 +207,7 @@ export function AppSidebar({
         </div>
 
         {/* Emergency SOS — reachable from every page, not just home. */}
-        {societyId ? (
+        {societyId && features.isEnabled("sos") ? (
           <SosButton
             societyId={societyId}
             triggerClassName="mt-1 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-white transition-transform active:scale-[0.99]"
@@ -288,17 +216,35 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent className="px-3 pt-2">
-        <SidebarMenu className="gap-1">{SOCIETY_NAV.map(renderItem)}</SidebarMenu>
-
-        {/* Divider before the account group: Profile is not a seventh society
-            screen, and grouping says so without needing a label. */}
-        <span
-          aria-hidden="true"
-          className="mx-1 my-3 block h-px"
-          style={{ backgroundColor: "var(--color-neutral-200)" }}
-        />
-
-        <SidebarMenu className="gap-1">{ACCOUNT_NAV.map(renderItem)}</SidebarMenu>
+        <nav aria-label={tn("nav.label")} className="flex flex-col gap-4 pb-4">
+          {groups.map((group) => (
+            <section key={group.id} aria-labelledby={`nav-group-${group.id}`}>
+              <h2
+                id={`nav-group-${group.id}`}
+                className={
+                  group.id === "main"
+                    ? "sr-only"
+                    : "type-caption mb-1 px-3 font-medium text-muted-foreground"
+                }
+              >
+                {tn(`group.${group.id}`)}
+              </h2>
+              <SidebarMenu className="gap-0.5">{group.items.map(renderItem)}</SidebarMenu>
+            </section>
+          ))}
+          {features.status === "error" ? (
+            <output className="block px-3">
+              <p className="type-body-sm text-muted-foreground">{tn("nav.featuresFailed")}</p>
+              <button
+                type="button"
+                onClick={features.retry}
+                className="focus-ring mt-1 inline-flex min-h-11 items-center text-[13px] font-semibold text-primary underline underline-offset-4"
+              >
+                {tn("nav.retry")}
+              </button>
+            </output>
+          ) : null}
+        </nav>
       </SidebarContent>
 
       <SidebarFooter className="px-3 pb-4">

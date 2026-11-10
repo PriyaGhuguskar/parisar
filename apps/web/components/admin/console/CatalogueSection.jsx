@@ -1,4 +1,74 @@
-import { Check, Pencil } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
+import { useState } from "react";
+
+const MAX_PRICE = 999999;
+
+/** Inline list-price editor: amount, Save, Cancel, and the server's error. */
+function PriceEditor({ feature, priceEdit, setPriceEdit, saveListPrice }) {
+  const [saving, setSaving] = useState(false);
+  const empty = priceEdit.val === "";
+
+  async function save() {
+    if (empty || saving) return;
+    setSaving(true);
+    const error = await saveListPrice(feature.key, Number(priceEdit.val));
+    setSaving(false);
+    if (error) setPriceEdit({ ...priceEdit, error });
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="flex items-center gap-1">
+        <span className="text-[15px] font-extrabold text-[var(--color-neutral-400)]">₹</span>
+        <input
+          // biome-ignore lint/a11y/noAutofocus: opened by the Edit button
+          autoFocus
+          inputMode="numeric"
+          aria-label={`New monthly price for ${feature.name}, in rupees`}
+          aria-invalid={Boolean(priceEdit.error) || empty}
+          value={priceEdit.val}
+          disabled={saving}
+          onChange={(e) =>
+            setPriceEdit({
+              key: feature.key,
+              val: e.target.value.replace(/\D/g, "").slice(0, String(MAX_PRICE).length),
+              error: null,
+            })
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") setPriceEdit(null);
+          }}
+          className="h-9 w-24 rounded-lg border border-[var(--color-brand-500)] px-2 text-right text-[15px] font-extrabold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
+        />
+        <span className="text-[13px] font-semibold text-[var(--color-neutral-500)]">/mo</span>
+        <button
+          type="button"
+          onClick={save}
+          disabled={empty || saving}
+          className="pk-press ml-1 inline-flex min-h-9 items-center gap-1 rounded-lg bg-[var(--color-brand-600)] px-2.5 text-[13px] font-semibold text-white disabled:opacity-50"
+        >
+          <Check size={14} strokeWidth={3} aria-hidden="true" />
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPriceEdit(null)}
+          disabled={saving}
+          className="pk-press inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--color-neutral-200)] px-2.5 text-[13px] font-semibold text-[var(--color-neutral-700)] hover:bg-[var(--color-neutral-100)]"
+        >
+          <X size={14} strokeWidth={2.5} aria-hidden="true" />
+          Cancel
+        </button>
+      </span>
+      {priceEdit.error || empty ? (
+        <p role="alert" className="text-[12px] font-medium text-[var(--color-danger-600,#C0341B)]">
+          {priceEdit.error || "Enter an amount in rupees."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function CatalogueSection({ isAdmin, features, priceEdit, setPriceEdit, saveListPrice }) {
   return (
@@ -34,51 +104,29 @@ export function CatalogueSection({ isAdmin, features, priceEdit, setPriceEdit, s
                   Included
                 </span>
               ) : priceEdit?.key === f.key ? (
-                <span className="flex items-center gap-1">
-                  <span className="text-[15px] font-extrabold text-[var(--color-neutral-400)]">
-                    ₹
+                <PriceEditor
+                  feature={f}
+                  priceEdit={priceEdit}
+                  setPriceEdit={setPriceEdit}
+                  saveListPrice={saveListPrice}
+                />
+              ) : isAdmin ? (
+                <span className="flex items-center gap-2">
+                  <span className="text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
+                    ₹{f.price_monthly}/mo
                   </span>
-                  <input
-                    // biome-ignore lint/a11y/noAutofocus: opened on click
-                    autoFocus
-                    inputMode="numeric"
-                    value={priceEdit.val}
-                    onChange={(e) =>
-                      setPriceEdit({
-                        key: f.key,
-                        val: e.target.value.replace(/\D/g, "").slice(0, 6),
-                      })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveListPrice(f.key, Number(priceEdit.val) || 0);
-                      if (e.key === "Escape") setPriceEdit(null);
-                    }}
-                    className="h-9 w-20 rounded-lg border border-[var(--color-brand-500)] px-2 text-right text-[15px] font-extrabold tabular-nums outline-none"
-                  />
                   <button
                     type="button"
-                    aria-label="Save price"
-                    onClick={() => saveListPrice(f.key, Number(priceEdit.val) || 0)}
-                    className="pk-press rounded-md p-1.5 text-[var(--color-brand-600)] hover:bg-[var(--color-brand-50)]"
+                    onClick={() =>
+                      setPriceEdit({ key: f.key, val: String(f.price_monthly), error: null })
+                    }
+                    aria-label={`Edit price for ${f.name}`}
+                    className="pk-press inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--color-neutral-200)] px-2.5 text-[13px] font-semibold text-[var(--color-neutral-700)] hover:bg-[var(--color-neutral-100)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
                   >
-                    <Check size={16} strokeWidth={3} />
+                    <Pencil size={13} strokeWidth={2.2} aria-hidden="true" />
+                    Edit
                   </button>
                 </span>
-              ) : isAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => setPriceEdit({ key: f.key, val: String(f.price_monthly) })}
-                  className="pk-press group/p flex items-center gap-1.5 rounded-lg px-2 py-1 text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)] hover:bg-[var(--color-neutral-100)]"
-                  title="Edit list price"
-                >
-                  ₹{f.price_monthly}/mo
-                  <Pencil
-                    size={13}
-                    strokeWidth={2.2}
-                    aria-hidden="true"
-                    className="text-[var(--color-neutral-400)] opacity-0 transition-opacity group-hover/p:opacity-100"
-                  />
-                </button>
               ) : (
                 <span className="text-[15px] font-extrabold tabular-nums text-[var(--color-neutral-900)]">
                   from ₹{f.price_monthly}/mo
@@ -90,7 +138,7 @@ export function CatalogueSection({ isAdmin, features, priceEdit, setPriceEdit, s
       </div>
       <p className="mt-4 text-[12px] leading-relaxed text-[var(--color-neutral-400)]">
         {isAdmin
-          ? "Tap a price to set the floor — the minimum any society can be charged for that feature. Core features are always on and never billed."
+          ? "Use Edit to set a feature's list price: the minimum any society can be charged for it. Core features are always on and never billed. Every change is recorded in the audit log."
           : "These are floor prices set by admin. When you enable a feature for a society you can charge this or more, never less."}
       </p>
     </>

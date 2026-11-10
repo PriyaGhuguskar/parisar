@@ -1,0 +1,4 @@
+# token claims (decoded, token not printed)
+9000000009 {"provider":"phone","providers":["phone"],"role":null,"society_id":null} [{"method":"otp","timestamp":1794302070}] lifetime_s 3600 refresh_token true
+9000000017 {"provider":"phone","providers":["phone"],"role":"member","society_id":"06d44e6a-0eed-41c4-b64f-a21b30123ef7"} [{"method":"otp","timestamp":1794302070}] lifetime_s 3600 refresh_token true
+9000000019 {"provider":"phone","providers":["phone"],"role":"member","society_id":"06d44e6a-0eed-41c4-b64f-a21b30123ef7"} [{"method":"otp","timestamp":1794302169}] lifetime_s 3600 refresh_token true
